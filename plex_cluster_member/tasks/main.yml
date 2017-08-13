@@ -1,0 +1,176 @@
+---
+# tasks file for plex_cluster_member
+- hosts: all
+  remote_user: root
+  pre_tasks:
+  - name: ensure nic is set to come up on boot
+    lineinfile:
+      path: /etc/sysconfig/network-scripts/ifcfg-enp3s0
+      regexp: '^ONBOOT'
+      line: 'ONBOOT=yes'
+  - name: install deltarpm
+    yum:
+      name: deltarpm
+      state: latest
+  - name: update
+    yum:
+      name: '*'
+      state: latest
+  - name: install common tools and other deps
+    yum: pkg={{item}} state=installed
+    with_items:
+     - lm_sensors
+     - sysstat
+     - iotop
+     - screen
+     - docker
+     - docker-python
+     - unzip
+     - kernel-devel
+     - sdparm
+     - nfs-utils
+     - lsof
+  - name: install zfs repo
+    yum:
+      name: http://download.zfsonlinux.org/epel/zfs-release.el7_3.noarch.rpm
+      state: present
+  - name: disable default broken zfs repo
+    ini_file:
+      path: /etc/yum.repos.d/zfs.repo
+      section: zfs
+      option: enabled
+      value: 0
+  - name: enable kmod zfs repo
+    ini_file:
+      path: /etc/yum.repos.d/zfs.repo
+      section: zfs-kmod
+      option: enabled
+      value: 1
+  - name: install zfs
+    yum:
+      name: zfs
+      state: present
+  - name: ensure rc.modules exists
+    file:
+      state: touch
+      path: /etc/rc.modules
+      mode: 0755
+  - name: update rc.modules with zfs
+    lineinfile:
+      path: /etc/rc.modules
+      line: 'modprobe zfs'
+  - name: download tw_cli
+    get_url:
+      url: https://docs.broadcom.com/docs-and-downloads/raid-controllers/raid-controllers-common-files/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+      dest: /root/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+      mode: 0640
+  - name: create tw_cli dir
+    file:
+      path: /opt/tw_cli
+      state: directory
+  - name: extract tw_cli
+    unarchive:
+      remote_src: yes
+      src: /root/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+      dest: /opt/tw_cli
+      creates: /opt/tw_cli/x86_64
+  - name: set tw_cli to executable
+    file:
+      path: /opt/tw_cli/x86_64/tw_cli
+      mode: 0754
+  # TODO: onlyif
+  - name: set controller autocarve off
+    shell: /opt/tw_cli/x86_64/tw_cli /c0 set autocarve=off
+  - name: set controller jbod off
+    shell: /opt/tw_cli/x86_64/tw_cli /c0 set exportjbod=off
+  # TODO: onlyif
+  - name: enable bbu
+    shell: /opt/tw_cli/x86_64/tw_cli /c0/bbu enable
+  - name: disable media scan
+    shell: /opt/tw_cli/x86_64/tw_cli /c0 set verify=disable
+  - name: disable autoverify on disk unit 0
+    shell: /opt/tw_cli/x86_64/tw_cli /c0/u0 set autoverify=off
+  - name: disable autoverify on disk unit 1
+    shell: /opt/tw_cli/x86_64/tw_cli /c0/u1 set autoverify=off
+  - name: disable autoverify on disk unit 2
+    shell: /opt/tw_cli/x86_64/tw_cli /c0/u2 set autoverify=off
+  - name: disable autoverify on disk unit 3
+    shell: /opt/tw_cli/x86_64/tw_cli /c0/u3 set autoverify=off
+  - name: enable firewall for plex
+    firewalld:
+      port: 32400/tcp
+      permanent: true
+      state: enabled
+  - name: create plex root dir
+    file:
+      path: /tank/data0/plex
+      state: directory
+  - name: create plex config dir
+    file:
+      path: /tank/data0/plex/config
+      state: directory
+  - name: create plex movies dir
+    file:
+      path: /tank/data0/plex/movies
+      state: directory
+  - name: create plex music dir
+    file:
+      path: /tank/data0/plex/music
+      state: directory
+  - name: create plex tvshows dir
+    file:
+      path: /tank/data0/plex/tvshows
+      state: directory
+  - name: create plex transcode dir
+    file:
+      path: /tank/data0/plex/transcode
+      state: directory
+  - name: exports
+    lineinfile:
+      path: /etc/exports
+      line: '/tank/data0/plex 192.168.1.0/24(rw,async,no_root_squash,no_all_squash)'
+
+
+
+#  roles:
+#    - role: 'marvinpinto.docker-plex'
+#      docker_plex_container_name: 'plex'
+#      docker_plex_version: 'latest'
+#      docker_plex_mounted_directory: '/tank/data0/plex'
+#      become: true
+
+# zpool create tank raidz sdc sdd sde cache sda
+# zfs create tank/data0
+
+
+# TODO: create volumes in tw_cli
+# TODO: create zpool, vdev's
+# TODO: create L2ARC
+# TODO: create plex data folders
+# TODO: https://galaxy.ansible.com/marvinpinto/docker-plex/
+
+# TODO: enable docker
+# TODO: start docker
+# TODO: docker create --name=plex --net=host --restart=always -e VERSION=latest -e PUID=1001 -e PGID=1001 -e TZ=America/NewYork -v /tank/data0/plex/config:/config:Z -v /tank/data0/plex/tvshows:/data/tvshows:Z -v /tank/data0/plex/movies:/data/movies:Z -v /tank/data0/plex/music:/data/music:Z -v /tank/data0/plex/transcode:/transcode:Z linuxserver/plex
+# TOOD: exports /media/plex_data 192.168.1.0/24(rw,async,no_root_squash,no_all_squash)
+#  - name: create docker plex container
+#    docker_container:
+#      name: plex
+#      image: linuxserver/plex
+#      volumes:
+#        - /data
+
+# TODO: Firewalld stuff (still disabled)
+# TODO: enable / start nfs-server
+
+# ssh keys
+
+# set up raid disks
+
+## single's
+
+# zpool
+
+# exports
+
+# docker container
