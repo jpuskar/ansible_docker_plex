@@ -1,0 +1,20 @@
+---
+- name: download tw_cli
+  get_url:
+    url: https://docs.broadcom.com/docs-and-downloads/raid-controllers/raid-controllers-common-files/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+    dest: /root/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+    mode: 0640
+- name: create tw_cli dir
+  file:
+    path: /opt/tw_cli
+    state: directory
+- name: extract tw_cli
+  unarchive:
+    remote_src: yes
+    src: /root/CLI_linux-from_the_10-2-2-1_9-5-5-1_codesets.zip
+    dest: /opt/tw_cli
+    creates: /opt/tw_cli/x86_64
+- name: set tw_cli to executable
+  file:
+    path: /opt/tw_cli/x86_64/tw_cli
+    mode: 0754

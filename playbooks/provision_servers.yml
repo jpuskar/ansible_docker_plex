@@ -1,0 +1,6 @@
+---
+- name: configure base packages
+  hosts: backup_server
+  roles:
+    - role: common
+    - role: tw_cli
