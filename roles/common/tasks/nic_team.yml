@@ -15,6 +15,7 @@
     conn_name: '{{ item.conn_name }}'
     ip4: '{{ item.ip4 }}'
     gw4: '{{ item.gw4 }}'
+    dns4: '8.8.8.8'
     state: present
   with_items:
     - '{{ nmcli_team }}'
@@ -30,4 +31,4 @@
     - '{{ nmcli_team_slave }}'
 
 - name: up primary team
-  shell: nmcli c up primary
+  shell: nmcli c up team0

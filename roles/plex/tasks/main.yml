@@ -33,7 +33,7 @@
     path: /etc/exports
     line: '/tank/data0/plex 192.168.1.0/24(rw,async,no_root_squash,no_all_squash)'
 
-
+# TODO: LUKS
 
 #  roles:
 #    - role: 'marvinpinto.docker-plex'
