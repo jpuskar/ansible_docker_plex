@@ -1,0 +1,13 @@
+---
+- name: Docker | CE | YUM | Deploy repository
+  shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+  args:
+    creates: /etc/yum.repos.d/docker-ce.repo
+
+- name: Install docker-ce
+  yum:
+    pkg: "{{ item }}"
+    state: installed
+  with_items:
+    - docker-ce
+    - python-docker-py

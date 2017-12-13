@@ -1,46 +1,39 @@
 ---
-- name: enable firewall for plex
-  firewalld:
-    port: 32400/tcp
-    permanent: true
-    state: enabled
 - name: create plex root dir
   file:
-    path: /tank/data0/plex
+    path: "{{ plex_root_dir }}"
     state: directory
-- name: create plex config dir
-  file:
-    path: /tank/data0/plex/config
-    state: directory
-- name: create plex movies dir
-  file:
-    path: /tank/data0/plex/movies
-    state: directory
-- name: create plex music dir
-  file:
-    path: /tank/data0/plex/music
-    state: directory
-- name: create plex tvshows dir
-  file:
-    path: /tank/data0/plex/tvshows
-    state: directory
-- name: create plex transcode dir
-  file:
-    path: /tank/data0/plex/transcode
-    state: directory
+  with_items:
+    - "{{ plex_root_dir }}"
+    - "{{ plex_root_dir }}/movies"
+    - "{{ plex_root_dir }}/music"
+    - "{{ plex_root_dir }}/tvshows"
+    - "{{ plex_root_dir }}/transcode"
+    - "{{ plex_conf_root_dir }}/config"
+
 - name: exports
   lineinfile:
     path: /etc/exports
-    line: '/tank/data0/plex 192.168.1.0/24(rw,async,no_root_squash,no_all_squash)'
+    line: "{{ plex_root_dir }} 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash)"
+
+- name: docker plex group
+  become: true
+  group:
+    name: docker_plex
+    gid: 2020
+    state: present
+
+- name: docker plex user
+  become: true
+  user:
+    name: docker_plex
+    uid: 2020
+    groups: docker_plex,docker
+
+#- name: Manage docker container
+#  include: container.yml
 
 # TODO: LUKS
-
-#  roles:
-#    - role: 'marvinpinto.docker-plex'
-#      docker_plex_container_name: 'plex'
-#      docker_plex_version: 'latest'
-#      docker_plex_mounted_directory: '/tank/data0/plex'
-#      become: true
 
 # zpool create tank raidz sdc sdd sde cache sda
 # zfs create tank/data0
@@ -54,14 +47,6 @@
 
 # TODO: enable docker
 # TODO: start docker
-# TODO: docker create --name=plex --net=host --restart=always -e VERSION=latest -e PUID=1001 -e PGID=1001 -e TZ=America/NewYork -v /tank/data0/plex/config:/config:Z -v /tank/data0/plex/tvshows:/data/tvshows:Z -v /tank/data0/plex/movies:/data/movies:Z -v /tank/data0/plex/music:/data/music:Z -v /tank/data0/plex/transcode:/transcode:Z linuxserver/plex
-# TOOD: exports /media/plex_data 192.168.1.0/24(rw,async,no_root_squash,no_all_squash)
-#  - name: create docker plex container
-#    docker_container:
-#      name: plex
-#      image: linuxserver/plex
-#      volumes:
-#        - /data
 
 # TODO: Firewalld stuff (still disabled)
 # TODO: enable / start nfs-server

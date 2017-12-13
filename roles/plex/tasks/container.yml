@@ -1,0 +1,20 @@
+---
+- name: create the docker plex container
+  become: true
+  shell: >
+    docker ps -a | grep [p]lex || \
+    docker create \
+      --name=plex \
+      --net=host \
+      --restart=always \
+      -e VERSION=latest \
+      -e PUID={{ plex_uid }} -e PGID={{ plex_gid }} \
+      -e TZ=America/NewYork \
+      -v {{ plex_conf_root_dir }}/config:/config:Z \
+      -v {{ plex_root_dir }}/tvshows:/data/tvshows:Z \
+      -v {{ plex_root_dir }}/movies:/data/movies:Z \
+      -v {{ plex_root_dir }}/audiobooks:/data/audiobooks:Z \
+      -v {{ plex_root_dir }}/other_video:/data/other_video:Z \
+      -v {{ plex_root_dir }}/music:/data/music:Z \
+      --mount type=tmpfs,destination=/transcode \
+      linuxserver/plex

@@ -26,13 +26,16 @@
    - sysstat
    - iotop
    - screen
-   - docker
-   - docker-python
    - unzip
    - kernel-devel
    - sdparm
    - nfs-utils
    - lsof
-#   - iftop
+   - rsync
+   - iftop
+   - iperf
+   - yum-utils
 
-- include: nic_team.yml
+#- include: nic_team.yml
+- include: plex_firewalld.yaml
+- include: nfs_firewalld.yaml

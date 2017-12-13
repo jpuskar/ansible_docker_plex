@@ -5,8 +5,18 @@
 #    - role: common
 #    - role: tw_cli
 
-- name: configure plex_master
-  hosts: plex_master
+#- name: configure plex_master
+#  hosts: plex_master
+#  roles:
+#    - role: common
+#    - role: tw_cli
+#    - role: plex
+
+- name: configure backup_server
+  hosts: backup_server
   roles:
     - role: common
     - role: tw_cli
+    - role: wintv
+    - role: docker
+    - role: plex
