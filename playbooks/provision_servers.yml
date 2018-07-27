@@ -3,12 +3,12 @@
   hosts: nfs_master
   become: yes
   roles:
-  - role: common
-  - role: tw_cli
-  - role: zfs
-    #    - role: wintv
-    #    - role: docker
-    #    - role: plex
+    - role: common
+    - role: tw_cli
+    - role: zfs
+#    - role: wintv
+#    - role: docker
+#    - role: plex
 
 - name: configure plex_master
   hosts: plex_master
@@ -16,4 +16,5 @@
   roles:
     - role: common
     - role: tw_cli
+    - role: docker
     - role: plex
