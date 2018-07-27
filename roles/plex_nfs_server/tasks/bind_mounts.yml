@@ -26,7 +26,7 @@
     state: "directory"
   with_items:
     - "/itank0/plex/audiobooks"
-    - "/itank0/plex/config"
+#    - "/itank0/plex/config"
     - "/itank0/plex/movies"
     - "/itank0/plex/music"
     - "/itank0/plex/other_video"
@@ -40,7 +40,7 @@
     state: "directory"
   with_items:
     - "/etank0/plex/audiobooks"
-    - "/etank0/plex/config"
+#    - "/etank0/plex/config"
     - "/etank0/plex/movies"
     - "/etank0/plex/music"
     - "/etank0/plex/other_video"
@@ -54,7 +54,7 @@
     state: "directory"
   with_items:
     - "/data/plex/audiobooks"
-    - "/data/plex/config"
+#    - "/data/plex/config"
     - "/data/plex/movies"
     - "/data/plex/music"
     - "/data/plex/other_video"
@@ -68,7 +68,7 @@
     state: "directory"
   with_items:
     - "/data/plex/audiobooks"
-    - "/data/plex/config"
+#    - "/data/plex/config"
     - "/data/plex/movies"
     - "/data/plex/music"
     - "/data/plex/other_video"
@@ -81,6 +81,7 @@
     name: "/data/plex/{{ item }}/etank0"
     src: "/etank0/plex/{{ item }}"
     opts: "bind"
+    fstype: "zfs"
     state: "mounted"
   with_items:
     - "audiobooks"
