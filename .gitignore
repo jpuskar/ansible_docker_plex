@@ -10,3 +10,4 @@ gen
 *.retry
 
 .vagrant/
+vault_pass
