@@ -1,45 +1,43 @@
 ---
+# TODO: file module
 - name: Make WinTV folder
   shell: mkdir -p /root/wintv
-  become: true
 
 - name: download wintv firmware
-  become: true
   get_url:
     url: "{{ item.url }}"
     dest: "{{ item.dest }}"
     mode: 0640
   with_items:
     - {
-      url: 'http://www.steventoth.net/linux/hvr22xx/firmwares/4038864/v4l-saa7164-1.0.3-3.fw',
-      dest: '/root/wintv/v4l-saa7164-1.0.3-3.fw',
+        url: 'http://www.steventoth.net/linux/hvr22xx/firmwares/4038864/v4l-saa7164-1.0.3-3.fw',
+        dest: '/root/wintv/v4l-saa7164-1.0.3-3.fw',
       }
     - {
-      url: 'http://www.steventoth.net/linux/hvr22xx/extract.sh',
-      dest: '/root/wintv/extract.sh',
+        url: 'http://www.steventoth.net/linux/hvr22xx/extract.sh',
+        dest: '/root/wintv/extract.sh',
       }
     - {
-      url: 'http://www.steventoth.net/linux/hvr22xx/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip',
-      dest: '/root/wintv/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip',
+        url: 'http://www.steventoth.net/linux/hvr22xx/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip',
+        dest: '/root/wintv/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip',
       }
     - {
-      url: 'http://www.steventoth.net/linux/hvr22xx/22xxdrv_27086.zip',
-      dest: '/root/wintv/22xxdrv_27086.zip',
+        url: 'http://www.steventoth.net/linux/hvr22xx/22xxdrv_27086.zip',
+        dest: '/root/wintv/22xxdrv_27086.zip',
       }
 
+# TODO: file module
 - name: chmod wintv firmware extractor
-  become: true
   shell: chmod 0755 /root/wintv/extract.sh
 
 - name: Extract WinTV firmware
-  become: true
   shell: ./extract.sh || exit 1
   args:
     chdir: /root/wintv
     creates: dvb-fe-tda10048-1.0.fw
 
+# TODO: file/copy module
 - name: Install firmware
-  become: true
   shell: cp {{ item }} /lib/firmware
   args:
     chdir: /root/wintv
