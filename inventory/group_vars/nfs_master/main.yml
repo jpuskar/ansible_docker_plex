@@ -13,8 +13,3 @@ nmcli_team_slave:
   - conn_name: slave-enp3s4f1
     ifname: enp3s4f1
     master: team0
-
-plex_root_dir: '/docker/plex'
-plex_conf_root_dir: '/docker/plex'
-plex_uid: 1001
-plex_gid: 1001

@@ -14,7 +14,3 @@ nmcli_team_slave:
     ifname: enp5s0
     master: team0
 
-plex_root_dir: '/tank/data0/plex'
-plex_conf_root_dir: '/tank0/data/plex_config'
-plex_uid: 1001
-plex_gid: 1001
