@@ -1,6 +1,8 @@
 ---
 - name: nic_team | install nmcli deps
-  yum: pkg={{item}} state=installed
+  yum:
+    name: "{{item}}"
+    state: "present"
   with_items:
    - epel-release
    - NetworkManager-glib-devel

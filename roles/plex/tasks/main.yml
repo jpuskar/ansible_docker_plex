@@ -1,4 +1,7 @@
 ---
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
 - name: create docker_plex group
   group:
     name: docker_plex

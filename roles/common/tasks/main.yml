@@ -37,6 +37,5 @@
    - iperf
    - yum-utils
 
-#- include: nic_team.yml
-- include_tasks: plex_firewalld.yaml
-- include_tasks: nfs_firewalld.yaml
+- name: including nic_team tasks
+  include_tasks: nic_team.yml

@@ -1,5 +1,5 @@
 ---
-- name: plex_firewalld | copy plex firewalld service xml file
+- name: firewalld | copy plex firewalld service xml file
   copy:
     content: |
       <?xml version="1.0" encoding="utf-8"?>

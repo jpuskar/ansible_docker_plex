@@ -1,4 +1,7 @@
 ---
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
 - name: create exports directories
   file:
     path: "{{ item }}"
