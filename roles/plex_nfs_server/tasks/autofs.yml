@@ -17,7 +17,7 @@
     - "zusb3.key"
 
 - name: autofs | configure auto.master
-  lineinefile:
+  lineinfile:
     path: "/etc/auto.master"
     regexp: '^/media/crypt'
     line: '/media/crypt    /etc/auto.luks --timeout=300'
