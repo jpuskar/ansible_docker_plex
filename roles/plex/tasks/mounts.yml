@@ -8,7 +8,7 @@
   file:
     state: directory
     path: "/docker/plex"
-    user: docker_plex
+    owner: docker_plex
     group: docker_plex
 
 - name: mounts | register mount options
