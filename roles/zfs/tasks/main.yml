@@ -28,6 +28,7 @@
     state: touch
     path: /etc/rc.modules
     mode: 0755
+  check_mode: no
 
 - name: update rc.modules with zfs
   lineinfile:
