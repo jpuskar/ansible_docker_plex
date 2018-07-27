@@ -2,5 +2,5 @@
 - name: configure plex exports
   lineinfile:
     path: "/etc/exports"
-    regexp: "^\/data\/plex"
-    line: "/data/plex 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash,no_subtree_check,crossmnt)"
+    regexp: '^/data/plex'
+    line: '/data/plex 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash,no_subtree_check,crossmnt)'
