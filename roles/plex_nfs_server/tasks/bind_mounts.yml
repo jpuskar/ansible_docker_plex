@@ -25,28 +25,28 @@
     path: "{{ item }}"
     state: "directory"
   with_items:
-    - "/itank0/plex/audiobooks"
+    - "/itank0/plex1/audiobooks"
 #    - "/itank0/plex/config"
-    - "/itank0/plex/movies"
-    - "/itank0/plex/music"
-    - "/itank0/plex/other_video"
-    - "/itank0/plex/tvshows"
-    - "/itank0/plex/transcode"
-    - "/itank0/plex/sermons"
+    - "/itank0/plex1/movies"
+    - "/itank0/plex1/music"
+    - "/itank0/plex1/other_video"
+    - "/itank0/plex1/tvshows"
+    - "/itank0/plex1/transcode"
+    - "/itank0/plex1/sermons"
 
 - name: bind_mounts | create etank0 directories
   file:
     path: "{{ item }}"
     state: "directory"
   with_items:
-    - "/etank0/plex/audiobooks"
+    - "/etank0/plex1/audiobooks"
 #    - "/etank0/plex/config"
-    - "/etank0/plex/movies"
-    - "/etank0/plex/music"
-    - "/etank0/plex/other_video"
-    - "/etank0/plex/tvshows"
-    - "/etank0/plex/transcode"
-    - "/etank0/plex/sermons"
+    - "/etank0/plex1/movies"
+    - "/etank0/plex1/music"
+    - "/etank0/plex1/other_video"
+    - "/etank0/plex1/tvshows"
+    - "/etank0/plex1/transcode"
+    - "/etank0/plex1/sermons"
 
 - name: bind_mounts | create etank0 exports directories
   file:
@@ -79,7 +79,7 @@
 - name: bind_mounts | configure etank0 bind mounts
   mount:
     name: "/data/plex/{{ item }}/etank0"
-    src: "/etank0/plex/{{ item }}"
+    src: "/etank0/plex1/{{ item }}"
     opts: "bind"
     fstype: "zfs"
     state: "mounted"
