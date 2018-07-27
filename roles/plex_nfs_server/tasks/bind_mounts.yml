@@ -11,6 +11,7 @@
   shell:
     cmd: "zpool list"
   register: zpool_list
+  check_mode: no
 
 - name: bind_mounts | assert that zpools are mounted
   assert:
