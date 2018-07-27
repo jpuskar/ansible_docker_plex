@@ -1,0 +1,12 @@
+#!/bin/bash
+device=$1
+device_crypt=${device}_autocrypt
+
+CRYPTSETUP=/sbin/cryptsetup
+
+mountopts="-fstype=auto"
+
+# map the LUKS device, if not already done
+$CRYPTSETUP luksOpen /dev/${device} ${device_crypt} -d /etc/.keys/${device}.key 2>/dev/null
+
+echo $mountopts / :/dev/mapper/${device_crypt}

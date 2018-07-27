@@ -1,4 +1,15 @@
 ---
+#- name: ensure nic enp3s4f0 is set to come up on boot
+#  lineinfile:
+#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f0
+#    regexp: '^ONBOOT'
+#    line: 'ONBOOT=yes'
+#- name: ensure nic enp3s4f1 is set to come up on boot
+#  lineinfile:
+#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f1
+#    regexp: '^ONBOOT'
+#    line: 'ONBOOT=yes'
+
 - name: nic_team | install nmcli deps
   yum:
     name: "{{item}}"

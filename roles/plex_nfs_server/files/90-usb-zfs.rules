@@ -1,0 +1,4 @@
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="409252f2-5da5-43ce-9e03-c1e3527dec9f", SYMLINK+="zusb0", RUN+="/sbin/cryptsetup --key-file /etc/.keys/zusb0.key luksOpen $env{DEVNAME} zusb0_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="fc688b79-002f-4574-84b3-c2dac7345706", SYMLINK+="zusb1", RUN+="/sbin/cryptsetup --key-file /etc/.keys/zusb1.key luksOpen $env{DEVNAME} zusb1_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="08150d13-b3ef-4af0-ab6f-23f635464e90", SYMLINK+="zusb2", RUN+="/sbin/cryptsetup --key-file /etc/.keys/zusb2.key luksOpen $env{DEVNAME} zusb2_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="e8d49abf-0a38-4cf4-8c83-fe68dc4186ac", SYMLINK+="zusb3", RUN+="/sbin/cryptsetup --key-file /etc/.keys/zusb3.key luksOpen $env{DEVNAME} zusb3_crypt"

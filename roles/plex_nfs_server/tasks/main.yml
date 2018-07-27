@@ -2,87 +2,14 @@
 - name: include firewalld tasks
   include_tasks: firewalld.yml
 
-- name: create exports directories
-  file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - "/data"
-    - "/data/plex"
+- name: include udev_rules tasks
+  include_tasks: udev_rules.yml
 
-- name: create itank0 directories
-  file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - "/itank0/plex/audiobooks"
-    - "/itank0/plex/config"
-    - "/itank0/plex/movies"
-    - "/itank0/plex/music"
-    - "/itank0/plex/other_video"
-    - "/itank0/plex/tvshows"
-    - "/itank0/plex/transcode"
-    - "/itank0/plex/sermons"
+- name: include autofs tasks
+  include_tasks: autofs.yml
 
-- name: create etank0 directories
-  file:
-    path: "{{ item }}"
-    state: directory
-  with_items:
-    - "/etank0/plex/audiobooks"
-    - "/etank0/plex/config"
-    - "/etank0/plex/movies"
-    - "/etank0/plex/music"
-    - "/etank0/plex/other_video"
-    - "/etank0/plex/tvshows"
-    - "/etank0/plex/transcode"
-    - "/etank0/plex/sermons"
+- name: include bind_mounts tasks
+  include_tasks: bind_mounts.yml
 
-- name: create etank0 exports directories
-  file:
-    path: "{{ item }}/etank0"
-    state: directory
-  with_items:
-    - "/data/plex/audiobooks"
-    - "/data/plex/config"
-    - "/data/plex/movies"
-    - "/data/plex/music"
-    - "/data/plex/other_video"
-    - "/data/plex/tvshows"
-    - "/data/plex/transcode"
-    - "/data/plex/sermons"
-
-- name: create itank0 exports directories
-  file:
-    path: "{{ item }}/itank0"
-    state: directory
-  with_items:
-    - "/data/plex/audiobooks"
-    - "/data/plex/config"
-    - "/data/plex/movies"
-    - "/data/plex/music"
-    - "/data/plex/other_video"
-    - "/data/plex/tvshows"
-    - "/data/plex/transcode"
-    - "/data/plex/sermons"
-
-- name: configure etank0 bind mounts
-  mount:
-    name: "/data/plex/{{ item }}/etank0"
-    src: "/etank0/plex/{{ item }}"
-    opts: "bind"
-    state: "mounted"
-  with_items:
-    - "audiobooks"
-    - "movies"
-    - "music"
-    - "other_video"
-    - "tvshows"
-    - "transcode"
-    - "sermons"
-
-- name: configure plex exports
-  lineinfile:
-    path: "/etc/exports"
-    regexp: "^\/data\/plex"
-    line: "/data/plex 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash,no_subtree_check,crossmnt)"
+- name: include exports tasks
+  include_tasks: exports.yml

@@ -27,37 +27,22 @@
 - name: include container tasks
   include_tasks: container.yml
 
-
-
-#- name: Manage docker container
-#  include: container.yml
-
 # TODO: LUKS
 
 # zpool create tank raidz sdc sdd sde cache sda
 # zfs create tank/data0
 
-
 # TODO: create volumes in tw_cli
 # TODO: create zpool, vdev's
 # TODO: create L2ARC
-# TODO: create plex data folders
-# TODO: https://galaxy.ansible.com/marvinpinto/docker-plex/
 
 # TODO: enable docker
 # TODO: start docker
 
-# TODO: Firewalld stuff (still disabled)
 # TODO: enable / start nfs-server
 
 # ssh keys
 
 # set up raid disks
 
-## single's
-
 # zpool
-
-# exports
-
-# docker container
