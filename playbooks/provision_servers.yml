@@ -1,6 +1,7 @@
 ---
 - name: configure nfs_master
   hosts: nfs_master
+  become: yes
   roles:
   - role: common
   - role: tw_cli
@@ -10,6 +11,7 @@
 
 - name: configure plex_master
   hosts: plex_master
+  become: yes
   roles:
     - role: common
     - role: tw_cli
