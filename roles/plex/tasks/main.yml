@@ -1,34 +1,30 @@
 ---
-- name: create plex root dir
-  file:
-    path: "{{ plex_root_dir }}"
-    state: directory
-  with_items:
-    - "{{ plex_root_dir }}"
-    - "{{ plex_root_dir }}/movies"
-    - "{{ plex_root_dir }}/music"
-    - "{{ plex_root_dir }}/tvshows"
-    - "{{ plex_root_dir }}/transcode"
-    - "{{ plex_conf_root_dir }}/config"
-
-- name: exports
-  lineinfile:
-    path: /etc/exports
-    line: "{{ plex_root_dir }} 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash)"
-
 - name: docker plex group
-  become: true
   group:
     name: docker_plex
     gid: 2020
     state: present
 
 - name: docker plex user
-  become: true
   user:
     name: docker_plex
     uid: 2020
     groups: docker_plex,docker
+
+- name: create docker plex_nfs folder (for local configs)
+  file:
+    state: directory
+    path: "/data/docker/plex_nfs/config"
+    owner: docker_plex
+    group: docker_plex
+
+- name: include mounts tasks
+  include_tasks: mounts.yml
+
+- name: include container tasks
+  include_tasks: container.yml
+
+
 
 #- name: Manage docker container
 #  include: container.yml
