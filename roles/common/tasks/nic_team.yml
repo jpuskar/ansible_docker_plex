@@ -1,5 +1,5 @@
 ---
-- name: install nmcli deps
+- name: nic_team | install nmcli deps
   yum: pkg={{item}} state=installed
   with_items:
    - epel-release
@@ -9,7 +9,7 @@
    - libsemanage-python
    - policycoreutils-python
 
-- name: try nmcli add team - conn_name only & ip4 gw4
+- name: nic_team | try nmcli add team - conn_name only & ip4 gw4
   nmcli:
     type: team
     conn_name: '{{ item.conn_name }}'
@@ -20,7 +20,7 @@
   with_items:
     - '{{ nmcli_team }}'
 
-- name: try nmcli add teams-slave
+- name: nic_team | try nmcli add teams-slave
   nmcli:
     type: team-slave
     conn_name: '{{ item.conn_name }}'
@@ -30,5 +30,5 @@
   with_items:
     - '{{ nmcli_team_slave }}'
 
-- name: up primary team
+- name: nic_team | up primary team
   shell: nmcli c up team0

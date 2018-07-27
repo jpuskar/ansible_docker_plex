@@ -1,67 +1,67 @@
 ---
 # TODO: programatically determine number of units and physical disks
-- name: register controller autocarve
+- name: controller_options | register controller autocarve
   shell: /opt/tw_cli/x86_64/tw_cli /c0 show autocarve
   register: c0_autocarve
   # /c0 Auto-Carving Policy = off
 
-- name: register controller exportjbod
+- name: controller_options | register controller exportjbod
   shell: /opt/tw_cli/x86_64/tw_cli /c0 show exportjbod
   register: c0_exportjbod
   # /c0 JBOD Export Policy = off
 
-- name: register controller verify state
+- name: controller_options | register controller verify state
   shell: /opt/tw_cli/x86_64/tw_cli /c0 show exportjbod
   register: c0_verify
   # /c0 basic verify weekly preferred start: Saturday, 12:00AM
 
-- name: register controller verify state
+- name: controller_options | register controller verify state
   shell: /opt/tw_cli/x86_64/tw_cli /c0 show exportjbod
   register: c0_verify
   # /c0 basic verify weekly preferred start: Saturday, 12:00AM
 
-- name: register c0u0 verify state
+- name: controller_options | register c0u0 verify state
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u0 show autoverify
   register: c0u0_verify
   # /c0/u0 Auto Verify Policy = off
 
-- name: register c0u1 verify state
+- name: controller_options | register c0u1 verify state
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u1 show autoverify
   register: c0u1_verify
   # /c0/u0 Auto Verify Policy = off
 
-- name: register c0u2 verify state
+- name: controller_options | register c0u2 verify state
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u2 show autoverify
   register: c0u2_verify
   # /c0/u0 Auto Verify Policy = off
 
-- name: register controller bbu state
+- name: controller_options | register controller bbu state
   shell: /opt/tw_cli/x86_64/tw_cli /c0/bbu show
   register: c0_bbu
   # Name  OnlineState  BBUReady  Status    Volt     Temp     Hours  LastCapTest
   # ---------------------------------------------------------------------------
   # bbu   On           Yes       OK        OK       High     255    01-Jan-1970
 
-- name: set controller autocarve off
+- name: controller_options | set controller autocarve off
   shell: /opt/tw_cli/x86_64/tw_cli /c0 set autocarve=off
   when: "'off' not in c0_autocarve.stdout"
 
-- name: set controller jbod off
+- name: controller_options | set controller jbod off
   shell: /opt/tw_cli/x86_64/tw_cli /c0 set exportjbod=off
   when: "'off' not in c0_exportjbod.stdout"
 
-- name: enable bbu
+- name: controller_options | enable bbu
   shell: /opt/tw_cli/x86_64/tw_cli /c0/bbu enable
   when: "'On' not in c0_bbu.stdout"
 
-- name: disable autoverify on disk unit 0
+- name: controller_options | disable autoverify on disk unit 0
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u0 set autoverify=off
   when: "'off' not in c0u0_verify.stdout"
 
-- name: disable autoverify on disk unit 1
+- name: controller_options | disable autoverify on disk unit 1
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u1 set autoverify=off
   when: "'off' not in c0u1_verify.stdout"
 
-- name: disable autoverify on disk unit 2
+- name: controller_options | disable autoverify on disk unit 2
   shell: /opt/tw_cli/x86_64/tw_cli /c0/u2 set autoverify=off
   when: "'off' not in c0u2_verify.stdout"

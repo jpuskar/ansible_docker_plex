@@ -15,10 +15,10 @@
     name: deltarpm
     state: latest
 
-- name: update
-  yum:
-    name: '*'
-    state: latest
+#- name: update
+#  yum:
+#    name: '*'
+#    state: latest
 
 - name: install common tools and other deps
   yum: pkg={{item}} state=installed

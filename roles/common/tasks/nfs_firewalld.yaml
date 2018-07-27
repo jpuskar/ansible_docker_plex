@@ -1,41 +1,41 @@
 ---
 
-- name: add backup server to trusted
+- name: nfs_firewalld | add backup server to trusted
   firewalld:
     source: 192.168.1.80/32
     zone: trusted
     permanent: true
     state: enabled
 
-- name: add jpdesk1 to trusted
+- name: nfs_firewalld | add jpdesk1 to trusted
   firewalld:
     source: 192.168.1.135/32
     zone: trusted
     permanent: true
     state: enabled
 
-- name: add jpdesk2 to trusted
+- name: nfs_firewalld | add jpdesk2 to trusted
   firewalld:
     source: 192.168.1.119/32
     zone: trusted
     permanent: true
     state: enabled
 
-- name: allow nfs from internal
+- name: nfs_firewalld | allow nfs from internal
   firewalld:
     zone: trusted
     service: nfs
     permanent: true
     state: enabled
 
-- name: allow nfs from internal
+- name: nfs_firewalld | allow nfs from internal
   firewalld:
     zone: trusted
     service: rpc-bind
     permanent: true
     state: enabled
 
-- name: allow nfs from internal
+- name: nfs_firewalld | allow nfs from internal
   firewalld:
     zone: trusted
     service: mountd
