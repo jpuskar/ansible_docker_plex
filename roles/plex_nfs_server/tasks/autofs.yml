@@ -18,8 +18,8 @@
 
 - name: autofs | configure auto.master
   lineinefile:
-    src: "/etc/auto.master"
-    regexp: "^\/media\/crypt"
+    path: "/etc/auto.master"
+    regexp: '^/media/crypt'
     line: '/media/crypt    /etc/auto.luks --timeout=300'
 
 - name: autofs | configure auto.luks
