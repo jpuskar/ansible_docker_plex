@@ -1,22 +1,16 @@
 ---
-#- name: configure backup_server
-#  hosts: backup_server
-#  roles:
-#    - role: common
-#    - role: tw_cli
+- name: configure nfs_master
+  hosts: nfs_master
+  roles:
+  - role: common
+  - role: tw_cli
+    #    - role: wintv
+    #    - role: docker
+    #    - role: plex
 
-#- name: configure plex_master
-#  hosts: plex_master
-#  roles:
-#    - role: common
-#    - role: tw_cli
-#    - role: plex
-
-- name: configure backup_server
-  hosts: backup_server
+- name: configure plex_master
+  hosts: plex_master
   roles:
     - role: common
     - role: tw_cli
-#    - role: wintv
-    - role: docker
-#    - role: plex
+    - role: plex

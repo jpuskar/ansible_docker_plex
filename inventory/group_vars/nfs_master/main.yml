@@ -3,7 +3,7 @@ nmcli_team:
   - conn_name: team0
     ip4: '192.168.1.80/24'
     gw4: '192.168.1.1'
-    dns4: ['8.8.8.8 8.8.7.7']
+    dns4: ['192.168.1.1']
     autoconnect: yes
 
 nmcli_team_slave:
