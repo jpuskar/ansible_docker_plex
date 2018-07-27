@@ -40,4 +40,3 @@
     opts: "{{ plex_nfs_mount_options | join(',') }}"
     src: "192.168.1.80:/data/plex"
     state: mounted
-  with_items: "{{ nfs_share_mounts }}"

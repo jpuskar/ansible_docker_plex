@@ -6,9 +6,6 @@
     - role: common
     - role: tw_cli
     - role: zfs
-#    - role: wintv
-#    - role: docker
-#    - role: plex
 
 - name: configure plex_master
   hosts: plex_master
