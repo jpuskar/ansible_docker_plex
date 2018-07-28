@@ -1,11 +1,17 @@
 ---
-- name: bind_mounts | create exports directories
+- name: bind_mounts | create data directory
   file:
-    path: "{{ item }}"
+    path: "/data"
     state: "directory"
-  with_items:
-    - "/data"
-    - "/data/plex"
+    owner: root
+    group: root
+
+- name: bind_mounts | create data directory
+  file:
+    path: "/data/plex"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
 
 - name: bind_mounts | list zfs pools
   shell:
@@ -25,9 +31,10 @@
   file:
     path: "{{ item }}"
     state: "directory"
+    owner: docker_plex
+    group: docker_plex
   with_items:
     - "/itank0/plex1/audiobooks"
-#    - "/itank0/plex/config"
     - "/itank0/plex1/movies"
     - "/itank0/plex1/music"
     - "/itank0/plex1/other_video"
@@ -39,9 +46,10 @@
   file:
     path: "{{ item }}"
     state: "directory"
+    owner: docker_plex
+    group: docker_plex
   with_items:
     - "/etank0/plex1/audiobooks"
-#    - "/etank0/plex/config"
     - "/etank0/plex1/movies"
     - "/etank0/plex1/music"
     - "/etank0/plex1/other_video"
@@ -53,9 +61,10 @@
   file:
     path: "{{ item }}/etank0"
     state: "directory"
+    owner: docker_plex
+    group: docker_plex
   with_items:
     - "/data/plex/audiobooks"
-#    - "/data/plex/config"
     - "/data/plex/movies"
     - "/data/plex/music"
     - "/data/plex/other_video"
@@ -67,9 +76,10 @@
   file:
     path: "{{ item }}/itank0"
     state: "directory"
+    owner: docker_plex
+    group: docker_plex
   with_items:
     - "/data/plex/audiobooks"
-#    - "/data/plex/config"
     - "/data/plex/movies"
     - "/data/plex/music"
     - "/data/plex/other_video"
