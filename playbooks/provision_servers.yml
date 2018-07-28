@@ -18,5 +18,5 @@
   roles:
     - role: common
     - role: tw_cli
-#    - role: docker
+    - role: docker
 #    - role: plex
