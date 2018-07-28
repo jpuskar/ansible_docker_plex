@@ -80,6 +80,7 @@
 - name: bind_mounts | list current mounts
   shell:
     cmd: "mount | grep '/data/plex'"
+    warn: false
   register: cur_mounts
   changed_when: false
   check_mode: no
@@ -91,7 +92,7 @@
     opts: "bind"
     fstype: "zfs"
     state: "mounted"
-  when: "('/data/plex/{{ item }}/etank0') not in cur_mounts.stdout"
+  when: "('/data/plex/' + item + '/etank0') not in cur_mounts.stdout"
   with_items:
     - "audiobooks"
     - "movies"
