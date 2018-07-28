@@ -27,4 +27,4 @@
       -v /docker/plex/music:/data/music:Z \
       -v /docker/plex/transcode/itank0:/transcode:Z \
       linuxserver/plex
-  when: "'plex_nfs' in docker_ps_filtered.stdout"
+  when: "'plex_nfs' not in docker_ps_filtered.stdout"
