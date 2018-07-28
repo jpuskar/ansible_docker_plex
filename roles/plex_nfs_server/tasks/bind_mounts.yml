@@ -102,4 +102,20 @@
     - "transcode"
     - "sermons"
 
-# TODO: configure itank0 bind mounts
+
+- name: bind_mounts | configure itank0 bind mounts
+  mount:
+    name: "/data/plex/{{ item }}/itank0"
+    src: "/etank0/plex1/{{ item }}"
+    opts: "bind"
+    fstype: "zfs"
+    state: "mounted"
+  when: "('/data/plex/' + item + '/itank0') not in cur_mounts.stdout"
+  with_items:
+    - "audiobooks"
+    - "movies"
+    - "music"
+    - "other_video"
+    - "tvshows"
+    - "transcode"
+    - "sermons"
