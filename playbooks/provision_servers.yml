@@ -6,7 +6,7 @@
     run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
-#    - role: tw_cli
+    - role: tw_cli
 #    - role: zfs
 #    - role: plex_nfs_server
 
@@ -17,6 +17,6 @@
     run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
-#    - role: tw_cli
+    - role: tw_cli
 #    - role: docker
 #    - role: plex
