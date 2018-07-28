@@ -11,6 +11,7 @@
   shell:
     cmd: "zpool list"
   register: zpool_list
+  changed_when: false
   check_mode: no
 
 - name: bind_mounts | assert that zpools are mounted
@@ -76,6 +77,13 @@
     - "/data/plex/transcode"
     - "/data/plex/sermons"
 
+- name: bind_mounts | list current mounts
+  shell:
+    cmd: "mount | grep '/data/plex'"
+  register: cur_mounts
+  changed_when: false
+  check_mode: no
+
 - name: bind_mounts | configure etank0 bind mounts
   mount:
     name: "/data/plex/{{ item }}/etank0"
@@ -83,6 +91,7 @@
     opts: "bind"
     fstype: "zfs"
     state: "mounted"
+  when: "('/data/plex/{{ item }}/etank0') not in cur_mounts.stdout"
   with_items:
     - "audiobooks"
     - "movies"
