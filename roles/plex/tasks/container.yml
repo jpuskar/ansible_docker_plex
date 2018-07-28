@@ -23,4 +23,4 @@
       -v /docker/plex/music:/data/music:Z \
       -v /docker/plex/transcode/itank0:/transcode:Z \
       linuxserver/plex
-  when: ( docker_ps_filtered.stdout_lines | length ) < 1
+  when: "'plex_nfs' in docker_ps_filtered.stdout"
