@@ -6,9 +6,9 @@
     run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
-    - role: tw_cli
-    - role: zfs
-    - role: plex_nfs_server
+#    - role: tw_cli
+#    - role: zfs
+#    - role: plex_nfs_server
 
 - name: configure plex_master
   hosts: plex_master
@@ -17,6 +17,6 @@
     run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
-    - role: tw_cli
-    - role: docker
-    - role: plex
+#    - role: tw_cli
+#    - role: docker
+#    - role: plex
