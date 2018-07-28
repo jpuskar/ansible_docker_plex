@@ -8,7 +8,7 @@
     - role: common
     - role: tw_cli
     - role: zfs
-#    - role: plex_nfs_server
+    - role: plex_nfs_server
 
 - name: configure plex_master
   hosts: plex_master
