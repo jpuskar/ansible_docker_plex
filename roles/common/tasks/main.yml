@@ -4,10 +4,11 @@
     name: deltarpm
     state: latest
 
-#- name: update
-#  yum:
-#    name: '*'
-#    state: latest
+- name: update
+  yum:
+    name: '*'
+    state: latest
+  when: run_yum_update | default(false)
 
 - name: install common tools and other deps
   yum: pkg={{item}} state=installed
@@ -26,5 +27,5 @@
    - iperf
    - yum-utils
 
-- name: including nic_team tasks
-  include_tasks: nic_team.yml
+#- name: including nic_team tasks
+#  include_tasks: nic_team.yml
