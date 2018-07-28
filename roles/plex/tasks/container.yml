@@ -5,6 +5,10 @@
   changed_when: false
   check_mode: no
 
+- name: show docker_ps_filtered
+  debug:
+    var: docker_ps_filtered
+
 - name: container | create the docker plex_nfs container
   shell: >
     docker ps -a | grep [p]lex_nfs || \
