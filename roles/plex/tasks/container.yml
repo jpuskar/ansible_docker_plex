@@ -21,6 +21,6 @@
       -v /docker/plex/audiobooks:/data/audiobooks:Z \
       -v /docker/plex/other_video:/data/other_video:Z \
       -v /docker/plex/music:/data/music:Z \
-      -v /tank0/transcode:/transcode:Z \
+      -v /docker/plex/transcode:/transcode:Z \
       linuxserver/plex
   when: ( docker_ps_filtered.stdout_lines | length ) < 1

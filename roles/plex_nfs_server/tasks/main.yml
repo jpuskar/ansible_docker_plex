@@ -1,4 +1,7 @@
 ---
+- name: include users tasks
+  include_tasks: users.yml
+
 - name: include firewalld tasks
   include_tasks: firewalld.yml
 

@@ -7,17 +7,8 @@
     name: docker
     state: started
 
-- name: create docker_plex group
-  group:
-    name: docker_plex
-    gid: 2020
-    state: present
-
-- name: create docker_plex user
-  user:
-    name: docker_plex
-    uid: 2020
-    groups: docker_plex,docker
+- name: include users tasks
+  include_tasks: users.yml
 
 - name: create docker plex_nfs folder (for local configs)
   file:
@@ -42,7 +33,6 @@
 # TODO: create L2ARC
 
 # TODO: enable docker
-# TODO: start docker
 
 # TODO: enable / start nfs-server
 
