@@ -11,7 +11,7 @@
     docker create \
       --name=plex_nfs \
       --net=host \
-      --restart=always \
+      --restart=no \
       -e VERSION=latest \
       -e PUID=2020 -e PGID=2020 \
       -e TZ=America/NewYork \

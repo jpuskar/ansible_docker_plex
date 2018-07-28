@@ -2,6 +2,11 @@
 - name: include firewalld tasks
   include_tasks: firewalld.yml
 
+- name: ensure docker daemon started
+  systemd:
+    name: docker
+    state: started
+
 - name: create docker_plex group
   group:
     name: docker_plex
