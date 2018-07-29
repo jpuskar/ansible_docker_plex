@@ -1,23 +1,14 @@
 ---
-#- name: ensure nic enp3s4f0 is set to come up on boot
-#  lineinfile:
-#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f0
-#    regexp: '^ONBOOT'
-#    line: 'ONBOOT=yes'
-#- name: ensure nic enp3s4f1 is set to come up on boot
-#  lineinfile:
-#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f1
-#    regexp: '^ONBOOT'
-#    line: 'ONBOOT=yes'
-
 - name: install deltarpm
   yum:
     name: deltarpm
     state: latest
+
 - name: update
   yum:
     name: '*'
     state: latest
+  when: run_yum_update | default(false)
 
 - name: install common tools and other deps
   yum: pkg={{item}} state=installed
@@ -36,6 +27,5 @@
    - iperf
    - yum-utils
 
-#- include: nic_team.yml
-- include: plex_firewalld.yaml
-- include: nfs_firewalld.yaml
+#- name: including nic_team tasks
+#  include_tasks: nic_team.yml

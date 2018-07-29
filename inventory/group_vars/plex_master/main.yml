@@ -3,6 +3,7 @@ nmcli_team:
   - conn_name: team0
     ip4: '192.168.1.162/24'
     gw4: '192.168.1.1'
+    dns4: ['192.168.1.1']
     autoconnect: yes
 
 nmcli_team_slave:
@@ -13,7 +14,3 @@ nmcli_team_slave:
     ifname: enp5s0
     master: team0
 
-plex_root_dir: '/tank/data0/plex'
-plex_conf_root_dir: '/tank0/data/plex_config'
-plex_uid: 1001
-plex_gid: 1001

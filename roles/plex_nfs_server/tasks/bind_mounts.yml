@@ -1,0 +1,131 @@
+---
+- name: bind_mounts | create data directory
+  file:
+    path: "/data"
+    state: "directory"
+    owner: root
+    group: root
+
+- name: bind_mounts | create data directory
+  file:
+    path: "/data/plex"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
+
+- name: bind_mounts | list zfs pools
+  shell:
+    cmd: "zpool list"
+  register: zpool_list
+  changed_when: false
+  check_mode: no
+
+- name: bind_mounts | assert that zpools are mounted
+  assert:
+    that:
+      - "'itank0' in zpool_list.stdout"
+      - "'etank0' in zpool_list.stdout"
+
+# TODO: don't create unless ZFS actually mounted
+- name: bind_mounts | create itank0 directories
+  file:
+    path: "{{ item }}"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
+  with_items:
+    - "/itank0/plex1/audiobooks"
+    - "/itank0/plex1/movies"
+    - "/itank0/plex1/music"
+    - "/itank0/plex1/other_video"
+    - "/itank0/plex1/tvshows"
+    - "/itank0/plex1/transcode"
+    - "/itank0/plex1/sermons"
+
+- name: bind_mounts | create etank0 directories
+  file:
+    path: "{{ item }}"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
+  with_items:
+    - "/etank0/plex1/audiobooks"
+    - "/etank0/plex1/movies"
+    - "/etank0/plex1/music"
+    - "/etank0/plex1/other_video"
+    - "/etank0/plex1/tvshows"
+    - "/etank0/plex1/transcode"
+    - "/etank0/plex1/sermons"
+
+- name: bind_mounts | create etank0 exports directories
+  file:
+    path: "{{ item }}/etank0"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
+  with_items:
+    - "/data/plex/audiobooks"
+    - "/data/plex/movies"
+    - "/data/plex/music"
+    - "/data/plex/other_video"
+    - "/data/plex/tvshows"
+    - "/data/plex/transcode"
+    - "/data/plex/sermons"
+
+- name: bind_mounts | create itank0 exports directories
+  file:
+    path: "{{ item }}/itank0"
+    state: "directory"
+    owner: docker_plex
+    group: docker_plex
+  with_items:
+    - "/data/plex/audiobooks"
+    - "/data/plex/movies"
+    - "/data/plex/music"
+    - "/data/plex/other_video"
+    - "/data/plex/tvshows"
+    - "/data/plex/transcode"
+    - "/data/plex/sermons"
+
+- name: bind_mounts | list current mounts
+  shell:
+    cmd: "mount | grep '/data/plex'"
+    warn: false
+  register: cur_mounts
+  changed_when: false
+  check_mode: no
+
+- name: bind_mounts | configure etank0 bind mounts
+  mount:
+    name: "/data/plex/{{ item }}/etank0"
+    src: "/etank0/plex1/{{ item }}"
+    opts: "bind"
+    fstype: "zfs"
+    state: "mounted"
+  when: "('/data/plex/' + item + '/etank0') not in cur_mounts.stdout"
+  with_items:
+    - "audiobooks"
+    - "movies"
+    - "music"
+    - "other_video"
+    - "tvshows"
+    - "transcode"
+    - "sermons"
+
+
+- name: bind_mounts | configure itank0 bind mounts
+  mount:
+    name: "/data/plex/{{ item }}/itank0"
+    src: "/etank0/plex1/{{ item }}"
+    opts: "bind"
+    fstype: "zfs"
+    state: "mounted"
+  when: "('/data/plex/' + item + '/itank0') not in cur_mounts.stdout"
+  with_items:
+    - "audiobooks"
+    - "movies"
+    - "music"
+    - "other_video"
+    - "tvshows"
+    - "transcode"
+    - "sermons"

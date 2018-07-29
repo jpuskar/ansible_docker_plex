@@ -1,0 +1,18 @@
+---
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
+- name: include udev_rules tasks
+  include_tasks: udev_rules.yml
+
+- name: include autofs tasks
+  include_tasks: autofs.yml
+
+- name: include bind_mounts tasks
+  include_tasks: bind_mounts.yml
+
+- name: include exports tasks
+  include_tasks: exports.yml

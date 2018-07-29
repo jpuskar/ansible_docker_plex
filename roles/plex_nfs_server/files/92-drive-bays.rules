@@ -1,0 +1,17 @@
+# 500 GB for local backups
+ACTION=="add", ATTRS{wwid}=="t10.AMCC    9QG6V2MJ021CF000194E", SUBSYSTEM=="block", SYMLINK+="lobak0"
+# 3 TB for local backups
+ACTION=="add", ATTRS{wwid}=="t10.AMCC    3O9UAVAS000717000B80", SUBSYSTEM=="block", SYMLINK+="lobak1_crypt"
+# 500 GB for local backups
+ACTION=="add", ATTRS{wwid}=="t10.AMCC    9QG6LM9D021CE1008F38", SUBSYSTEM=="block", SYMLINK+="lobak2_crypt"
+# 500 GB for local backups
+ACTION=="add", ATTRS{wwid}=="t10.AMCC    F9615703021CF500B2DE", SUBSYSTEM=="block", SYMLINK+="lobak3"
+# 300 GB for scratch space
+ACTION=="add", ATTRS{wwid}=="t10.AMCC    12227769021CF000F39C", SUBSYSTEM=="block", SYMLINK+="scratch0"
+## 2.5" drive bays
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="99c50819-d2a8-42f8-bd35-293ed82dc1db", SYMLINK+="sbay1", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay1.key luksOpen $env{DEVNAME} sbay1_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="0fca5d3f-3dfd-4b71-ace6-8d1f0ae42bf1", SYMLINK+="sbay2", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay2.key luksOpen $env{DEVNAME} sbay2_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="cd712c1a-0859-42e5-a2db-1ca03194c1c6", SYMLINK+="sbay3", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay3.key luksOpen $env{DEVNAME} sbay3_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="9812d233-d1cc-4bc1-bec2-5f3a5bb486ad", SYMLINK+="sbay4", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay4.key luksOpen $env{DEVNAME} sbay4_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="cf645cbe-f874-492d-9ff5-05af32288341", SYMLINK+="sbay5", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay5.key luksOpen $env{DEVNAME} sbay5_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="d61083a7-9a17-4a2f-87ac-0a863c4ff4d4", SYMLINK+="sbay6", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay6.key luksOpen $env{DEVNAME} sbay6_crypt"

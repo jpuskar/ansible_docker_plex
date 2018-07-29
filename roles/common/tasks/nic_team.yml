@@ -1,6 +1,19 @@
 ---
-- name: install nmcli deps
-  yum: pkg={{item}} state=installed
+#- name: ensure nic enp3s4f0 is set to come up on boot
+#  lineinfile:
+#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f0
+#    regexp: '^ONBOOT'
+#    line: 'ONBOOT=yes'
+#- name: ensure nic enp3s4f1 is set to come up on boot
+#  lineinfile:
+#    path: /etc/sysconfig/network-scripts/ifcfg-enp3s4f1
+#    regexp: '^ONBOOT'
+#    line: 'ONBOOT=yes'
+
+- name: nic_team | install nmcli deps
+  yum:
+    name: "{{item}}"
+    state: "present"
   with_items:
    - epel-release
    - NetworkManager-glib-devel
@@ -9,7 +22,7 @@
    - libsemanage-python
    - policycoreutils-python
 
-- name: try nmcli add team - conn_name only & ip4 gw4
+- name: nic_team | try nmcli add team - conn_name only & ip4 gw4
   nmcli:
     type: team
     conn_name: '{{ item.conn_name }}'
@@ -20,7 +33,7 @@
   with_items:
     - '{{ nmcli_team }}'
 
-- name: try nmcli add teams-slave
+- name: nic_team | try nmcli add teams-slave
   nmcli:
     type: team-slave
     conn_name: '{{ item.conn_name }}'
@@ -30,5 +43,5 @@
   with_items:
     - '{{ nmcli_team_slave }}'
 
-- name: up primary team
+- name: nic_team | up primary team
   shell: nmcli c up team0

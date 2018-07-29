@@ -1,64 +1,43 @@
 ---
-- name: create plex root dir
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
+- name: ensure docker daemon started
+  systemd:
+    name: docker
+    state: started
+
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: create docker plex_nfs folder (for local configs)
   file:
-    path: "{{ plex_root_dir }}"
     state: directory
-  with_items:
-    - "{{ plex_root_dir }}"
-    - "{{ plex_root_dir }}/movies"
-    - "{{ plex_root_dir }}/music"
-    - "{{ plex_root_dir }}/tvshows"
-    - "{{ plex_root_dir }}/transcode"
-    - "{{ plex_conf_root_dir }}/config"
+    path: "/data/docker/plex_nfs/config"
+    owner: docker_plex
+    group: docker_plex
 
-- name: exports
-  lineinfile:
-    path: /etc/exports
-    line: "{{ plex_root_dir }} 192.168.1.0/24(rw,insecure,async,no_root_squash,no_all_squash)"
+- name: include mounts tasks
+  include_tasks: mounts.yml
 
-- name: docker plex group
-  become: true
-  group:
-    name: docker_plex
-    gid: 2020
-    state: present
-
-- name: docker plex user
-  become: true
-  user:
-    name: docker_plex
-    uid: 2020
-    groups: docker_plex,docker
-
-#- name: Manage docker container
-#  include: container.yml
+- name: include container tasks
+  include_tasks: container.yml
 
 # TODO: LUKS
 
 # zpool create tank raidz sdc sdd sde cache sda
 # zfs create tank/data0
 
-
 # TODO: create volumes in tw_cli
 # TODO: create zpool, vdev's
 # TODO: create L2ARC
-# TODO: create plex data folders
-# TODO: https://galaxy.ansible.com/marvinpinto/docker-plex/
 
 # TODO: enable docker
-# TODO: start docker
 
-# TODO: Firewalld stuff (still disabled)
 # TODO: enable / start nfs-server
 
 # ssh keys
 
 # set up raid disks
 
-## single's
-
 # zpool
-
-# exports
-
-# docker container

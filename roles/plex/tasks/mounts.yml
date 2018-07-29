@@ -1,0 +1,42 @@
+---
+- name: mounts | create plex folder
+  file:
+    state: directory
+    path: "/docker"
+
+- name: mounts | create docker plex folder
+  file:
+    state: directory
+    path: "/docker/plex"
+    owner: docker_plex
+    group: docker_plex
+
+- name: mounts | register mount options
+  set_fact:
+    plex_nfs_mount_options:
+      - 'rw'
+      - 'relatime'
+      - 'vers=3'
+      - 'rsize=1048576'
+      - 'wsize=1048576'
+      - 'namlen=255'
+      - 'hard'
+      - 'proto=tcp'
+      - 'timeo=600'
+      - 'retrans=2'
+      - 'sec=sys'
+      - 'mountaddr=192.168.1.80'
+      - 'mountvers=3'
+      - 'mountport=20048'
+      - 'mountproto=udp'
+      - 'local_lock=none'
+      - 'addr=192.168.1.80'
+
+# TODO: remove IP addr
+- name: mounts | mount plex_nfs
+  mount:
+    fstype: 'nfs'
+    path: '/docker/plex'
+    opts: "{{ plex_nfs_mount_options | join(',') }}"
+    src: '192.168.1.80:/data/plex'
+    state: 'mounted'

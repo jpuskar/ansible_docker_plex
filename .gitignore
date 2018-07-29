@@ -8,3 +8,6 @@
 out
 gen
 *.retry
+
+.vagrant/
+vault_pass
