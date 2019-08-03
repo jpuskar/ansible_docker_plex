@@ -1,0 +1,12 @@
+---
+nmcli_team:
+  - conn_name: team0
+    ip4: '192.168.1.134/24'
+    gw4: '192.168.1.1'
+    dns4: ['192.168.1.1']
+    autoconnect: yes
+
+nmcli_team_slave:
+  - conn_name: slave-p1p1
+    ifname: p1p1
+    master: team0
