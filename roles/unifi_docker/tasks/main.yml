@@ -1,0 +1,43 @@
+---
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
+- name: ensure docker daemon started
+  systemd:
+    name: docker
+    state: started
+
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: create docker plex_nfs folder (for local configs)
+  file:
+    state: directory
+    path: "/data/docker/plex_nfs/config"
+    owner: docker_plex
+    group: docker_plex
+
+- name: include mounts tasks
+  include_tasks: mounts.yml
+
+- name: include container tasks
+  include_tasks: container.yml
+
+# TODO: LUKS
+
+# zpool create tank raidz sdc sdd sde cache sda
+# zfs create tank/data0
+
+# TODO: create volumes in tw_cli
+# TODO: create zpool, vdev's
+# TODO: create L2ARC
+
+# TODO: enable docker
+
+# TODO: enable / start nfs-server
+
+# ssh keys
+
+# set up raid disks
+
+# zpool
