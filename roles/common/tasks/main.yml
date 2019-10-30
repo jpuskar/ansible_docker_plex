@@ -4,10 +4,10 @@
     name: epel-release
     state: latest
 
-- name: install deltarpm
-  yum:
-    name: deltarpm
-    state: latest
+#- name: install deltarpm
+#  yum:
+#    name: deltarpm
+#    state: latest
 
 - name: update
   yum:
