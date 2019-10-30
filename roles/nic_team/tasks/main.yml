@@ -19,7 +19,7 @@
   #   - libnm-gtk-devel
       - nm-connection-editor
   #   - libsemanage-python
-      - policycoreutils-python
+#      - policycoreutils-python
 
 - name: nic_team | try nmcli add team - conn_name only & ip4 gw4
   nmcli:
