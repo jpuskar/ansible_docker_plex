@@ -1,4 +1,9 @@
 ---
+- name: install epel
+  yum:
+    name: epel-release
+    state: latest
+
 - name: install deltarpm
   yum:
     name: deltarpm
