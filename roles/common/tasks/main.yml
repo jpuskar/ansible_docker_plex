@@ -24,12 +24,12 @@
    - screen
    - unzip
    - kernel-devel
-   - sdparm
+#   - sdparm
    - nfs-utils
    - lsof
    - rsync
    - iftop
-   - iperf
+#   - iperf
    - yum-utils
 
 #- name: including nic_team tasks
