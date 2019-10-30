@@ -1,0 +1,9 @@
+---
+- name: configure unifi_docker
+  hosts: unifi_docker
+  become: yes
+  vars:
+    run_yum_update: "{{ true | bool }}"
+  roles:
+    - role: common
+    - role: docker
