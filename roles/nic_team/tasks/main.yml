@@ -21,26 +21,28 @@
   #   - libsemanage-python
 #      - policycoreutils-python
 
-- name: nic_team | try nmcli add team - conn_name only & ip4 gw4
-  nmcli:
-    type: team
-    conn_name: '{{ item.conn_name }}'
-    ip4: '{{ item.ip4 }}'
-    gw4: '{{ item.gw4 }}'
-    dns4: '8.8.8.8'
-    state: present
-  with_items:
-    - '{{ nmcli_team }}'
+# TODO: The below is broken in Centos8
 
-- name: nic_team | try nmcli add teams-slave
-  nmcli:
-    type: team-slave
-    conn_name: '{{ item.conn_name }}'
-    ifname: '{{ item.ifname }}'
-    master: '{{ item.master }}'
-    state: present
-  with_items:
-    - '{{ nmcli_team_slave }}'
-
-- name: nic_team | up primary team
-  shell: nmcli c up team0
+#- name: nic_team | try nmcli add team - conn_name only & ip4 gw4
+#  nmcli:
+#    type: team
+#    conn_name: '{{ item.conn_name }}'
+#    ip4: '{{ item.ip4 }}'
+#    gw4: '{{ item.gw4 }}'
+#    dns4: '8.8.8.8'
+#    state: present
+#  with_items:
+#    - '{{ nmcli_team }}'
+#
+#- name: nic_team | try nmcli add teams-slave
+#  nmcli:
+#    type: team-slave
+#    conn_name: '{{ item.conn_name }}'
+#    ifname: '{{ item.ifname }}'
+#    master: '{{ item.master }}'
+#    state: present
+#  with_items:
+#    - '{{ nmcli_team_slave }}'
+#
+#- name: nic_team | up primary team
+#  shell: nmcli c up team0
