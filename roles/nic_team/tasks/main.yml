@@ -12,15 +12,14 @@
 
 - name: nic_team | install nmcli deps
   yum:
-    name: "{{item}}"
     state: "present"
-  with_items:
-   - epel-release
-   - NetworkManager-glib-devel
-   - libnm-gtk-devel
-   - nm-connection-editor
-   - libsemanage-python
-   - policycoreutils-python
+    name:
+      - epel-release
+  #   - NetworkManager-glib-devel
+  #   - libnm-gtk-devel
+     - nm-connection-editor
+  #   - libsemanage-python
+     - policycoreutils-python
 
 - name: nic_team | try nmcli add team - conn_name only & ip4 gw4
   nmcli:
