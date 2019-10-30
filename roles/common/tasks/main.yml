@@ -16,21 +16,22 @@
   when: run_yum_update | default(false)
 
 - name: install common tools and other deps
-  yum: pkg={{item}} state=installed
-  with_items:
-   - lm_sensors
-   - sysstat
-   - iotop
-   - screen
-   - unzip
-   - kernel-devel
-#   - sdparm
-   - nfs-utils
-   - lsof
-   - rsync
-   - iftop
-#   - iperf
-   - yum-utils
+  yum:
+    state: installed
+    pkg:
+      - lm_sensors
+      - sysstat
+      - iotop
+      - screen
+      - unzip
+      - kernel-devel
+      # - sdparm
+      - nfs-utils
+      - lsof
+      - rsync
+      - iftop
+      # - iperf
+      - yum-utils
 
 #- name: including nic_team tasks
 #  include_tasks: nic_team.yml
