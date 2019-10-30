@@ -6,4 +6,5 @@
     run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
+    - role: nic_team
     - role: docker

@@ -8,7 +8,7 @@ nmcli_team:
 
 nmcli_team_slave:
   - conn_name: slave-enp3s0
-    ifname: enp3s0
+    ifname: enp4s0
     master: team0
   - conn_name: slave-enp5s0
     ifname: enp5s0
