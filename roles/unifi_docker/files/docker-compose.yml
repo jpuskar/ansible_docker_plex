@@ -15,12 +15,12 @@ services:
       - "7447:7447"
     environment:
       - TZ=America/New_York
-#      - PUID=99
-#      - PGID=100
+      - PUID=2021
+      - PGID=2021
       - DEBUG=1
     volumes:
       - "/docker/unifi_video:/var/lib/unifi-video:Z"
-      - /usr/lib/unifi-video/data/videos
-    cap_add:
-      - SYS_ADMIN
-      - DAC_READ_SEARCH
+#      - "/usr/lib/unifi-video/data/videos:Z"
+#    cap_add:
+#      - SYS_ADMIN
+#      - DAC_READ_SEARCH

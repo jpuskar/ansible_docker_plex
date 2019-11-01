@@ -2,11 +2,11 @@
 - name: create unifi_video group
   group:
     name: unifi_video
-    gid: 2020
+    gid: 2021
     state: present
 
 - name: create unifi_video user
   user:
-    name: docker_unifi
-    uid: 2020
+    name: unifi_video
+    uid: 2021
     groups: unifi_video,docker

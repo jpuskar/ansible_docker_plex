@@ -10,6 +10,14 @@
 - name: include users tasks
   include_tasks: users.yml
 
+- name: include mounts tasks
+  include_tasks: mounts.yml
+
+#- name: create folders
+#  file:
+#    state: directory
+#    path: /docker/unifi_video
+
 #- name: create docker plex_nfs folder (for local configs)
 #  file:
 #    state: directory
@@ -20,8 +28,8 @@
 #- name: include mounts tasks
 #  include_tasks: mounts.yml
 
-- name: include container tasks
-  include_tasks: container.yml
+#- name: include container tasks
+#  include_tasks: container.yml
 
 # TODO: LUKS
 
