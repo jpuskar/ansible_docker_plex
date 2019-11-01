@@ -8,3 +8,4 @@
     - role: common
 #    - role: nic_team
     - role: docker
+    - role: docker_unifi_video
