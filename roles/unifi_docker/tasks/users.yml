@@ -1,12 +1,12 @@
 ---
 - name: create docker_plex group
   group:
-    name: docker_plex
+    name: docker_unifi
     gid: 2020
     state: present
 
 - name: create docker_plex user
   user:
-    name: docker_plex
+    name: docker_unifi
     uid: 2020
     groups: docker_plex,docker

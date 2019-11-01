@@ -7,18 +7,18 @@
     name: docker
     state: started
 
-- name: include users tasks
-  include_tasks: users.yml
+#- name: include users tasks
+#  include_tasks: users.yml
 
-- name: create docker plex_nfs folder (for local configs)
-  file:
-    state: directory
-    path: "/data/docker/plex_nfs/config"
-    owner: docker_plex
-    group: docker_plex
+#- name: create docker plex_nfs folder (for local configs)
+#  file:
+#    state: directory
+#    path: "/data/docker/plex_nfs/config"
+#    owner: docker_plex
+#    group: docker_plex
 
-- name: include mounts tasks
-  include_tasks: mounts.yml
+#- name: include mounts tasks
+#  include_tasks: mounts.yml
 
 - name: include container tasks
   include_tasks: container.yml
