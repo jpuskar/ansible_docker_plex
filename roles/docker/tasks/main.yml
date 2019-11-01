@@ -14,7 +14,15 @@
       - docker-ce
       - python-docker-py
 
-- name: install docker-compose
+- name: install pip
+  pip:
+    name:
+      - pip
+      - setuptools
+    state: latest
+    executable: pip
+
+- name: install pip
   pip:
     name:
       - pip
