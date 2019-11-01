@@ -7,8 +7,8 @@
     name: docker
     state: started
 
-#- name: include users tasks
-#  include_tasks: users.yml
+- name: include users tasks
+  include_tasks: users.yml
 
 #- name: create docker plex_nfs folder (for local configs)
 #  file:

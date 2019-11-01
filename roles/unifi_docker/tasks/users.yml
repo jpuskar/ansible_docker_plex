@@ -1,12 +1,12 @@
 ---
-- name: create docker_plex group
+- name: create unifi_video group
   group:
-    name: docker_unifi
+    name: unifi_video
     gid: 2020
     state: present
 
-- name: create docker_plex user
+- name: create unifi_video user
   user:
     name: docker_unifi
     uid: 2020
-    groups: docker_plex,docker
+    groups: unifi_video,docker

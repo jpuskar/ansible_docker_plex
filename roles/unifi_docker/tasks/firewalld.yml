@@ -1,26 +1,29 @@
 ---
-- name: firewalld | copy plex firewalld service xml file
+- name: firewalld | copy unifi-video-controller firewalld xml file
   copy:
     content: |
       <?xml version="1.0" encoding="utf-8"?>
       <service>
         <short>unifi-video-controller</short>
         <description>unifi-video-controller</description>
-        <port protocol="tcp" port="32469"/>
-        <port protocol="udp" port="32413"/>
-        <port protocol="udp" port="1900"/>
-        <port protocol="tcp" port="32400"/>
-        <port protocol="udp" port="32412"/>
-        <port protocol="udp" port="32410"/>
-        <port protocol="udp" port="32414"/>
+        <port protocol="tcp" port="10001:10001"/>
+        <port protocol="tcp" port="1935:1935"/>
+        <port protocol="tcp" port="6666:6666"/>
+        <port protocol="tcp" port="7080:7080"/>
+        <port protocol="tcp" port="7442:7442"/>
+        <port protocol="tcp" port="7443:7443"/>
+        <port protocol="tcp" port="7444:7444"/>
+        <port protocol="tcp" port="7445:7445"/>
+        <port protocol="tcp" port="7446:7446"/>
+        <port protocol="tcp" port="7447:7447"/>
       </service>
-    dest: /usr/lib/firewalld/services/plexmediaserver.xml
+    dest: /usr/lib/firewalld/services/unifi-video-controller.xml
     backup: yes
   run_once: yes
 
 - name: plex_firewalld | configure firewalld
   firewalld:
     zone: public
-    service: plexmediaserver
+    service: unifi-video-controller
     permanent: true
     state: enabled

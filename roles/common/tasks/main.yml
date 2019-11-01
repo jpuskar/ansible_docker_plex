@@ -1,4 +1,7 @@
 ---
+- name: include users tasks
+  include_tasks: users.yml
+
 - name: install epel
   yum:
     name: epel-release
