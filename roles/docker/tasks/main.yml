@@ -14,18 +14,6 @@
       - docker-ce
       - python-docker-py
 
-- name: install pip
-  shell:
-    cmd: pip install pip setuptools -U
-
-- name: install pip
-  pip:
-    name:
-      - pip
-      - setuptools
-    state: latest
-    executable: pip3
-
 - name: install docker-compose
   pip:
     state: latest
