@@ -9,4 +9,4 @@
 - name: container | copy docker-compose file
   copy:
     src: docker-compose.yml
-    dest: /root/docker_unifi_video/docker-compose
+    dest: /root/docker_unifi_video/docker-compose.yml
