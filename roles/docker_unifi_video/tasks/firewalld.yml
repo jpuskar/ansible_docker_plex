@@ -30,4 +30,4 @@
   retries: 3
   delay: 3
   register: unifi_video_firewalld_result
-  until: unifi_video_firewalld_result.rc == 0
+  until: unifi_video_firewalld_result is succeeded
