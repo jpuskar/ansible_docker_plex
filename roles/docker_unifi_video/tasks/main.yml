@@ -13,6 +13,9 @@
 - name: include mounts tasks
   include_tasks: mounts.yml
 
+- name: include container tasks
+  include_tasks: container.yml
+
 #- name: create folders
 #  file:
 #    state: directory

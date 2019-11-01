@@ -21,9 +21,13 @@
     backup: yes
   run_once: yes
 
-- name: plex_firewalld | configure firewalld
+- name: firewalld | configure firewalld
   firewalld:
     zone: public
     service: unifi-video-controller
     permanent: true
     state: enabled
+  retries: 3
+  delay: 3
+  register: unifi_video_firewalld_result
+  until: unifi_video_firewalld_result.rc == 0
