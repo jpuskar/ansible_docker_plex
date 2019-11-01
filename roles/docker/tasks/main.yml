@@ -1,14 +1,11 @@
 ---
-- name: Add repository
+- name: Add Docker-CE stable repo
   yum_repository:
-    name: docker-ce
-    description: docker-ce
-    baseurl: https://download.docker.com/linux/centos/docker-ce.repo
-
-#- name: Docker | CE | YUM | Deploy repository
-#  shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-#  args:
-#    creates: /etc/yum.repos.d/docker-ce.repo
+    name: docker-ce-stable
+    description: Docker CE Stable Repo
+    baseurl: https://download.docker.com/linux/centos/7/$basearch/stable
+    gpgkey: https://download.docker.com/linux/centos/gpg
+    gpgcheck: yes
 
 - name: Install docker-ce
   yum:
