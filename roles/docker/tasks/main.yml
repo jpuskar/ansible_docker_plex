@@ -16,6 +16,15 @@
 
 - name: install docker-compose
   pip:
+    name:
+      - pip
+      - setuptools
+    state: latest
+    executable: pip3
+
+- name: install docker-compose
+  pip:
+    state: latest
     name: docker-compose
     executable: pip3
 
