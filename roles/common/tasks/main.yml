@@ -49,7 +49,7 @@
 
 - name: install pip
   shell:
-    cmd: pip install pip setuptools -U
+    cmd: python -m pip install pip setuptools -U
 
 - name: install pip
   pip:
@@ -57,4 +57,4 @@
       - pip
       - setuptools
     state: latest
-    executable: pip3
+    executable: /usr/local/bin/pip3
