@@ -43,11 +43,13 @@
 #- name: including nic_team tasks
 #  include_tasks: nic_team.yml
 
-- name: install pip
-  shell:
-    cmd: python -m pip install pip setuptools -U
+#- name: install pip
+#  shell:
+#    cmd: python -m pip install pip setuptools -U
+#  register: upgrade_default_pip
+#  changed_when:
 
-- name: install pip
+- name: upgrade pip and setuptools
   pip:
     name:
       - pip

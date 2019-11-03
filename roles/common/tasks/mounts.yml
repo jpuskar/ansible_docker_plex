@@ -2,7 +2,7 @@
 - name: install systemd mounts
   template:
     src: templates/nfs_mount_template.mount
-    dest: "/etc/systemd/system/{{ item.name_safe }}"
+    dest: "/etc/systemd/system/{{ item.name_safe }}.mount"
     owner: root
     group: root
     mode: '0755'
