@@ -6,7 +6,6 @@ After=network.target
 What={{ item.remote_path }}
 Where={{ item.local_path }}
 Type=nfs4
-#Options={{ item.options }}
 
 [Install]
 WantedBy=multi-user.target
