@@ -11,3 +11,10 @@
 - name: reload systemd units
   systemd:
     daemon_reexec: yes
+
+- name: enable mount
+  systemd:
+    name: "{{ item.name_safe }}"
+    enabled: yes
+    state: started
+  loop: "{{ list_of_mounts }}"
