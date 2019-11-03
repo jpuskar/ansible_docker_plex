@@ -19,6 +19,7 @@ services:
       - PGID=2021
       - DEBUG=1
     volumes:
+      - "/docker/unifi_video_config:/var/lib/unifi-video:Z"
       - "/docker/unifi_video:/var/lib/unifi-video/videos:Z"
     cap_add:
       - SYS_ADMIN
