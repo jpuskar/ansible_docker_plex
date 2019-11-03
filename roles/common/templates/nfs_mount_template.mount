@@ -1,0 +1,12 @@
+[Unit]
+Description={{ item.name_safe }}
+After=network.target
+
+[Mount]
+What={{ item.remote_path }}
+Where={{ item.local_path }}
+Type=nfs4
+#Options={{ item.options }}
+
+[Install]
+WantedBy=multi-user.target
