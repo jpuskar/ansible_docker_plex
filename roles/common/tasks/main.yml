@@ -40,12 +40,8 @@
       - python3
       - python3-pip
 
-# pip3 install docker-compose
-
 #- name: including nic_team tasks
 #  include_tasks: nic_team.yml
-
-# TODO: docker image storage at local drive
 
 - name: install pip
   shell:
@@ -58,3 +54,6 @@
       - setuptools
     state: latest
     executable: /usr/local/bin/pip3
+
+- name: include mounts tasks
+  include_tasks: mounts.yml
