@@ -14,7 +14,7 @@
 
 - name: enable mount
   systemd:
-    name: "{{ item.name_safe }}"
+    name: "{{ item.name_safe }}.mount"
     enabled: yes
     state: started
   loop: "{{ list_of_mounts }}"
