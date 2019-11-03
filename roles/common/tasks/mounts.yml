@@ -8,9 +8,10 @@
 - name: create mount point directories
   file:
     state: directory
-    owner: root
-    group: root
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
     path: "{{ item.local_path }}"
+    mode: 0775
   loop: "{{ list_of_mounts }}"
 
 - name: install systemd mounts

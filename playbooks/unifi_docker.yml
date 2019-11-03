@@ -9,3 +9,6 @@
 #    - role: nic_team
     - role: docker
     - role: docker_unifi_video
+
+# TODO: systemd unit file for docker-compose
+# TODO: reformat / no usb drive. Use sda instead.

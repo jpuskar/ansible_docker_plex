@@ -17,8 +17,10 @@ nmcli_team_slave:
 list_of_mounts:
   - remote_path: 'nas01:/volume1/unifi_video'
     local_path: '/docker/unifi_video'
+    owner: unifi-video
   - remote_path: 'nas01:/volume1/unifi_video_config'
     local_path: '/docker/unifi_video_config'
+    owner: unifi-video
 
 docker_service_depends:
   - 'network.target'
