@@ -2,10 +2,10 @@
 - name: install systemd mounts
   template:
     src: templates/nfs_mount_template.mount
-    dest: "/etc/systemd/system/{{ item.name_safe }}.mount"
+    dest: "/etc/systemd/system/{{ item.local_path | regex_replace('/','-') }}.mount"
     owner: root
     group: root
-    mode: '0755'
+    mode: '0644'
   loop: "{{ list_of_mounts }}"
 
 - name: reload systemd units
@@ -14,7 +14,7 @@
 
 - name: enable mount
   systemd:
-    name: "{{ item.name_safe }}.mount"
+    name: "{{ item.local_path | regex_replace('/','-') }}.mount"
     enabled: yes
     state: started
   loop: "{{ list_of_mounts }}"

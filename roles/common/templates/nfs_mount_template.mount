@@ -1,5 +1,5 @@
 [Unit]
-Description={{ item.name_safe }}
+Description={{ item.local_path | regex_replace('/','-') }}
 After=network.target
 
 [Mount]

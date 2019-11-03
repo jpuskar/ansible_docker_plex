@@ -15,8 +15,7 @@ nmcli_team_slave:
   master: team0
 
 list_of_mounts:
-  - name_safe: 'docker-unifi-video'
-    remote_path: 'nas01:/volume1/unifi_video'
+  - remote_path: 'nas01:/volume1/unifi_video'
     local_path: '/docker/unifi_video'
 
 default_username: !vault |
