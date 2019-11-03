@@ -15,8 +15,8 @@ nmcli_team_slave:
   master: team0
 
 list_of_mounts:
-  - remote_path: 'nas01:/volume1/unifi_video'
-    local_path: '/docker/unifi_video'
+  - remote_path: 'nas01:/volume1/unifi_video_data'
+    local_path: '/docker/unifi_video_data'
     owner: unifi_video
   - remote_path: 'nas01:/volume1/unifi_video_config'
     local_path: '/docker/unifi_video_config'
@@ -26,7 +26,7 @@ docker_service_depends:
   - 'network.target'
   - 'docker.socket'
   - 'firewalld.service'
-  - 'docker-unifi_video.mount'
+  - 'docker-unifi_video_data.mount'
   - 'docker-unifi_video_config.mount'
 
 default_username: !vault |

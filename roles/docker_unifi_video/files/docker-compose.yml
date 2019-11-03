@@ -20,7 +20,7 @@ services:
       - DEBUG=1
     volumes:
       - "/docker/unifi_video_config:/var/lib/unifi-video:Z"
-      - "/docker/unifi_video:/var/lib/unifi-video/videos:Z"
+#      - "/docker/unifi_video_data:/var/lib/unifi-video/videos:Z"
     cap_add:
       - SYS_ADMIN
       - DAC_READ_SEARCH
