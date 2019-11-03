@@ -25,3 +25,15 @@
     state: link
     src: /usr/local/bin/docker-compose
     dest: /usr/bin/docker-compose
+
+- name: configure docker mount dependencies
+  template:
+    src: templates/nfs_mount_template.mount
+    dest: "/etc/systemd/system/multi-user.target.wants/docker.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: reload systemd units
+  systemd:
+    daemon_reexec: yes

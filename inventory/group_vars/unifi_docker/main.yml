@@ -18,6 +18,12 @@ list_of_mounts:
   - remote_path: 'nas01:/volume1/unifi_video'
     local_path: '/docker/unifi_video'
 
+docker_service_depends:
+  - 'network.target'
+  - 'docker.socket'
+  - 'firewalld.service'
+  - 'docker-unifi_video.mount'
+
 default_username: !vault |
   $ANSIBLE_VAULT;1.1;AES256
   33366639316264343339313038313164613962626437613462323365323339393666386437663137

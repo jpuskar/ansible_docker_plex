@@ -1,0 +1,5 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+Requires=docker.socket
+After={{ docker_service_depends | join(' ') }}
