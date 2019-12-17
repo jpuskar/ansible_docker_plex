@@ -1,0 +1,11 @@
+[Unit]
+Description={{ (item.local_path | regex_replace('/','-'))[1:] }}
+After=network.target
+
+[Mount]
+What={{ item.remote_path }}
+Where={{ item.local_path }}
+Type=nfs4
+
+[Install]
+WantedBy=multi-user.target

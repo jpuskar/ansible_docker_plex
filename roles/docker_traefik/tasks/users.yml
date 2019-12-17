@@ -1,0 +1,12 @@
+---
+- name: create traefik group
+  group:
+    name: traefik
+    gid: 2023
+    state: present
+
+- name: create traefik user
+  user:
+    name: traefik
+    uid: 2023
+    groups: traefik,docker

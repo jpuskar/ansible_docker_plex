@@ -1,0 +1,12 @@
+---
+- name: create jenkins group
+  group:
+    name: jenkins
+    gid: 2023
+    state: present
+
+- name: create jenkins user
+  user:
+    name: jenkins
+    uid: 2023
+    groups: jenkins,docker

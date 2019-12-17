@@ -1,0 +1,12 @@
+---
+- name: create shinobi group
+  group:
+    name: shinobi
+    gid: 2022
+    state: present
+
+- name: create shinobi user
+  user:
+    name: shinobi
+    uid: 2022
+    groups: shinobi,docker

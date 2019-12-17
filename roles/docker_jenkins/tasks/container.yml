@@ -1,0 +1,62 @@
+---
+- name: container | create /etc/docker/compose folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    path: /etc/docker/compose
+
+- name: container | create /etc/docker/compose/jenkins folder
+  file:
+    state: directory
+    owner: jenkins
+    group: jenkins
+    path: /etc/docker/compose/jenkins
+
+- name: container | create /etc/docker/compose/jenkins/nginx/conf.d folder
+  file:
+    state: directory
+    owner: jenkins
+    group: jenkins
+    path: /etc/docker/compose/jenkins/nginx/conf.d
+
+- name: container | copy jenkins dockerfile
+  copy:
+    src: jenkins.dockerfile
+    dest: /etc/docker/compose/jenkins/jenkins.dockerfile
+
+#- name: container | copy certs
+#  copy:
+#    src: "{{ item }}"
+#    dest: /etc/docker/compose/jenkins/nginx/conf.d/app.conf
+#    owner: jenkins
+#    group: jenkins
+
+- name: container | copy nginx conf file
+  template:
+    src: templates/nginx.conf.j2
+    dest: /etc/docker/compose/jenkins/nginx/conf.d/app.conf
+    owner: jenkins
+    group: jenkins
+
+- name: container | copy nginx dockerfile
+  copy:
+    src: nginx.dockerfile
+    dest: /etc/docker/compose/jenkins/nginx.dockerfile
+
+- name: container | copy docker-compose file
+  copy:
+    src: docker-compose.yml
+    dest: /etc/docker/compose/jenkins/docker-compose.yml
+
+- name: container | install systemd unit file
+  copy:
+    src: jenkins.service
+    dest: /etc/systemd/system/jenkins.service
+    mode: 0755
+    owner: root
+    group: root
+
+- name: container | reload systemd units
+  systemd:
+    daemon_reload: yes

@@ -1,0 +1,62 @@
+---
+- name: container | create /etc/docker/compose folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    path: /etc/docker/compose
+
+- name: container | create /etc/docker/compose/traefik folder
+  file:
+    state: directory
+    owner: traefik
+    group: traefik
+    path: /etc/docker/compose/traefik
+
+- name: container | create /etc/docker/compose/traefik/nginx/conf.d folder
+  file:
+    state: directory
+    owner: traefik
+    group: traefik
+    path: /etc/docker/compose/traefik/nginx/conf.d
+
+- name: container | copy traefik dockerfile
+  copy:
+    src: traefik.dockerfile
+    dest: /etc/docker/compose/traefik/traefik.dockerfile
+
+#- name: container | copy certs
+#  copy:
+#    src: "{{ item }}"
+#    dest: /etc/docker/compose/traefik/nginx/conf.d/app.conf
+#    owner: traefik
+#    group: traefik
+
+- name: container | copy nginx conf file
+  template:
+    src: templates/nginx.conf.j2
+    dest: /etc/docker/compose/traefik/nginx/conf.d/app.conf
+    owner: traefik
+    group: traefik
+
+- name: container | copy nginx dockerfile
+  copy:
+    src: nginx.dockerfile
+    dest: /etc/docker/compose/traefik/nginx.dockerfile
+
+- name: container | copy docker-compose file
+  copy:
+    src: docker-compose.yml
+    dest: /etc/docker/compose/traefik/docker-compose.yml
+
+- name: container | install systemd unit file
+  copy:
+    src: traefik.service
+    dest: /etc/systemd/system/traefik.service
+    mode: 0755
+    owner: root
+    group: root
+
+- name: container | reload systemd units
+  systemd:
+    daemon_reload: yes

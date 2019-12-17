@@ -11,3 +11,4 @@ gen
 
 .vagrant/
 vault_pass
+venv/

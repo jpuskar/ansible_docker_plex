@@ -1,0 +1,24 @@
+---
+- name: firewalld | copy jenkins firewalld xml file
+  copy:
+    content: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <service>
+        <short>jenkins</short>
+        <description>jenkins</description>
+        <port protocol="tcp" port="{{ server_port }}"/>
+      </service>
+    dest: /usr/lib/firewalld/services/jenkins.xml
+    backup: yes
+  run_once: yes
+
+- name: firewalld | configure firewalld
+  firewalld:
+    zone: public
+    service: jenkins
+    permanent: true
+    state: enabled
+#  retries: 3
+#  delay: 3
+#  register: jenkins_firewalld_result
+#  until: jenkins_result is succeeded

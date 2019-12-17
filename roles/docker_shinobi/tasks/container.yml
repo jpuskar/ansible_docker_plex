@@ -1,0 +1,57 @@
+---
+- name: container | create /etc/docker/compose folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    path: /etc/docker/compose
+
+- name: container | create /etc/docker/compose/shinobi folder
+  file:
+    state: directory
+    owner: shinobi
+    group: shinobi
+    path: /etc/docker/compose/shinobi
+
+- name: container | create /etc/docker/compose/shinobi/nginx/conf.d folder
+  file:
+    state: directory
+    owner: shinobi
+    group: shinobi
+    path: /etc/docker/compose/shinobi/nginx/conf.d
+
+- name: container | copy certs
+  copy:
+    src: "{{ item }}"
+    dest: /etc/docker/compose/shinobi/nginx/conf.d/app.conf
+    owner: shinobi
+    group: shinobi
+
+- name: container | copy nginx conf file
+  template:
+    src: templates/nginx.conf.j2
+    dest: /etc/docker/compose/shinobi/nginx/conf.d/app.conf
+    owner: shinobi
+    group: shinobi
+
+- name: container | copy nginx dockerfile
+  copy:
+    src: nginx.dockerfile
+    dest: /etc/docker/compose/shinobi/nginx.dockerfile
+
+- name: container | copy docker-compose file
+  copy:
+    src: docker-compose.yml
+    dest: /etc/docker/compose/shinobi/docker-compose.yml
+
+- name: container | install systemd unit file
+  copy:
+    src: shinobi.service
+    dest: /etc/systemd/system/shinobi.service
+    mode: 0755
+    owner: root
+    group: root
+
+- name: container | reload systemd units
+  systemd:
+    daemon_reload: yes

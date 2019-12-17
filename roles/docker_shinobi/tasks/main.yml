@@ -1,0 +1,22 @@
+---
+# TODO: TLS reverse proxy
+# TODO: database users and passwords
+# TODO: run as shinobi user (dockerfile)
+# TODO: camera configuration via unifi API
+
+- name: include firewalld tasks
+  include_tasks: firewalld.yml
+
+- name: ensure docker daemon started
+  systemd:
+    name: docker
+    state: started
+
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: include mounts tasks
+  include_tasks: mounts.yml
+
+- name: include container tasks
+  include_tasks: container.yml

@@ -1,0 +1,4 @@
+---
+server_port: 4445
+server_fqdn: jenkins
+server_name: jenkins

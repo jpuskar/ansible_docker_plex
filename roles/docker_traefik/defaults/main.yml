@@ -1,0 +1,6 @@
+---
+server_port: 4446
+server_fqdn: traefik
+server_name: traefik
+
+service_name: traefik

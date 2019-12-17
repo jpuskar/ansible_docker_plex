@@ -1,0 +1,63 @@
+---
+- name: mounts | create docker folder
+  file:
+    state: directory
+    path: "/docker"
+
+- name: mounts | create jenkins folder
+  file:
+    state: directory
+    path: "/docker/jenkins"
+    owner: jenkins
+    group: jenkins
+
+- name: mounts | set jenkins_mount_options fact
+  set_fact:
+    jenkins_mount_options:
+      - 'rw'
+      - 'relatime'
+      - 'vers=4'
+      - 'hard'
+      - 'proto=tcp'
+
+- name: mounts | set jenkins_mounts fact
+  set_fact:
+    jenkins_mounts:
+      local_path: /docker/nfs_mount/jenkins
+      remote_path: 'nas01:/volume2/jenkins'
+      owner: jenkins
+
+# systemd mounts require that the unit file name match the target mount location
+# so we need to turn the something like:
+#     /docker/unifi-video
+# into:
+#     docker-unifi-video.mount
+# hence this pattern: {{ (item.local_path | regex_replace('/','-'))[1:] }}
+- name: create mount point directories
+  file:
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    path: "{{ item.local_path }}"
+    mode: 0775
+  loop: ["{{ jenkins_mounts }}"]
+
+- name: install systemd mounts
+  template:
+    src: templates/nfs_mount_template.mount
+    dest: "/etc/systemd/system/{{ (item.local_path | regex_replace('/','-'))[1:] }}.mount"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: ["{{ jenkins_mounts }}"]
+
+- name: reload systemd units
+  systemd:
+    daemon_reexec: yes
+
+- name: enable mount
+  systemd:
+    name: "{{ (item.local_path | regex_replace('/','-'))[1:] }}.mount"
+    enabled: yes
+    state: started
+  loop: ["{{ jenkins_mounts }}"]

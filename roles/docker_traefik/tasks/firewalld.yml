@@ -1,0 +1,24 @@
+---
+- name: firewalld | copy traefik firewalld xml file
+  copy:
+    content: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <service>
+        <short>traefik</short>
+        <description>traefik</description>
+        <port protocol="tcp" port="{{ server_port }}"/>
+      </service>
+    dest: /usr/lib/firewalld/services/traefik.xml
+    backup: yes
+  run_once: yes
+
+- name: firewalld | configure firewalld
+  firewalld:
+    zone: public
+    service: traefik
+    permanent: true
+    state: enabled
+#  retries: 3
+#  delay: 3
+#  register: traefik_firewalld_result
+#  until: traefik_result is succeeded
