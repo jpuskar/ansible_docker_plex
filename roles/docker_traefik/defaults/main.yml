@@ -1,6 +1,11 @@
 ---
-server_port: 4446
+server_port: 80
 server_fqdn: traefik
 server_name: traefik
-
+service_uid: 2025
+service_gid: 2025
+service_user: traefik
+service_group: traefik
 service_name: traefik
+service_docker_source: "traefik/traefik:lts"
+service_mount_path: "nas01:/volume3/traefik"

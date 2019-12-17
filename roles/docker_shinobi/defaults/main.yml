@@ -1,0 +1,11 @@
+---
+server_port: 8080
+server_fqdn: shinobi
+server_name: shinobi
+service_uid: 2022
+service_gid: 2022
+service_user: shinobi
+service_group: shinobi
+service_name: shinobi
+service_docker_source: "shinobisystems/shinobi:latest-ubuntu"
+service_mount_path: "nas01:/volume2/shinobi"

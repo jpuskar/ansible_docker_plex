@@ -1,33 +1,26 @@
-version: "3.7"
+version: '3'
+
 services:
-  traefik:
-    build:
-      context: .
-      dockerfile: traefik.dockerfile
-    container_name: traefik
-#    user: "2022:2022"
+  reverse-proxy:
+    # The official v2.0 Traefik docker image
+    image: traefik:v2.0
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
     ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
       - "8080:8080"
-    environment:
-      - TZ=America/New_York
-      - PUID=2023
-      - PGID=2023
-    networks:
-      - traefik
     volumes:
-      - "/docker/nfs_mount/traefik/traefik_home:/var/traefik_home:Z"
-
-# proxy:
-#    dockerfile: nginx.dockerfile
-#    container_name: proxy
-#    restart: unless-stopped
-#    ports:
-#      - "4444:8080"
-#    depends_on:
-#      - traefik
-#    networks:
-#      - traefik
-
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      outside-world:
+      internal-network:
 
 networks:
-  traefik:
+ #   everything that is *only* on "internal network" cannot talk to WAN
+  internal-network:
+    internal: true
+ #   add this network to a container to make it talk to the rest of the world
+  outside-world:

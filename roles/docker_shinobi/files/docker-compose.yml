@@ -3,8 +3,14 @@ services:
   shinobi:
     image: shinobisystems/shinobi:latest-ubuntu
 #    user: "2022:2022"
-    ports:
-      - "8080:8080"
+#    ports:
+#      - "8080"
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`shinobi`)"
+      - "traefik.http.services.shinobi.loadbalancer.server.port=8080"
+#      - traefik.frontend.rule=Host:shinobi
+#      - traefik.port=8080
+      - "traefik.docker.network=traefik_default"
     environment:
       - TZ=America/New_York
       - APP_BRANCH=dev
@@ -12,7 +18,7 @@ services:
       - PUID=2022
       - PGID=2022
     networks:
-      - appnet
+      outside-world:
     volumes:
       - "/dev/shm/shinobiStreams:/dev/shm/streams:Z"
       - "/docker/nfs_mount/shinobi/shinobiConfig:/config:Z"
@@ -20,22 +26,26 @@ services:
       - "/docker/nfs_mount/shinobi/shinobiDatabase:/var/lib/mysql:Z"
       - "/docker/nfs_mount/shinobi/shinobiVideos:/opt/shinobi/videos:Z"
 
- proxy:
-    dockerfile: nginx.dockerfile
-    container_name: proxy
-    restart: unless-stopped
-    ports:
-      - "8443:8443"
-#    volumes:
-#      - /etc/docker/compose/shinobi/nginx/:/etc/nginx/conf.d/
-#      - web-root:/var/www/html
-#      - certbot-etc:/etc/letsencrypt
-#      - certbot-var:/var/lib/letsencrypt
-    depends_on:
-      - shinobi
-    networks:
-      - appnet
+# proxy:
+#    dockerfile: nginx.dockerfile
+#    container_name: proxy
+#    restart: unless-stopped
+#    ports:
+#      - "8443:8443"
+##    volumes:
+##      - /etc/docker/compose/shinobi/nginx/:/etc/nginx/conf.d/
+##      - web-root:/var/www/html
+##      - certbot-etc:/etc/letsencrypt
+##      - certbot-var:/var/lib/letsencrypt
+#    depends_on:
+#      - shinobi
+#    networks:
+#      - appnet
 
 
+#networks:
+#  appnet:
 networks:
-  appnet:
+  outside-world:
+    external:
+      name: traefik_outside-world

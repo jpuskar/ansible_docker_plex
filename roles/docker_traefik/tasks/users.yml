@@ -1,12 +1,12 @@
 ---
-- name: create traefik group
+- name: "create {{ service_group }} group"
   group:
-    name: traefik
-    gid: 2023
+    name: "{{ service_group }}"
+    gid: "{{ service_gid }}"
     state: present
 
-- name: create traefik user
+- name: "create {{ service_user }} user"
   user:
-    name: traefik
-    uid: 2023
-    groups: traefik,docker
+    name: "{{ service_user }}"
+    uid: "{{ service_uid }}"
+    groups: "{{ service_group }},docker"

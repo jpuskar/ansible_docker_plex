@@ -4,28 +4,28 @@
     state: directory
     path: "/docker"
 
-- name: mounts | create traefik folder
+- name: "mounts | create {{ service_name }} folder"
   file:
     state: directory
-    path: "/docker/traefik"
-    owner: traefik
-    group: traefik
+    path: "/docker/{{ service_name }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
 
-- name: mounts | set traefik_mount_options fact
+- name: mounts | set service_mount_options fact
   set_fact:
-    traefik_mount_options:
+    service_mount_options:
       - 'rw'
       - 'relatime'
       - 'vers=4'
       - 'hard'
       - 'proto=tcp'
 
-- name: mounts | set traefik_mounts fact
+- name: mounts | set service_mounts fact
   set_fact:
-    traefik_mounts:
-      local_path: /docker/nfs_mount/traefik
-      remote_path: 'nas01:/volume2/traefik'
-      owner: traefik
+    service_mounts:
+      local_path: "/docker/nfs_mount/{{ service_name }}"
+      remote_path: "{{ service_mount_path }}"
+      owner: "{{ service_user }}"
 
 # systemd mounts require that the unit file name match the target mount location
 # so we need to turn the something like:
@@ -40,7 +40,7 @@
     group: "{{ item.owner }}"
     path: "{{ item.local_path }}"
     mode: 0775
-  loop: ["{{ traefik_mounts }}"]
+  loop: ["{{ service_mounts }}"]
 
 - name: install systemd mounts
   template:
@@ -49,7 +49,7 @@
     owner: root
     group: root
     mode: '0644'
-  loop: ["{{ traefik_mounts }}"]
+  loop: ["{{ service_mounts }}"]
 
 - name: reload systemd units
   systemd:
@@ -60,4 +60,4 @@
     name: "{{ (item.local_path | regex_replace('/','-'))[1:] }}.mount"
     enabled: yes
     state: started
-  loop: ["{{ traefik_mounts }}"]
+  loop: ["{{ service_mounts }}"]
