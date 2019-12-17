@@ -2,15 +2,13 @@ version: "3.7"
 services:
   shinobi:
     image: shinobisystems/shinobi:latest-ubuntu
-#    user: "2022:2022"
-#    ports:
-#      - "8080"
     labels:
-      - "traefik.http.routers.whoami.rule=Host(`shinobi`)"
+      - "traefik.http.routers.whoami.rule=Host(`shinobi.site.workhub99.org`)"
       - "traefik.http.services.shinobi.loadbalancer.server.port=8080"
-#      - traefik.frontend.rule=Host:shinobi
-#      - traefik.port=8080
       - "traefik.docker.network=traefik_default"
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=myhttpchallenge"
     environment:
       - TZ=America/New_York
       - APP_BRANCH=dev
@@ -43,8 +41,6 @@ services:
 #      - appnet
 
 
-#networks:
-#  appnet:
 networks:
   outside-world:
     external:

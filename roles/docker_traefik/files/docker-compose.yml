@@ -5,15 +5,30 @@ services:
     # The official v2.0 Traefik docker image
     image: traefik:v2.0
     # Enables the web UI and tells Traefik to listen to docker
-    command: --api.insecure=true --providers.docker
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myhttpchallenge.acme.httpchallenge=true"
+      - "--certificatesresolvers.myhttpchallenge.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myhttpchallenge.acme.email=postmaster@mydomain.com"
+      - "--certificatesresolvers.myhttpchallenge.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesresolvers.myhttpchallenge.acme.storage=/letsencrypt/acme.json"
     ports:
-      # The HTTP port
       - "80:80"
-      # The Web UI (enabled by --api.insecure=true)
+      - "443:443"
       - "8080:8080"
+    labels:
+      - "traefik.enable=true"
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
+      - "/docker/nfs_mount/traefik/letsencrypt:/letsencrypt:Z"
+#      - /opt/traefik/traefik.toml:/traefik.toml
+#      - /opt/traefik/acme.json:/acme.json
     networks:
       outside-world:
       internal-network:
