@@ -2,12 +2,7 @@
   "port": 8080,
   "passwordType": "sha256",
   "detectorMergePamRegionTriggers": true,
-  "addStorage": [
-    {
-      "name": "second",
-      "path": "__DIR__/videos2"
-    }
-  ],
+  "addStorage": [],
   "db": {
     "host": "127.0.0.1",
     "user": "majesticflame",

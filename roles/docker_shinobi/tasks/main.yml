@@ -21,8 +21,8 @@
 - name: include container tasks
   include_tasks: container.yml
 
-- name: enable daemon
-  systemd:
-    name: "{{ service_name }}"
-    enabled: yes
-    state: started
+#- name: enable daemon
+#  systemd:
+#    name: "{{ service_name }}"
+#    enabled: yes
+#    state: started

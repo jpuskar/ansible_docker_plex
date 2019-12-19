@@ -13,22 +13,62 @@
     group: shinobi
     path: /etc/docker/compose/shinobi
 
+#- name: container | copy default conf.json
+#  copy:
+#    src: ./conf.json
+#    dest: /docker/nfs_mount/shinobi/conf.json
+#    force: no
+#    owner: shinobi
+#    group: shinobi
+#    mode: 0660
+#
+#- name: container | copy default super.json
+#  copy:
+#    src: ./super.json
+#    dest: /docker/nfs_mount/shinobi/super.json
+#    force: no
+#    owner: shinobi
+#    group: shinobi
+#    mode: 0660
+
 - name: container | copy default conf.json
   copy:
-    src: conf.json
-    dest: /etc/docker/compose/shinobi/conf.json
+    src: ./conf.json
+    dest: /docker/nfs_mount/shinobi/shinobiConfig/conf.json
     force: no
+    owner: shinobi
+    group: shinobi
+    mode: 0660
 
 - name: container | copy default super.json
   copy:
-    src: super.json
-    dest: /etc/docker/compose/shinobi/super.json
+    src: ./super.json
+    dest: /docker/nfs_mount/shinobi/shinobiConfig/super.json
     force: no
+    owner: shinobi
+    group: shinobi
+    mode: 0660
 
 - name: container | copy docker-compose file
   copy:
     src: docker-compose.yml
     dest: /etc/docker/compose/shinobi/docker-compose.yml
+
+- name: container | copy docker-entrypoint file
+  copy:
+    src: docker-entrypoint.sh
+    dest: /etc/docker/compose/shinobi/docker-entrypoint.sh
+    owner: shinobi
+    group: shinobi
+    mode: 0755
+
+- name: container | install shinobi.dockerfile
+  template:
+    src: templates/shinobi.dockerfile
+    dest: /etc/docker/compose/shinobi/shinobi.dockerfile
+    owner: shinobi
+    group: shinobi
+    mode: 0644
 
 - name: container | install systemd unit file
   copy:

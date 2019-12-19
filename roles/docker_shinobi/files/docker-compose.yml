@@ -1,7 +1,9 @@
 version: "3.7"
 services:
   shinobi:
-    image: shinobisystems/shinobi:latest-ubuntu
+    build:
+      context: .
+      dockerfile: shinobi.dockerfile
     labels:
       - "traefik.http.routers.whoami.rule=Host(`shinobi.site.workhub99.org`)"
       - "traefik.http.services.shinobi.loadbalancer.server.port=8080"
@@ -13,8 +15,8 @@ services:
       - TZ=America/New_York
       - APP_BRANCH=dev
       - DEBUG=1
-      - PUID=2022
-      - PGID=2022
+      - UID=2022
+      - GID=2022
     networks:
       outside-world:
     volumes:
@@ -23,8 +25,8 @@ services:
       - "/docker/nfs_mount/shinobi/shinobiCustomAutoLoad:/customAutoLoad:Z"
       - "/docker/nfs_mount/shinobi/shinobiDatabase:/var/lib/mysql:Z"
       - "/docker/nfs_mount/shinobi/shinobiVideos:/opt/shinobi/videos:Z"
-      - "/docker/nfs_mount/shinobi/conf.json:/opt/shinobi/conf.json"
-      - "/docker/nfs_mount/shinobi/super.json:/opt/shinobi/super.json"
+#      - "/docker/nfs_mount/shinobi/conf.json:/opt/shinobi/conf.json"
+#      - "/docker/nfs_mount/shinobi/super.json:/opt/shinobi/super.json"
 
 networks:
   outside-world:
