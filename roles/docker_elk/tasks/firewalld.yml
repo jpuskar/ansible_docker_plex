@@ -1,0 +1,24 @@
+---
+- name: "firewalld | copy {{ service_name }} firewalld xml file"
+  copy:
+    content: |
+      <?xml version="1.0" encoding="utf-8"?>
+      <service>
+        <short>{{ service_name }}</short>
+        <description>{{ service_name }}</description>
+        <port protocol="tcp" port="{{ server_port }}"/>
+      </service>
+    dest: "/usr/lib/firewalld/services/{{ service_name }}.xml"
+    backup: yes
+  run_once: yes
+
+- name: firewalld | configure firewalld
+  firewalld:
+    zone: public
+    service: "{{ service_name }}"
+    permanent: true
+    state: enabled
+  retries: 3
+  delay: 3
+  register: service_firewalld_result
+  until: service_firewalld_result is succeeded

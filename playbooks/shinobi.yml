@@ -1,4 +1,9 @@
 ---
+# TODO: API commands to configure RSTP
+# TODO: configuration settings
+# TODO: systemd depend on traefik and enable
+# TODO: auto prune videos
+-
 - name: configure shinobi
   hosts: docker2
   become: yes
@@ -9,5 +14,3 @@
 #    - role: nic_team
 #    - role: docker
     - role: docker_shinobi
-
-# TODO: systemd unit file for docker-compose

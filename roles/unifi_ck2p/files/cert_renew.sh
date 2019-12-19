@@ -45,5 +45,9 @@ chmod 640 /etc/ssl/private/*
 
 echo "** Testing Nginx and restarting"
 /usr/sbin/nginx -t
-systemctl restart unifi
+
+systemctl is-active --quiet unifi && systemctl restart unifi
+systemctl is-active --quiet unifi-protect && systemctl restart unifi-protect
+
+#systemctl restart unifi  # enable for unifi network (as opposed to protect)
 systemctl restart nginx

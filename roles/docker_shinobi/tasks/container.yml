@@ -13,20 +13,20 @@
     group: shinobi
     path: /etc/docker/compose/shinobi
 
-- name: container | create /etc/docker/compose/shinobi/nginx/conf.d folder
-  file:
-    state: directory
-    owner: shinobi
-    group: shinobi
-    path: /etc/docker/compose/shinobi/nginx/conf.d
-
+#- name: container | create /etc/docker/compose/shinobi/nginx/conf.d folder
+#  file:
+#    state: directory
+#    owner: shinobi
+#    group: shinobi
+#    path: /etc/docker/compose/shinobi/nginx/conf.d
+#
 #- name: container | copy certs
 #  copy:
 #    src: "{{ item }}"
 #    dest: /etc/docker/compose/shinobi/nginx/conf.d/app.conf
 #    owner: shinobi
 #    group: shinobi
-
+#
 #- name: container | copy nginx conf file
 #  template:
 #    src: templates/nginx.conf.j2

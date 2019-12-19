@@ -13,12 +13,12 @@
     group: "{{ service_group }}"
     path: "/etc/docker/compose/{{ service_name }}"
 
-#- name: "container | create /etc/docker/compose/{{ service_name }}/nginx/conf.d folder"
-#  file:
-#    state: directory
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
-#    path: "/etc/docker/compose/{{ service_name }}/nginx/conf.d"
+- name: "container | create /etc/docker/compose/{{ service_name }}/nginx/conf.d folder"
+  file:
+    state: directory
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    path: "/etc/docker/compose/{{ service_name }}/nginx/conf.d"
 
 - name: "container | copy {{ service_name }} dockerfile"
   template:
@@ -52,13 +52,6 @@
   copy:
     src: docker-compose.yml
     dest: "/etc/docker/compose/{{ service_name }}/docker-compose.yml"
-
-- name: container | copy traefik_dynamic.toml file
-  copy:
-    src: traefik_dynamic.toml
-    dest: "/docker/nfs_mount/{{ service_name }}/traefik_dynamic.toml"
-    owner: "{{ service_user }}"
-    group: "{{ service_group }}"
 
 - name: container | install systemd unit file
   template:

@@ -2,6 +2,7 @@
 # TODO: TLS reverse proxy
 # TODO: database users and passwords
 # TODO: run as traefik user (dockerfile)
+# TODO: camera configuration via unifi API
 
 - name: include firewalld tasks
   include_tasks: firewalld.yml

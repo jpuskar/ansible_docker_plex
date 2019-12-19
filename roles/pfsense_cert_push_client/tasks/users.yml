@@ -1,0 +1,27 @@
+---
+- name: "create {{ service_group }} group"
+  group:
+    name: "{{ service_group }}"
+    gid: "{{ service_gid }}"
+    state: present
+
+- name: "create {{ service_user }} user"
+  user:
+    name: "{{ service_user }}"
+    uid: "{{ service_uid }}"
+    groups: "{{ service_group }}"
+
+- name: "create .ssh folder for {{ service_user }}"
+  file:
+    state: directory
+    path: "/home/{{ service_user }}/.ssh"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+
+- name: "create authorized_keys for {{ service_user }}"
+  copy:
+    content: "{{ pfsense_cert_push_authorized_keys_content }}"
+    dest: "/home/{{ service_user }}/.ssh/authorized_keys"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    mode: 0600

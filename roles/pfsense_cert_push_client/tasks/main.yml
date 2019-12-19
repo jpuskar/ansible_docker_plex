@@ -1,0 +1,17 @@
+---
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: create new_certs directory
+  file:
+    state: directory
+    path: "/home/{{ service_user }}/new_certs"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+
+- name: create /etc/ssl/private directory
+  file:
+    state: directory
+    path: "/etc/ssl/private"
+    owner: "root"
+    group: "docker"

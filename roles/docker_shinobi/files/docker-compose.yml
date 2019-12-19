@@ -24,23 +24,6 @@ services:
       - "/docker/nfs_mount/shinobi/shinobiDatabase:/var/lib/mysql:Z"
       - "/docker/nfs_mount/shinobi/shinobiVideos:/opt/shinobi/videos:Z"
 
-# proxy:
-#    dockerfile: nginx.dockerfile
-#    container_name: proxy
-#    restart: unless-stopped
-#    ports:
-#      - "8443:8443"
-##    volumes:
-##      - /etc/docker/compose/shinobi/nginx/:/etc/nginx/conf.d/
-##      - web-root:/var/www/html
-##      - certbot-etc:/etc/letsencrypt
-##      - certbot-var:/var/lib/letsencrypt
-#    depends_on:
-#      - shinobi
-#    networks:
-#      - appnet
-
-
 networks:
   outside-world:
     external:

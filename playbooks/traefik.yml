@@ -1,4 +1,3 @@
-#https://community.ui.com/stories/Adding-Lets-Encrypt-certificate-to-UniFi-Cloud-Key-without-exposing-UniFi-to-the-internet/709219e3-32ee-41a8-a0a3-746e8a67e27e
 ---
 - name: configure traefik
   hosts: docker2
@@ -9,6 +8,6 @@
 #    - role: common
 #    - role: nic_team
 #    - role: docker
+    - role: pfsense_cert_push_client
+    - role: cert_renew_docker
     - role: docker_traefik
-
-# TODO: systemd unit file for docker-compose

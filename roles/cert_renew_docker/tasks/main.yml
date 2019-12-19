@@ -1,0 +1,14 @@
+---
+- name: install cert_renew.sh
+  copy:
+    src: cert_renew_docker.sh
+    dest: /root/cert_renew_docker.sh
+    mode: 0755
+
+- name: cron job for cert_renew
+  cron:
+    name: "renew certs"
+    minute: "0"
+    hour: "4"
+    job: "/root/cert_renew_docker.sh"
+    backup: yes
