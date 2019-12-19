@@ -4,8 +4,8 @@
 # TODO: run as shinobi user (dockerfile)
 # TODO: camera configuration via unifi API
 
-- name: include firewalld tasks
-  include_tasks: firewalld.yml
+#- name: include firewalld tasks
+#  include_tasks: firewalld.yml
 
 - name: ensure docker daemon started
   systemd:
@@ -20,3 +20,9 @@
 
 - name: include container tasks
   include_tasks: container.yml
+
+- name: enable daemon
+  systemd:
+    name: "{{ service_name }}"
+    enabled: yes
+    state: started

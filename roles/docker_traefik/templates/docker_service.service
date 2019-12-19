@@ -14,7 +14,7 @@ WorkingDirectory=/etc/docker/compose/{{ service_name }}
 ExecStartPre=/usr/local/bin/docker-compose down -v
 ExecStartPre=/usr/local/bin/docker-compose rm -fv
 ExecStartPre=-/bin/bash -c 'docker volume ls -qf "name={{ service_name }}_" | xargs docker volume rm'
-ExecStartPre=-/bin/bash -c 'docker network ls -qf "name={{ service_name }}_" | xargs docker network rm'
+ExecStartPre=-/bin/bash -c 'docker network ls -qf "name=traefik_internal-network" | xargs docker network rm'
 ExecStartPre=-/bin/bash -c 'docker ps -aqf "name={{ service_name }}_*" | xargs docker rm'
 
 # Compose up

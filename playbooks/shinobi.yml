@@ -3,7 +3,7 @@
 # TODO: configuration settings
 # TODO: systemd depend on traefik and enable
 # TODO: auto prune videos
--
+
 - name: configure shinobi
   hosts: docker2
   become: yes

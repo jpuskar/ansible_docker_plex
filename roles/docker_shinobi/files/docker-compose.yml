@@ -23,6 +23,8 @@ services:
       - "/docker/nfs_mount/shinobi/shinobiCustomAutoLoad:/customAutoLoad:Z"
       - "/docker/nfs_mount/shinobi/shinobiDatabase:/var/lib/mysql:Z"
       - "/docker/nfs_mount/shinobi/shinobiVideos:/opt/shinobi/videos:Z"
+      - "/docker/nfs_mount/shinobi/conf.json:/opt/shinobi/conf.json"
+      - "/docker/nfs_mount/shinobi/super.json:/opt/shinobi/super.json"
 
 networks:
   outside-world:

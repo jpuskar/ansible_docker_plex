@@ -13,13 +13,6 @@
     group: "{{ service_group }}"
     path: "/etc/docker/compose/{{ service_name }}"
 
-#- name: "container | create /etc/docker/compose/{{ service_name }}/nginx/conf.d folder"
-#  file:
-#    state: directory
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
-#    path: "/etc/docker/compose/{{ service_name }}/nginx/conf.d"
-
 - name: "container | copy {{ service_name }} dockerfile"
   template:
     src: templates/docker_service.dockerfile
@@ -27,26 +20,17 @@
     owner: "{{ service_user }}"
     group: "{{ service_group }}"
 
-#- name: container | copy certs
-#  copy:
-#    src: "{{ item }}"
-#    dest: /etc/docker/compose/{{ service_name }}/nginx/conf.d/app.conf
-#    owner: {{ service_name }}
-#    group: {{ service_name }}
+- name: container | check for docker network traefik_outside-world
+  shell:
+    cmd: docker network ls | grep traefik_outside-world
+  register: docker_networks
+  changed_when: false
+  ignore_errors: yes
 
-#- name: container | copy nginx conf file
-#  template:
-#    src: templates/nginx.conf.j2
-#    dest: "/etc/docker/compose/{{ service_name }}/nginx/conf.d/app.conf"
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
-#
-#- name: container | copy nginx dockerfile
-#  template:
-#    src: templates/nginx.dockerfile
-#    dest: "/etc/docker/compose/{{ service_name }}/nginx.dockerfile"
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
+- name: container | create docker network traefik_outside-world
+  shell:
+    cmd: docker network create traefik_outside-world
+  when: docker_networks.rc != 0
 
 - name: container | copy docker-compose file
   copy:

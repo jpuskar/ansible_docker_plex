@@ -1,6 +1,6 @@
 [Unit]
 Description=shinobi service with docker compose
-Requires=docker.service
+Requires=docker.service traefik.service
 RequiresMountsFor=/docker/nfs_mount/shinobi
 After=docker.service
 
