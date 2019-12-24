@@ -1,7 +1,7 @@
 #https://community.ui.com/stories/Adding-Lets-Encrypt-certificate-to-UniFi-Cloud-Key-without-exposing-UniFi-to-the-internet/709219e3-32ee-41a8-a0a3-746e8a67e27e
 ---
 - name: configure jenkins
-  hosts: docker2
+  hosts: docker1
   become: yes
   vars:
     run_yum_update: "{{ true | bool }}"

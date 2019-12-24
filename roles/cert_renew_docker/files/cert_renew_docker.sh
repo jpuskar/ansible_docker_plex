@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eo pipefail
 
+# TODO: test certs /w openssl first in case they're corrupted or only partially copied
+
 echo "** Configuring new Let's Encrypt certs"
 NEW_CERT_FOLDER="/home/pfSenseCertCopier/new_certs"
 if [[ -f "/etc/ssl/private/wildcard.crt" ]]; then

@@ -26,3 +26,4 @@
 #    name: "{{ service_name }}"
 #    enabled: yes
 #    state: started
+#  when: shinobi_enabled
