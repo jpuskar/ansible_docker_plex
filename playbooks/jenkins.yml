@@ -10,5 +10,3 @@
 #    - role: nic_team
     - role: docker
     - role: docker_jenkins
-
-# TODO: systemd unit file for docker-compose

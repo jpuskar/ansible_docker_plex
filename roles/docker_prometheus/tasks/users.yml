@@ -1,0 +1,12 @@
+---
+- name: create {{ service_group }} group
+  group:
+    name: "{{ service_group }}"
+    gid: "{{ service_gid }}"
+    state: present
+
+- name: create {{ service_name }} user
+  user:
+    name: "{{ service_name }}"
+    uid: "{{ service_uid }}"
+    groups: "{{ service_group }},docker"

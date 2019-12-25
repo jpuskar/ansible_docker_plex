@@ -1,13 +1,13 @@
 version: '3'
 
 services:
-  reverse-proxy:
+  traefik:
     # The official v2.0 Traefik docker image
     image: traefik:v2.0
     # Enables the web UI and tells Traefik to listen to docker
     command:
       - "--log.level=DEBUG"
-#      - "--api.insecure=true"
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--providers.file=true"

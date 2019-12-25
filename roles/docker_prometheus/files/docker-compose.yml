@@ -1,0 +1,53 @@
+version: "3.7"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+#    - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - /etc/docker/compose/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+    - cadvisor
+    networks:
+      outside-world:
+    labels:
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.site.workhub99.org`)"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.docker.network=traefik_outside-world"
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+#      - "traefik.http.routers.whoami.tls.certresolver=myhttpchallenge"
+  cadvisor:
+    image: google/cadvisor:latest
+    container_name: cadvisor
+    labels:
+      - "traefik.http.routers.cadvisor.rule=Host(`cadvisor.site.workhub99.org`)"
+      - "traefik.http.services.cadvisor.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik_outside-world"
+      - "traefik.enable=true"
+      - "traefik.http.routers.cadvisor.entrypoints=web"
+#      - "traefik.http.routers.whoami.tls.certresolver=myhttpchallenge"
+#    ports:
+#    - 8080:8080
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      outside-world:
+    depends_on:
+    - redis
+  redis:
+    image: redis:latest
+    container_name: redis
+#    ports:
+#    - 6379:6379
+
+networks:
+  outside-world:
+    external:
+      name: traefik_outside-world

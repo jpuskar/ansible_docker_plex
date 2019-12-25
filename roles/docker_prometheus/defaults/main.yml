@@ -1,0 +1,12 @@
+---
+#server_port: 8080
+server_fqdn: prometheus
+server_name: prometheus
+service_uid: 2027
+service_gid: 2027
+service_user: prometheus
+service_group: prometheus
+service_name: prometheus
+service_docker_source: "prometheussystems/prometheus:latest-ubuntu"
+service_mount_path: "nas01:/volume2/prometheus"
+prometheus_enabled: yes

@@ -1,0 +1,38 @@
+---
+- name: container | create /etc/docker/compose folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    path: /etc/docker/compose
+
+- name: "container | create /etc/docker/compose/{{ service_name }} folder"
+  file:
+    state: directory
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+    path: "/etc/docker/compose/{{ service_name }}"
+
+- name: container | copy prometheus.yml file
+  copy:
+    src: ./prometheus.yml
+    dest: "/etc/docker/compose/{{ service_name }}/prometheus.yml"
+    owner: "{{ service_user }}"
+    group: "{{ service_group }}"
+
+- name: container | copy docker-compose file
+  copy:
+    src: ./docker-compose.yml
+    dest: "/etc/docker/compose/{{ service_name }}/docker-compose.yml"
+
+- name: container | install systemd unit file
+  copy:
+    src: "{{ service_name }}.service"
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    mode: 0755
+    owner: root
+    group: root
+
+- name: container | reload systemd units
+  systemd:
+    daemon_reload: yes

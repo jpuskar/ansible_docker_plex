@@ -5,9 +5,9 @@
   vars:
     run_yum_update: "{{ true | bool }}"
   roles:
-    - role: common
-#    - role: nic_team
-    - role: docker
-    - role: pfsense_cert_push_client
-    - role: cert_renew_docker
+#    - role: common
+##    - role: nic_team
+#    - role: docker
+#    - role: pfsense_cert_push_client
+#    - role: cert_renew_docker
     - role: docker_traefik
