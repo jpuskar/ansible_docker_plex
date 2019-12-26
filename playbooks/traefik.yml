@@ -2,8 +2,8 @@
 - name: configure traefik
   hosts: docker1
   become: yes
-  vars:
-    run_yum_update: "{{ true | bool }}"
+#  vars:
+#    run_yum_update: "{{ true | bool }}"
   roles:
 #    - role: common
 ##    - role: nic_team
@@ -11,3 +11,6 @@
 #    - role: pfsense_cert_push_client
 #    - role: cert_renew_docker
     - role: docker_traefik
+#  tasks:
+#    - debug:
+#        var: asdf

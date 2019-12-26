@@ -33,9 +33,12 @@
   when: docker_networks.rc != 0
 
 - name: container | copy docker-compose file
-  copy:
-    src: docker-compose.yml
+  template:
+    src: templates/docker-compose.yml
     dest: "/etc/docker/compose/{{ service_name }}/docker-compose.yml"
+    mode: 0644
+    owner: root
+    group: root
 
 - name: container | copy traefik_dynamic.toml file
   copy:
