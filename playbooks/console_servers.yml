@@ -1,0 +1,19 @@
+---
+# TODO: API commands to configure RSTP
+# TODO: configuration settings
+# TODO: systemd depend on traefik and enable
+# TODO: auto prune videos
+# TODO: mysql gid/pid, node gid/pid
+# TODO: mysql password
+# TODO: super password
+
+- name: configure console servers
+  hosts: console1
+  become: yes
+  vars:
+    run_yum_update: "{{ true | bool }}"
+  roles:
+    - role: common
+#    - role: nic_team
+    - role: docker
+#    - role: docker_ttyd

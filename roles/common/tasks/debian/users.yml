@@ -1,0 +1,17 @@
+---
+- user:
+    name: "{{ default_username }}"
+    groups: sudo
+
+- file:
+    state: directory
+    path: "/home/{{default_username}}/.ssh"
+    mode: 0700
+    owner: "{{ default_username }}"
+    group: "{{ default_username }}"
+
+- copy:
+    src: "authorized_keys"
+    dest: "/home/{{ default_username }}/.ssh/authorized_keys"
+    owner: "{{ default_username }}"
+    mode: 0600

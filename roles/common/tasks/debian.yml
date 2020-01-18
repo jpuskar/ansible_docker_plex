@@ -1,0 +1,6 @@
+---
+- name: include debian/users tasks
+  include_tasks: debian/users.yml
+
+- name: include debian/base_packages tasks
+  include_tasks: debian/base_packages.yml

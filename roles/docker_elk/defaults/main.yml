@@ -1,11 +1,11 @@
 ---
-server_port: 80
+#server_port: 80
 server_fqdn: elk
 server_name: elk
-service_uid: 2025
-service_gid: 2025
+service_uid: 2028
+service_gid: 2028
 service_user: elk
 service_group: elk
 service_name: elk
-service_docker_source: "elk/elk:lts"
-service_mount_path: "nas01:/volume3/elk"
+#service_docker_source: "elk/elk:lts"
+service_mount_path: "nas01:/volume4/elk"

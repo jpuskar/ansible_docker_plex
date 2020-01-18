@@ -13,45 +13,10 @@
     group: "{{ service_group }}"
     path: "/etc/docker/compose/{{ service_name }}"
 
-- name: "container | create /etc/docker/compose/{{ service_name }}/nginx/conf.d folder"
-  file:
-    state: directory
-    owner: "{{ service_user }}"
-    group: "{{ service_group }}"
-    path: "/etc/docker/compose/{{ service_name }}/nginx/conf.d"
-
-- name: "container | copy {{ service_name }} dockerfile"
-  template:
-    src: templates/docker_service.dockerfile
-    dest: "/etc/docker/compose/{{ service_name }}/{{ service_name }}.dockerfile"
-    owner: "{{ service_user }}"
-    group: "{{ service_group }}"
-
-#- name: container | copy certs
-#  copy:
-#    src: "{{ item }}"
-#    dest: /etc/docker/compose/{{ service_name }}/nginx/conf.d/app.conf
-#    owner: {{ service_name }}
-#    group: {{ service_name }}
-
-#- name: container | copy nginx conf file
-#  template:
-#    src: templates/nginx.conf.j2
-#    dest: "/etc/docker/compose/{{ service_name }}/nginx/conf.d/app.conf"
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
-#
-#- name: container | copy nginx dockerfile
-#  template:
-#    src: templates/nginx.dockerfile
-#    dest: "/etc/docker/compose/{{ service_name }}/nginx.dockerfile"
-#    owner: "{{ service_user }}"
-#    group: "{{ service_group }}"
-
-- name: container | copy docker-compose file
+- name: container | copy service files
   copy:
-    src: docker-compose.yml
-    dest: "/etc/docker/compose/{{ service_name }}/docker-compose.yml"
+    src: "./elk_files/"
+    dest: "/etc/docker/compose/{{ service_name }}/"
 
 - name: container | install systemd unit file
   template:

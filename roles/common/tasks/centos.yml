@@ -1,0 +1,6 @@
+---
+- name: include centos/users tasks
+  include_tasks: centos/users.yml
+
+- name: include centos/base_packages tasks
+  include_tasks: centos/base_packages.yml

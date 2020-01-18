@@ -1,0 +1,8 @@
+---
+- name: install deps
+  apt:
+    state: latest
+    name:
+      - cmake
+      - libssl-dev
+      - libavahi-compat-libdnssd-dev

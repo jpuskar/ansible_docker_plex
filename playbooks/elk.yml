@@ -1,0 +1,12 @@
+#
+---
+- name: elk
+  hosts: docker1
+  become: yes
+  vars:
+    run_yum_update: "{{ true | bool }}"
+  roles:
+#    - role: common
+#    - role: nic_team
+#    - role: docker
+    - role: docker_elk

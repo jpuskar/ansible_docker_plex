@@ -4,8 +4,8 @@
 # TODO: run as traefik user (dockerfile)
 # TODO: camera configuration via unifi API
 
-- name: include firewalld tasks
-  include_tasks: firewalld.yml
+#- name: include firewalld tasks
+#  include_tasks: firewalld.yml
 
 - name: ensure docker daemon started
   systemd:
