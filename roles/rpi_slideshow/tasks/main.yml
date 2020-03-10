@@ -1,0 +1,25 @@
+---
+- apt:
+    state: latest
+    pkg:
+      - feh
+      - xscreensaver
+      - cec-utils
+
+- copy:
+    src: "runslideshow.sh"
+    dest: "/home/pi/runslideshow.sh"
+    owner: "pi"
+    group: "pi"
+    mode: 0755
+
+- lineinfile:
+    path: "/etc/xdg/lxsession/LXDE-pi/autostart"
+    line: "@/bin/bash /home/pi/runslideshow.sh"
+
+# fail2ban
+# ufw or iptables
+# remove pi from sudo group
+# add picture updater user and chroot
+# disable screensaver
+# window manager auto-run runslideshow.sh

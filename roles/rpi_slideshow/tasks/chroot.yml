@@ -1,0 +1,21 @@
+# sshd
+#Match Group slideshow_admins
+#    ChrootDirectory /home/%u
+#    AllowTCPForwarding no
+#    X11Forwarding no
+#    ForceCommand internal-sftp -d foobar
+#
+#- name: configure sshd chroot
+#  lineinfile: >
+#    dest=/etc/ssh/sshd_config
+#    line="{{ 'Match USER ' ~ item.username ~ '\n\tAllowTcpForwarding no\n\tForceCommand internal-sftp\n\tPasswordAuthentication yes\n\tChrootDirectory %h/chroot' }}"
+#    regexp="^Match USER {{ item.username }}"
+#    validate="/usr/sbin/sshd -T -f %s"
+#    insertbefore="^{{ sftp_placeholder_end }}"
+#    state=present
+#  notify: restart ssh
+#  with_items: sftp_users
+#  tags:
+#    - networking
+#    - sftp
+#    - users

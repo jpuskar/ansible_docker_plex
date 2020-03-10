@@ -1,0 +1,19 @@
+# user account
+# home folder
+# slideshow group
+---
+- name: create slideshow_updaters group
+  group:
+    name: slideshow_updaters
+    gid: 2101
+    state: present
+
+- name: create slideshow folder
+  file:
+    state: directory
+    path: /data/rpi_slideshow
+    group: 2101
+    owner: root
+    mode: 0774
+
+#- name: sshd chroot config

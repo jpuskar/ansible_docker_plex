@@ -1,0 +1,26 @@
+---
+# TODO: users and keys
+# TODO: update
+# TODO: window autologin user noprivs
+# TODO: auto prune videos
+# TODO: disable usb ports
+# TODO: disable screensaver
+# TODO: cron job to rsync pictures from nas
+# TODO: scp chroot for inbound
+
+# TODO: configure NAS to send email via godaddy
+# TODO: create user for NAS volume
+# TODO: NAS - letsencrypt certificate
+# TODO: NAS - firewall
+# TODO: NAS - access profiles
+# TODO: NAS - allow rpi-slideshow to SCP data off
+
+
+- name: configure rpi_slideshow devices
+  hosts: rpi_slideshow
+  become: yes
+  vars:
+    run_yum_update: "{{ true | bool }}"
+  roles:
+    - role: common
+    - role: rpi_slideshow
