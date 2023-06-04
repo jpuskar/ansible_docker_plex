@@ -1,0 +1,5 @@
+---
+- name: install common tools and other deps
+  package:
+    pkg: {{ base_packages }}
+    state: installed

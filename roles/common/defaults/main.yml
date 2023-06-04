@@ -1,0 +1,16 @@
+---
+base_packages:
+  - coreutils
+  - iftop
+  - iotop
+  - iperf
+  - iputils-ping
+  - jq
+  - lm_sensors
+  - lsof
+  - nfs-utils
+  - rsync
+  - screen
+  - sdparm
+  - sysstat
+  - unzip

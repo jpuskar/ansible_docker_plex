@@ -1,0 +1,3 @@
+## 2.5" drive bays
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="99c50819-d2a8-42f8-bd35-293ed82dc1db", SYMLINK+="sbay1", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay1.key luksOpen $env{DEVNAME} sbay1_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="0fca5d3f-3dfd-4b71-ace6-8d1f0ae42bf1", SYMLINK+="sbay2", RUN+="/sbin/cryptsetup --key-file /etc/.keys/sbay2.key luksOpen $env{DEVNAME} sbay2_crypt"

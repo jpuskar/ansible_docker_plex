@@ -1,22 +1,24 @@
 ---
+# TODO: git submodule this -- https://github.com/ansible-lockdown/UBUNTU22-CIS/tree/devel
+
 - name: configure nfs_master
   hosts: nfs_master
   become: yes
-  vars:
-    run_yum_update: "{{ true | bool }}"
+#  vars:
+#    run_yum_update: "{{ true | bool }}"
   roles:
     - role: common
-    - role: tw_cli
-    - role: zfs
-    - role: plex_nfs_server
+#    - role: tw_cli
+#    - role: zfs
+#    - role: plex_nfs_server
 
-- name: configure plex_master
-  hosts: plex_master
-  become: yes
-  vars:
-    run_yum_update: "{{ true | bool }}"
-  roles:
-    - role: common
-    - role: tw_cli
-    - role: docker
-    - role: plex
+#- name: configure plex_master
+#  hosts: plex_master
+#  become: yes
+#  vars:
+#    run_yum_update: "{{ true | bool }}"
+#  roles:
+#    - role: common
+#    - role: tw_cli
+#    - role: docker
+#    - role: plex

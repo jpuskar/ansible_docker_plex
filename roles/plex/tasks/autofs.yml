@@ -1,0 +1,19 @@
+---
+- name: autofs | install luks keys
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/.keys/{{ item }}"
+  with_items:
+    - "sbay1.key"
+    - "sbay2.key"
+
+- name: autofs | configure auto.master
+  lineinfile:
+    path: "/etc/auto.master"
+    regexp: '^/media/crypt'
+    line: '/media/crypt    /etc/auto.luks --timeout=300'
+
+- name: autofs | configure auto.luks
+  copy:
+    src: "auto.luks"
+    dest: "/etc/auto.luks"
