@@ -1,0 +1,7 @@
+---
+# figure out / remember how autofs works
+# generate / document and specify luks keys
+# role for autofs
+# role for udev rules (documentation for this too)
+# role for creating zpool
+# exports
