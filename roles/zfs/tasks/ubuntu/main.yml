@@ -1,0 +1,5 @@
+---
+# ref: https://openzfs.github.io/openzfs-docs/Getting%20Started/Ubuntu/index.html
+- package:
+    name: zfsutils-linux
+    state: present

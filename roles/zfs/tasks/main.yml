@@ -1,7 +1,13 @@
 ---
-# ref: https://openzfs.github.io/openzfs-docs/Getting%20Started/Ubuntu/index.html
-- package:
-    name: zfsutils-linux
-    state: present
+- name: include centos common tasks
+  include_tasks: centos/main.yml
+  when: "ansible_distribution == 'CentOS'"
+
+- name: include ubuntu common tasks
+  include_tasks: ubuntu/main.yml
+  when: "ansible_distribution == 'Ubuntu'"
+
+#
+
 
 # Create pools, ashift=12

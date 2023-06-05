@@ -1,5 +1,20 @@
 ---
-base_packages:
+base_packages_centos:
+  - iftop
+  - iotop
+  - iperf
+  - kernel-devel
+  - lm_sensors
+  - lsof
+  - nfs-utils
+  - rsync
+  - screen
+  - sdparm
+  - sysstat
+  - unzip
+  - yum-utils
+
+base_packages_ubuntu:
   - coreutils
   - iftop
   - iotop
@@ -9,9 +24,9 @@ base_packages:
   - lm_sensors
   - lsof
   - nfs-utils
+  - python3
   - rsync
   - screen
   - sdparm
   - sysstat
   - unzip
-  - python3
