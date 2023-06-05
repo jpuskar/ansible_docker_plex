@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  vault:
+    build:
+      context: .
+      dockerfile: shinobi.dockerfile
+    ports:
+      - 8200:8200
+    volumes:
+      - /docker/vault/file:/vault/file:rw
+      - /docker/vault/config.json:/config.json:r
+    entrypoint: vault server -config=/vault.json

@@ -1,0 +1,32 @@
+version: "3.7"
+services:
+#  db:
+#    image: mysql:5.7
+#    volumes:
+#      - db_data:/var/lib/mysql
+#    restart: always
+#    environment:
+#      MYSQL_ROOT_PASSWORD: somewordpress
+#      MYSQL_DATABASE: wordpress
+#      MYSQL_USER: wordpress
+#      MYSQL_PASSWORD: wordpress
+  shinobi:
+    build:
+      context: .
+      dockerfile: shinobi.dockerfile
+    environment:
+      - TZ=America/New_York
+      - APP_BRANCH=dev
+      - DEBUG=1
+#      - UID=2022
+#      - GID=2022
+    ports:
+      - 8080:8080
+    volumes:
+      - "/dev/shm/shinobiStreams:/dev/shm/streams:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiConfig:/config:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiCustomAutoLoad:/customAutoLoad:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiDatabase:/var/lib/mysql:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiVideos:/home/Shinobi/videos:Z"
+#      - "{{ shinobi_host_mount_prefix }}/shinobi/conf.json:/opt/shinobi/conf.json"
+#      - "{{ shinobi_host_mount_prefix }}/shinobi/super.json:/opt/shinobi/super.json"

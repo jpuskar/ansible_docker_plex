@@ -22,10 +22,10 @@
 
 - name: mounts | set shinobi_mounts fact
   set_fact:
-    shinobi_mounts:
-      local_path: /docker/nfs_mount/shinobi
-      remote_path: 'nas01:/volume1/shinobi'
-      owner: shinobi
+    shinobi_mounts: []
+#      local_path: /docker/nfs_mount/shinobi
+#      remote_path: 'nas01:/volume1/shinobi'
+#      owner: shinobi
 
 # systemd mounts require that the unit file name match the target mount location
 # so we need to turn the something like:

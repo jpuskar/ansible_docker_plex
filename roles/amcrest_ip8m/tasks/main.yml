@@ -1,0 +1,7 @@
+# configure stream properties like codec, bitrate
+# disable stream2
+# tls certificate
+# enable recording always to SD
+# ensure SD is isntalled
+# configure DNS, NTP
+# configure auth

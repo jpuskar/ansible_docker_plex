@@ -1,0 +1,34 @@
+# user and group
+
+# stage spigot
+
+# dockerfile
+
+## download links (?)
+
+# docker-compose file
+
+
+#MVP: docker container running the spigot jar file
+## java -Xmx1024M -Xms1024M -jar spigot.jar
+
+#install java -- java-1.8.0-openjdk
+
+# filewall-cmd
+# port forwarding and/or uPNP
+
+# automatic backups to google drive
+# cpu/ram limits and/or prio < shinobi
+
+# separate interface for a different network
+
+#investigate:
+#vivecraft_1  | [00:44:51] [Server thread/ERROR]: [Vivecraft] Vault not found, permissions groups will not be set
+# CraftBukkit version git-Spigot-b5a13e6-0d8350a
+
+# systemd script
+# password protected / whitelist
+
+# online vs offline mode server
+# auth plugin like https://dev.bukkit.org/projects/xauth
+# dont run as root

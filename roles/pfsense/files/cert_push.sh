@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 set -uo pipefail
 # No -e becase we want to coninue on scp failure.
 

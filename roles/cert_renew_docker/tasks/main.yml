@@ -12,3 +12,17 @@
     hour: "4"
     job: "/root/cert_renew_docker.sh"
     backup: yes
+
+- group:
+    name: "cert_pullers"
+
+- user:
+    name: "{{ cert_puller_username }}"
+    groups: "cert_pullers"
+
+- file:
+    state: directory
+    path: "/home/{{cert_puller_username}}/.ssh"
+    mode: 0700
+    owner: "{{ cert_puller_username }}"
+    group: "cert_pullers"

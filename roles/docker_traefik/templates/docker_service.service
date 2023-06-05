@@ -1,7 +1,7 @@
 [Unit]
 Description={{ service_name }} service with docker compose
 Requires=docker.service
-RequiresMountsFor=/docker/nfs_mount/{{ service_name }}
+#RequiresMountsFor=/docker/nfs_mount/{{ service_name }}
 After=docker.service
 
 [Service]

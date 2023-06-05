@@ -31,28 +31,47 @@
 #    group: shinobi
 #    mode: 0660
 
-- name: container | copy default conf.json
-  copy:
-    src: ./conf.json
-    dest: /docker/nfs_mount/shinobi/shinobiConfig/conf.json
-    force: no
+- name: container | create shinobi_host_mount_prefix
+  file:
+    state: directory
+    path: "{{ shinobi_host_mount_prefix }}"
     owner: shinobi
     group: shinobi
-    mode: 0660
 
-- name: container | copy default super.json
-  copy:
-    src: ./super.json
-    dest: /docker/nfs_mount/shinobi/shinobiConfig/super.json
-    force: no
-    owner: shinobi
-    group: shinobi
-    mode: 0660
+#- name: container | copy default conf.json
+#  file:
+#    state: directory
+#    path: /docker/nfs_mount/shinobi/shinobiConfig
+#    owner: shinobi
+#    group: shinobi
+#    mode: 0660
 
+#- name: container | copy default conf.json
+#  copy:
+#    src: ./conf.json
+#    dest: /docker/nfs_mount/shinobi/shinobiConfig/conf.json
+#    force: no
+#    owner: shinobi
+#    group: shinobi
+#    mode: 0660
+#
+#- name: container | copy default super.json
+#  copy:
+#    src: ./super.json
+#    dest: /docker/nfs_mount/shinobi/shinobiConfig/super.json
+#    force: no
+#    owner: shinobi
+#    group: shinobi
+#    mode: 0660
+
+# TODO: Parameterize traefik vs standalone
 - name: container | copy docker-compose file
-  copy:
-    src: docker-compose.yml
+  template:
+    src: docker-compose-standalone.yml
     dest: /etc/docker/compose/shinobi/docker-compose.yml
+    owner: shinobi
+    group: shinobi
+    mode: 0644
 
 - name: container | copy docker-entrypoint file
   copy:

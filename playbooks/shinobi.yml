@@ -8,7 +8,7 @@
 # TODO: super password
 
 - name: configure shinobi
-  hosts: docker1
+  hosts: docker4
   become: yes
   vars:
     run_yum_update: "{{ true | bool }}"

@@ -1,18 +1,23 @@
-# REF: https://hub.docker.com/r/shinobicctv/shinobi/dockerfile
-FROM shinobisystems/shinobi:latest-ubuntu
+FROM shinobisystems/shinobi:dev
 
-# update
-RUN cd /opt/shinobi \
-    && git checkout dev \
+RUN cd /home/Shinobi \
+    && git remote set-url origin https://gitlab.com/Shinobi-Systems/Shinobi.git \
+    && git checkout master \
     && git reset --hard \
     && git pull \
     && npm install --unsafe-perm \
-    && npm audit fix --force
+    && npm install ffmpeg-static \
+    && npm audit fix --force \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
-COPY docker-entrypoint.sh /opt/shinobi/
-
-# RUN chown -R 2022:2022 /customAutoLoad
-# RUN rm -rf /opt/shinobi/.git
-# RUN chown -R 2022:2022 /opt/shinobi
+#RUN chown 2022:2022 -R /home/Shinobi \
+#    && mkdir -p /var/run/mysqld \
+#    && chown 2022:2022 -R /var/run/mysqld \
+#    && mkdir -p /var/lib/mysql \
+#    && chown mysql -R /var/lib/mysql
 #
-# USER 2022
+#USER 2022
+
+COPY docker-entrypoint.sh /
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD [ "pm2-docker", "pm2.yml" ]

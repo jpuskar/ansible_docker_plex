@@ -1,0 +1,29 @@
+- hosts: backups1
+  tasks:
+    - name: create temporary build directory
+      tempfile:
+        state: directory
+        suffix: backup
+      delegate_to: localhost
+      register: tmp_folder
+      become: no
+
+    - name: backup mount points
+      fetch:
+        src: /etc/exports
+        dest: "{{ hostvars['localhost']['tmp_folder'].path }}
+
+    -
+      # slurp /etc/exports
+      # mount > text file
+    - name: backup udev rules
+    - name: backup encryption keys
+      # /etc/autofs luks, etc
+    - name: lsblk info
+      # lsblk, lvs, vgs, pvs info / display
+      # fdisk output
+    - name: backup zfs info
+      # zpool mount points etc
+    - name: backup modules info
+      # modprobe output
+    - name: backup /root

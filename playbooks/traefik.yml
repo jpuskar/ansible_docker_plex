@@ -1,6 +1,6 @@
 ---
 - name: configure traefik
-  hosts: docker1
+  hosts: docker4
   become: yes
 #  vars:
 #    run_yum_update: "{{ true | bool }}"

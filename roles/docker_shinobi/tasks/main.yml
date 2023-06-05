@@ -15,8 +15,8 @@
 - name: include users tasks
   include_tasks: users.yml
 
-- name: include mounts tasks
-  include_tasks: mounts.yml
+#- name: include mounts tasks
+#  include_tasks: mounts.yml
 
 - name: include container tasks
   include_tasks: container.yml

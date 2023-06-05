@@ -1,0 +1,36 @@
+version: "3.7"
+services:
+  shinobi:
+    build:
+      context: .
+      dockerfile: shinobi.dockerfile
+    labels:
+      - "traefik.http.routers.whoami.rule=Host(`{{ host_fqdn }}`)"
+      - "traefik.http.services.shinobi.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik_default"
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=myhttpchallenge"
+    environment:
+      - TZ=America/New_York
+      - APP_BRANCH=dev
+      - DEBUG=1
+      - UID=2022
+      - GID=2022
+    ports:
+      - 8080:8080
+#    networks:
+#      outside-world:
+    volumes:
+      - "/dev/shm/shinobiStreams:/dev/shm/streams:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiConfig:/config:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiCustomAutoLoad:/customAutoLoad:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiDatabase:/var/lib/mysql:Z"
+      - "{{ shinobi_host_mount_prefix }}/shinobi/shinobiVideos:/opt/shinobi/videos:Z"
+#      - "{{ shinobi_host_mount_prefix }}/shinobi/conf.json:/opt/shinobi/conf.json"
+#      - "{{ shinobi_host_mount_prefix }}/shinobi/super.json:/opt/shinobi/super.json"
+
+#networks:
+#  outside-world:
+#    external:
+#      name: traefik_outside-world

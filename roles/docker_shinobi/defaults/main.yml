@@ -10,3 +10,4 @@ service_name: shinobi
 service_docker_source: "shinobisystems/shinobi:latest-ubuntu"
 service_mount_path: "nas01:/volume2/shinobi"
 shinobi_enabled: yes
+shinobi_host_mount_prefix: "/docker/shinobi"
