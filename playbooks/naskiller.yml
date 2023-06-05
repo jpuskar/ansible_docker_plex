@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  tasks:
+    - include_role:
+        name: users
+
+#    - include_role:
+#        name: nic_team
+
+    # ref: https://help.ubuntu.com/community/SerialConsoleHowto
+    - include_role:
+        name: serial_console
+
+    - include_role:
+        name: sensors
+
+    - include_role:
+        name: liquidctl
+
+    - include_role:
+        name: node_exporter
+
+    - include_role:
+        name: zfs
+
+    - include_role:
+        name: UBUNTU22-CIS
+
+    - include_role:
+        name: udev-luks-autofs
+
+    - include_role:
+        name: firewall

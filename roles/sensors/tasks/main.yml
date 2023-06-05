@@ -1,0 +1,4 @@
+---
+# sensors-detect --auto
+# modprobe if needed
+# modify modules file as needed
