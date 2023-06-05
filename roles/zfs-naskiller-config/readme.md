@@ -1,8 +1,12 @@
 # zfs-naskiller-config
 
+# TODO: drive power aggressiveness
+
+
+
 ## Adding a new drive
 
-1. Create a key via 'dd bs=512 count=8 if=/dev/urandom of=/etc/.keys/mydrive1.key'
+1. Create a key via 'dd bs=512 count=8 if=/dev/urandom of=/etc/.keys/bay0drive3.key'
 2. chmod 400 /etc/.keys -R
 3. Get drive serial number.
 4. Find current label by serial number.

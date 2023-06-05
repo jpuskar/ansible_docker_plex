@@ -9,5 +9,8 @@
 - name: include ufw tasks
   include_tasks: ufw.yml
 
+- name: include autofs tasks
+  include_tasks: autofs.yml
+
 - name: include udev_rules tasks
   include_tasks: udev_rules.yml

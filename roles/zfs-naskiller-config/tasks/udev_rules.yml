@@ -1,8 +1,18 @@
 ---
-- name: udev_rules | install drive udev rules
+- name: udev_rules | install drive bay udev rules
   copy:
     src: "{{ item }}"
     dest: "/etc/udev/rules.d/{{ item }}"
   with_items:
-    - "90-usb-zfs.rules"
     - "92-drive-bays.rules"
+  register: udev_rules_file
+
+- name: reload udev rules
+  shell:
+    cmd: |
+      set -euo pipefail
+      udevadm control --reload
+  args:
+    executable: /bin/bash
+  register: sensors_detect_cmd
+  when: udev_rules_file.changed
