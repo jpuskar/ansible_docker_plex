@@ -14,5 +14,9 @@ pip install ansible
 ```
 
 ```bash
+ansible-galaxy collection install community.general
+```
+
+```bash
 ansible-playbook playbooks/naskiller.yml
 ```

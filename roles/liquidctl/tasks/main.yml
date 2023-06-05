@@ -1,2 +1,4 @@
 ---
-# note: default package for ubuntu 22.04 is too old to support corsair commander core xt
+- name: Install liquidctl
+  ansible.builtin.pip:
+    name: liquidctl

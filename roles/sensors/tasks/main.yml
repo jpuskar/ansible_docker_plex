@@ -1,4 +1,16 @@
 ---
-# sensors-detect --auto
-# modprobe if needed
-# modify modules file as needed
+- name: detect sensors
+  shell:
+    cmd: |
+      set -euo pipefail
+      sensors-detect --auto
+  args:
+    executable: /bin/bash
+  register: sensors_detect_cmd
+
+- name: add kernel module
+  community.general.modprobe:
+    name: nct6775
+    state: present
+    persistent: present
+  when: "'nct6775' in sensors_detect_cmd.stdout"
