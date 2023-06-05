@@ -1,7 +1,8 @@
 # zfs-naskiller-config
 
-# TODO: drive power aggressiveness
-
+# TODO
+- drive power aggressiveness
+- write caching?
 
 
 ## Adding a new drive
@@ -17,7 +18,7 @@
 7. cryptsetup luksAddKey /dev/thing1 /etc/.keys/mydrive1.key
 8. Get FS-UUID via udevadm info /dev/thing1
 9. Add a Udev rule to a static mapping
-   KERNEL=="sd?1", ENV{ID_FS_UUID}=="The-UUID-From-Before", SYMLINK+="mydrive1", RUN+="/sbin/cryptsetup --key-file /etc/.keys/mydrive1.key luksOpen $env{DEVNAME} mydrive1_crypt"
+   KERNEL=="sd?1", ENV{ID_FS_UUID}=="The-UUID-From-Before", SYMLINK+="mydrive1", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/mydrive1.key luksOpen $env{DEVNAME} mydrive1_crypt"
 10. udevadm control --reload
 
 ## Creating the zpool
