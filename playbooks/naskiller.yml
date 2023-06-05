@@ -5,21 +5,26 @@
 #     - include_role:
 #         name: common
 
+
+# TODO: serial_console
 #    # ref: https://help.ubuntu.com/community/SerialConsoleHowto
 #    - include_role:
 #        name: serial_console
 
+
 #     - include_role:
 #         name: sensors
 
+#     - include_role:
+#        name: liquidctl
+
     - include_role:
-       name: liquidctl
+       name: node_exporter
+
 
 #    - include_role:
-#        name: node_exporter
-#
-#    - include_role:
 #        name: zfs
+
 
 #     # TODO: disable password rotation - 5.5.1.x
 #     - include_role:
@@ -29,6 +34,11 @@
 #         ubtu22cis_rsync_server: true
 #         ubtu22cis_rpc_required: true
 #         ubtu22cis_rule_5_4_2: false  # pam_faillock, but the role is broken.
+#         ubtu22cis_ufw_allow_out_ports:
+#           - 53
+#           - 80
+#           - 123
+#           - 443
 #         ubtu22cis_sshd:
 #           log_level: "INFO"
 #           max_auth_tries: 4

@@ -1,1 +1,70 @@
 ---
+- name: set node_exporter_file_name fact
+  set_fact:
+    node_exporter_file_name: "{{ node_exporter_download_url.split('/')[-1] }}"
+
+- name: download node_exporter
+  ansible.builtin.get_url:
+    url: "{{ node_exporter_download_url }}"
+    dest: "/root/{{ node_exporter_file_name }}"
+    checksum: "{{ node_exporter_checksum }}"
+
+- name: create node_exporter folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+    path: /opt/node_exporter
+
+- name: unzip node_exporter
+  ansible.builtin.unarchive:
+    src: "/root/{{ node_exporter_file_name }}"
+    dest: /opt/node_exporter
+    remote_src: yes
+
+- name: node_exporter group
+  group:
+    name: "node_exporter"
+    state: present
+    system: true
+
+- name: node_exporter user
+  user:
+    name: "node_exporter"
+    groups: "node_exporter"
+    append: true
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+
+- name: set node_exporter_binary_path fact
+  set_fact:
+    node_exporter_folder_name: "{{ node_exporter_file_name | regex_replace('.tar.gz', '') }}"
+
+- name: render node_exporter systemd unit file
+  template:
+    src: node_exporter.service
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: 0644
+  register: node_exporter_unit_file
+
+- name: systemd daemon-reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: node_exporter_unit_file.changed
+
+- name: systemd start node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: started
+    enabled: true
+
+- name: Allow all access to tcp port 9100 for node_exporter
+  ufw:
+    rule: allow
+    direction: in
+    to_port: '9100'
+    proto: tcp
