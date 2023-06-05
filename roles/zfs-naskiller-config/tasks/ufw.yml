@@ -1,0 +1,14 @@
+---
+- name: Allow all access to tcp port 9100 for node_exporter
+  ufw:
+    rule: allow
+    direction: in
+    to_port: '9100'
+    proto: tcp
+
+- name: allow nfs
+  community.general.ufw:
+    rule: allow
+    name: nfs
+    src: "{{ item }}"
+  with_items: "{{ naskiller_nfs_client_ips_csv.split(',') }}"

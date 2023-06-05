@@ -1,7 +1,13 @@
 ---
-# figure out / remember how autofs works
-# generate / document and specify luks keys
-# role for autofs
-# role for udev rules (documentation for this too)
-# role for creating zpool
 # exports
+- name: include packages tasks
+  include_tasks: packages.yml
+
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: include ufw tasks
+  include_tasks: ufw.yml
+
+- name: include udev_rules tasks
+  include_tasks: udev_rules.yml

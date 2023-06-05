@@ -1,0 +1,9 @@
+---
+- name: install packages
+  package:
+    pkg:
+      - cryptsetup
+      - pciutils
+      - autofs
+    state: present
+  become: yes
