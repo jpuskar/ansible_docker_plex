@@ -13,4 +13,4 @@
 - name: install common tools and other deps
   yum:
     pkg: "{{ base_packages_centos }}"
-    state: installed
+    state: present

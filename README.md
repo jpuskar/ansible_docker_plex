@@ -12,3 +12,7 @@ pip install ansible
 #vi ~/.ssh/id_rsa
 #vi ~/.ssh/id_rsa.pub
 ```
+
+```bash
+ansible-playbook playbooks/naskiller.yml
+```

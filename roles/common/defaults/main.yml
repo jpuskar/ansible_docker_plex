@@ -21,9 +21,10 @@ base_packages_ubuntu:
   - iperf
   - iputils-ping
   - jq
-  - lm_sensors
+  - lm-sensors
   - lsof
-  - nfs-utils
+  - network-manager
+  - nfs-common
   - python3
   - rsync
   - screen

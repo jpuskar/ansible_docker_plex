@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- hosts: nfs_master
+  become: true
   tasks:
     - include_role:
         name: common
@@ -25,6 +26,11 @@
 
     - include_role:
         name: UBUNTU22-CIS
+      vars:
+        ubtu22cis_rule_3_1_2: false
+        ubtu22cis_rsync_server: true
+        ubtu22cis_rpc_required: true
+        ubtu22cis_rule_5_4_2: false  # pam_faillock, but the role is broken.
 
 #    - include_role:
 #        name: udev-luks-autofs

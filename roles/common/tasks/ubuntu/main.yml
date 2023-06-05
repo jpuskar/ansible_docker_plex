@@ -1,5 +1,6 @@
 ---
 - name: install common tools and other deps
   package:
-    pkg: {{ base_packages_ubuntu }}
-    state: installed
+    pkg: "{{ base_packages_ubuntu }}"
+    state: present
+  become: yes
