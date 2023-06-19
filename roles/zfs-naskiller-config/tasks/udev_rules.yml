@@ -6,3 +6,15 @@
     owner: root
     group: root
     mode: 0644
+    backup: yes
+  register: udev_rules_file
+
+- name: reload udev rules
+  shell:
+    cmd: |
+      set -euo pipefail
+      udevadm control --reload
+  args:
+    executable: /bin/bash
+  register: sensors_detect_cmd
+  when: udev_rules_file.changed

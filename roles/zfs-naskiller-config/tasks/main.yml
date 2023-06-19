@@ -11,3 +11,6 @@
 
 - name: include udev_rules tasks
   include_tasks: udev_rules.yml
+
+- name: include exports tasks
+  include_tasks: exports.yml

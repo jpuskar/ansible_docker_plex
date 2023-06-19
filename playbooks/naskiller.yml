@@ -22,8 +22,11 @@
 #        name: node_exporter
 
 
+#    - include_role:
+#        name: zfs-core
+
    - include_role:
-       name: zfs-core
+       name: zfs-naskiller-config
 
 
 #     # TODO: disable password rotation - 5.5.1.x
@@ -33,6 +36,7 @@
 #         ubtu22cis_allow_usb_storage: true
 #         ubtu22cis_rule_3_1_2: false
 #         ubtu22cis_rsync_server: true
+#         ubtu22cis_nfs_server: true
 #         ubtu22cis_rpc_required: true
 #         ubtu22cis_rule_5_4_2: false  # pam_faillock, but the role is broken.
 #         ubtu22cis_ufw_allow_out_ports:

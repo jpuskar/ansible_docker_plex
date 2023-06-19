@@ -1,8 +1,13 @@
 # zfs-naskiller-config
 
+# TODO
+- drive power aggressiveness
+- write caching?
+
+
 ## Adding a new drive
 
-1. Create a key via 'dd bs=512 count=8 if=/dev/urandom of=/etc/.keys/mydrive1.key'
+1. Create a key via 'dd bs=512 count=8 if=/dev/urandom of=/etc/.keys/bay0drive3.key'
 2. chmod 400 /etc/.keys -R
 3. Get drive serial number from the label.
 4. Find current label by serial number (`hdparm -I /dev/sd?`).
@@ -13,7 +18,7 @@
 7. cryptsetup luksAddKey /dev/thing1 /etc/.keys/mydrive1.key
 8. Get FS-UUID via udevadm info /dev/thing1
 9. Add a Udev rule to a static mapping
-   KERNEL=="sd?1", ENV{ID_FS_UUID}=="The-UUID-From-Before", SYMLINK+="mydrive1", RUN+="/sbin/cryptsetup --key-file /etc/.keys/mydrive1.key luksOpen $env{DEVNAME} mydrive1_crypt"
+   KERNEL=="sd?1", ENV{ID_FS_UUID}=="The-UUID-From-Before", SYMLINK+="mydrive1", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/mydrive1.key luksOpen $env{DEVNAME} mydrive1_crypt"
 10. udevadm control --reload
 
 
