@@ -1,8 +1,8 @@
 ---
 - name: udev_rules | install drive udev rules
   copy:
-    src: "{{ item }}"
-    dest: "/etc/udev/rules.d/{{ item }}"
-  with_items:
-    - "90-usb-zfs.rules"
-    - "92-drive-bays.rules"
+    content: "{{ udev_rules_drive_bays_contents }}"
+    dest: "/etc/udev/rules.d/92-drive-bays.rules"
+    owner: root
+    group: root
+    mode: 0644

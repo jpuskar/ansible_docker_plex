@@ -30,6 +30,7 @@
 #     - include_role:
 #         name: UBUNTU22-CIS
 #       vars:
+#         ubtu22cis_allow_usb_storage: true
 #         ubtu22cis_rule_3_1_2: false
 #         ubtu22cis_rsync_server: true
 #         ubtu22cis_rpc_required: true

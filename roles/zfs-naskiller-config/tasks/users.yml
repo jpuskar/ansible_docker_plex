@@ -10,3 +10,9 @@
     name: k8s-node
     uid: 2020
     groups: k8s-node
+
+- name: create zfs-plex group
+  group:
+    name: zfs-plex
+    gid: 2021
+    state: present
