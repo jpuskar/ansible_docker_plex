@@ -37,3 +37,8 @@ zpool replace tank0 old-disk-ref /dev/mapper/new-disk-ref
 ## clearing errors
 
 zpool clear tank0 the-disk-ref
+
+
+# Backups
+1. udev rules for usb disks, and format them
+2. zpool 
