@@ -41,4 +41,7 @@ zpool clear tank0 the-disk-ref
 
 # Backups
 1. udev rules for usb disks, and format them
-2. zpool 
+2. zpool create -o ashift=12 backup-tank raidz /dev/mapper/zusb0_crypt /dev/mapper/zusb1_crypt /dev/mapper/zusb2_crypt /dev/mapper/zusb3_crypt
+3. zfs create backup-tank/usb-backups
+
+rsync -gloptrunci /tank0/backups/ /backup-tank/backups2/tank0/backups/
