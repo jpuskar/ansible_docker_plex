@@ -10,5 +10,7 @@ cryptsetup luksOpen /dev/thedisk1 bayXdriveYz_crypt --key-file /etc/.keys/bayXdr
 blkid /dev/thedisk1  # Get the first UUID
 vi /etc/udev/rules.d/92-drive-bays.rules   # copypasta one of the lines
 
+zpool attach tank0 existingBayXdriveYa_crypt bayXdriveYz_crypt
+
 # replaced 06/03/2025.
 # KERNEL=="sd?1", ENV{ID_FS_UUID}=="the-uuid-here", SYMLINK+="bayXdriveYz", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bayXdriveYz.key luksOpen $env{DEVNAME} bayXdriveYz_crypt"
