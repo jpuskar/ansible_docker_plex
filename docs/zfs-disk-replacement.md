@@ -14,3 +14,7 @@ zpool attach tank0 existingBayXdriveYa_crypt bayXdriveYz_crypt
 
 # replaced 06/03/2025.
 # KERNEL=="sd?1", ENV{ID_FS_UUID}=="the-uuid-here", SYMLINK+="bayXdriveYz", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bayXdriveYz.key luksOpen $env{DEVNAME} bayXdriveYz_crypt"
+
+
+## hash all files
+find /tank0/backups -type f -exec sha256sum '{}' \; >> /root/tank0-backups-06-04-2025.txt

@@ -1,3 +1,8 @@
+
+Final Outcome:
+- nfs NAS
+
+
 ```bash
 vagrant up
 vagrant ssh
