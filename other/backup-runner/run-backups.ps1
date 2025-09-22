@@ -4,8 +4,7 @@
 
 param(
     [string]$SmbPath = "\\192.168.1.192\desktop-backups",
-    [string]$LogPath = "C:\Logs\backup.log",
-    [int]$RetentionDays = 30
+    [string]$LogPath = "C:\Logs\backup.log"
 )
 
 # Configuration
@@ -15,13 +14,10 @@ $BackupDest = Join-Path $SmbPath $BackupName
 # Directories to backup (customize as needed)
 $BackupDirs = @(
     $env:USERPROFILE,
-    "C:\needs-sorted",
-    "C:\games\StepMania 5",
-    "C:\games\GOG Games",
     "C:\SDRSharp",
     "C:\Video",
-    "D:\ellie-camera",
-    "D:\media",
+    "D:\archive",
+    "D:\media-to-sort",
     "D:\VMs\rjt-vpn-workstation"
 )
 
@@ -60,14 +56,18 @@ $DirExcludes = @(
     '$RECYCLE.BIN',
     '$Recycle.Bin',
     "System Volume Information",
-    "C:\Users\john\AppData\Local\Temp",
-    "C:\Users\john\AppData\Local\Microsoft\Windows\Temporary Internet Files",
-    "C:\Users\john\AppData\Local\Google\Chrome\User Data",
-    "C:\Users\john\AppData\Local\Mozilla\Firefox\Profiles",
-    "C:\Users\john\AppData\Roaming\Spotify\Storage",
-    "C:\Users\john\AppData\Local\Packages",
+    "C:\Users\john\.kube\cache",
+    "C:\Users\john\AppData\Local\TslGame\Saved\Demos",
+    "C:\Users\john\AppData\Local\Plex\cache",
     "C:\Users\john\AppData\Local\Docker\wsl\disk",
-    "C:\Users\john\.kube\cache"
+    "C:\Users\john\AppData\Local\Google\Chrome\User Data",
+    "C:\Users\john\AppData\Local\Microsoft\Windows\Temporary Internet Files",
+    "C:\Users\john\AppData\Local\Mozilla\Firefox\Profiles",
+    "C:\Users\john\AppData\Local\Packages",
+    "C:\Users\john\AppData\Local\Temp",
+    "C:\Users\john\AppData\Local\calibre-cache",
+    "C:\Users\john\AppData\Roaming\Spotify\Storage",
+    "C:\Users\john\Libation\Books"
 )
 
 function Write-Log {
