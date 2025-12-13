@@ -44,3 +44,6 @@
    1. Create USB and install pfsense
    2. Initial user and ansible password
    3. Run ansible to configure 
+
+# ZFS Snapshots
+zfs snapshot tank0/plex@manual-$(date +%Y%m%d-%H%M)
