@@ -1,0 +1,28 @@
+---
+# DHCP Server Configuration using puzzle.opnsense collection
+
+# ============================================
+# DHCP Static Mappings (Reservations)
+# ============================================
+
+- name: Configure DHCP static mappings
+  puzzle.opnsense.dhcp_static:
+    api_url: "{{ opnsense_url }}"
+    api_key: "{{ opnsense_api_key }}"
+    api_secret: "{{ opnsense_api_secret }}"
+    validate_certs: "{{ opnsense_validate_certs }}"
+    interface: "{{ item.interface }}"
+    mac: "{{ item.mac }}"
+    ipaddr: "{{ item.ipaddr }}"
+    hostname: "{{ item.hostname }}"
+    description: "{{ item.descr | default('') }}"
+    state: present
+  loop: "{{ opnsense_dhcp_static_mappings }}"
+  when: opnsense_dhcp_static_mappings is defined
+  loop_control:
+    label: "{{ item.hostname | default(item.mac) }}"
+
+# Note: DHCP server per-interface settings (ranges, DNS servers, etc.)
+# are typically managed via puzzle.opnsense.dhcpv4_general or through
+# the system settings. Consult puzzle.opnsense documentation for the
+# specific module for your OPNsense version.

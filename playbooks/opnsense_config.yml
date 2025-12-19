@@ -1,0 +1,32 @@
+---
+- hosts: opnsense
+  connection: local
+  gather_facts: true
+  module_defaults:
+    group/oxlorg.opnsense.all:
+      firewall: "{{ firewall_ip }}"
+      api_credential_file: '/home/john/opn.key'
+      ssl_verify: false
+
+  tasks:
+    - include_role:
+        name: opnsense
+
+
+#    - name: Query interfaces
+#      oxlorg.opnsense.raw:
+#        url: 'interfaces/overview/interfacesInfo'
+#      register: interfaces
+#
+#    - name: Display all interfaces
+#      ansible.builtin.debug:
+#        var: interfaces.response.rows
+
+#    - name: Pulling interface_vlan
+#      oxlorg.opnsense.list:
+#        target: 'interface_vlan'
+#      register: existing_interface_vlan
+#
+#    - name: Printing
+#      ansible.builtin.debug:
+#        var: existing_interface_vlan.data

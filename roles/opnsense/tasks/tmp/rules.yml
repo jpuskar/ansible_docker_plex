@@ -1,0 +1,97 @@
+---
+# Firewall Rules Configuration using puzzle.opnsense collection
+
+# ============================================
+# Firewall Aliases
+# ============================================
+
+- name: Configure firewall aliases
+  puzzle.opnsense.firewall_alias:
+    api_url: "{{ opnsense_url }}"
+    api_key: "{{ opnsense_api_key }}"
+    api_secret: "{{ opnsense_api_secret }}"
+    validate_certs: "{{ opnsense_validate_certs }}"
+    name: "{{ item.name }}"
+    type: "{{ item.type }}"
+    content: "{{ item.content }}"
+    description: "{{ item.description | default('') }}"
+    state: present
+  loop: "{{ opnsense_aliases }}"
+  when: opnsense_aliases is defined
+  loop_control:
+    label: "{{ item.name }}"
+
+# ============================================
+# Firewall Filter Rules
+# ============================================
+
+- name: Configure firewall rules
+  puzzle.opnsense.firewall_rule:
+    api_url: "{{ opnsense_url }}"
+    api_key: "{{ opnsense_api_key }}"
+    api_secret: "{{ opnsense_api_secret }}"
+    validate_certs: "{{ opnsense_validate_certs }}"
+    description: "{{ item.description }}"
+    interface: "{{ item.interface }}"
+    action: "{{ item.action }}"
+    protocol: "{{ item.protocol | default('any') }}"
+    source: "{{ item.source | default('any') }}"
+    source_port: "{{ item.source_port | default(omit) }}"
+    destination: "{{ item.destination | default('any') }}"
+    destination_port: "{{ item.destination_port | default(omit) }}"
+    log: "{{ item.log | default(false) }}"
+    enabled: "{{ item.enabled | default(true) }}"
+    state: present
+  loop: "{{ opnsense_firewall_rules }}"
+  when: opnsense_firewall_rules is defined
+  loop_control:
+    label: "{{ item.description }}"
+
+# ============================================
+# NAT Port Forward Rules
+# ============================================
+
+- name: Configure NAT port forward rules
+  puzzle.opnsense.firewall_nat_port_forward:
+    api_url: "{{ opnsense_url }}"
+    api_key: "{{ opnsense_api_key }}"
+    api_secret: "{{ opnsense_api_secret }}"
+    validate_certs: "{{ opnsense_validate_certs }}"
+    interface: "{{ item.interface }}"
+    protocol: "{{ item.protocol }}"
+    source: "{{ item.source | default('any') }}"
+    destination: "{{ item.destination | default('any') }}"
+    destination_port: "{{ item.destination_port }}"
+    target: "{{ item.target_ip }}"
+    local_port: "{{ item.target_port | default(item.destination_port) }}"
+    description: "{{ item.description }}"
+    enabled: "{{ item.enabled | default(true) }}"
+    state: present
+  loop: "{{ opnsense_nat_port_forwards }}"
+  when: opnsense_nat_port_forwards is defined
+  loop_control:
+    label: "{{ item.description }}"
+
+# ============================================
+# NAT Outbound Rules
+# ============================================
+
+- name: Configure NAT outbound rules
+  puzzle.opnsense.firewall_nat_outbound:
+    api_url: "{{ opnsense_url }}"
+    api_key: "{{ opnsense_api_key }}"
+    api_secret: "{{ opnsense_api_secret }}"
+    validate_certs: "{{ opnsense_validate_certs }}"
+    interface: "{{ item.interface }}"
+    protocol: "{{ item.protocol | default('any') }}"
+    source: "{{ item.source }}"
+    destination: "{{ item.destination | default('any') }}"
+    target: "{{ item.target | default(omit) }}"
+    description: "{{ item.description }}"
+    enabled: "{{ item.enabled | default(true) }}"
+    nonat: "{{ item.nonat | default(false) }}"
+    state: present
+  loop: "{{ opnsense_nat_outbound }}"
+  when: opnsense_nat_outbound is defined
+  loop_control:
+    label: "{{ item.description }}"

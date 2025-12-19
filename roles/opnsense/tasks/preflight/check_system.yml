@@ -1,0 +1,56 @@
+---
+- name: Parse hostname from config
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/hostname
+    content: text
+  register: _hostname
+
+- name: Parse domain from config
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/domain
+    content: text
+  register: _domain
+
+# TODO: assert only 1 match
+- name: Assert hostname matches
+  ansible.builtin.assert:
+    that:
+      - _hostname.matches[0].hostname == opnsense_hostname
+    fail_msg: "Hostname mismatch: expected {{ opnsense_hostname }}, got {{ _hostname.matches[0].hostname }}"
+
+# TODO: assert only 1 match
+- name: Assert domain matches
+  ansible.builtin.assert:
+    that:
+      - _domain.matches[0].domain == opnsense_domain
+    fail_msg: "Hostname mismatch: expected {{ opnsense_domain }}, got {{ _domain.matches[0].domain }}"
+
+- name: Parse SSH interfaces
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/ssh/interfaces
+    content: text
+  register: _ssh_interfaces
+
+# TODO: assert only 1 ssh interface
+- name: Assert SSH listens on LAN only
+  ansible.builtin.assert:
+    that:
+      - _ssh_interfaces.matches[0].interfaces == 'lan'
+    fail_msg: "SSH not listening on LAN only: {{ _ssh_interfaces.matches[0].interfaces }}"
+
+- name: Parse webgui interfaces
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/webgui/interfaces
+    content: text
+  register: _webgui_interfaces
+
+# TODO: assert only 1 webgui interface
+- name: Assert webgui listens on LAN only
+  ansible.builtin.assert:
+    that:
+      - _webgui_interfaces.matches[0].interfaces == 'lan'
+    fail_msg: "WebGUI not listening on LAN only: {{ _webgui_interfaces.matches[0].interfaces }}"

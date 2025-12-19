@@ -1,0 +1,191 @@
+---
+# OPNsense connection settings (for puzzle.opnsense collection)
+opnsense_url: "https://192.168.1.1"
+opnsense_api_key: "{{ vault_opnsense_api_key }}"
+opnsense_api_secret: "{{ vault_opnsense_api_secret }}"
+opnsense_validate_certs: false
+
+opnsense_hostname: firewall
+
+# Enable/disable configuration sections
+opnsense_configure_vlans: true
+opnsense_configure_gateways: true
+opnsense_configure_routes: true
+opnsense_configure_dhcp: true
+opnsense_configure_dns: true
+opnsense_configure_rules: true
+
+# VLAN Configuration
+opnsense_vlans:
+  - device: igb0
+    tag: 10
+    description: "Management VLAN"
+    priority: 0
+  - device: igb0
+    tag: 20
+    description: "Server VLAN"
+    priority: 0
+  - device: igb0
+    tag: 30
+    description: "IoT VLAN"
+    priority: 0
+
+# VLAN Interface Assignments (optional)
+opnsense_vlan_interfaces:
+  - vlan: "igb0.10"
+    description: "MGMT"
+    ipaddr: "192.168.10.1"
+    subnet: "24"
+  - vlan: "igb0.20"
+    description: "SERVERS"
+    ipaddr: "192.168.20.1"
+    subnet: "24"
+  - vlan: "igb0.30"
+    description: "IOT"
+    ipaddr: "192.168.30.1"
+    subnet: "24"
+
+# Gateway Configuration
+opnsense_gateways:
+  - name: "WAN_DHCP"
+    interface: "wan"
+    ipprotocol: "inet"
+    gateway: "dynamic"
+    monitor: "8.8.8.8"
+    descr: "WAN Gateway"
+    defaultgw: true
+  - name: "WAN2_DHCP"
+    interface: "wan2"
+    ipprotocol: "inet"
+    gateway: "dynamic"
+    monitor: "1.1.1.1"
+    descr: "Secondary WAN Gateway"
+    defaultgw: false
+
+# Static Routes
+opnsense_routes:
+  - network: "10.0.0.0/8"
+    gateway: "WAN_DHCP"
+    descr: "Route to remote network"
+  - network: "172.16.0.0/12"
+    gateway: "WAN_DHCP"
+    descr: "Route to office network"
+
+# DHCP Server Configuration
+opnsense_dhcp_servers:
+  - interface: "lan"
+    enable: true
+    range_from: "192.168.1.100"
+    range_to: "192.168.1.200"
+    gateway: "192.168.1.1"
+    dns_servers:
+      - "192.168.1.1"
+      - "8.8.8.8"
+    domain: "home.local"
+    default_lease_time: 7200
+    max_lease_time: 86400
+  - interface: "opt1"  # Management VLAN
+    enable: true
+    range_from: "192.168.10.100"
+    range_to: "192.168.10.200"
+    gateway: "192.168.10.1"
+    dns_servers:
+      - "192.168.10.1"
+    domain: "home.local"
+
+# DHCP Static Mappings
+opnsense_dhcp_static_mappings:
+  - interface: "lan"
+    mac: "aa:bb:cc:dd:ee:ff"
+    ipaddr: "192.168.1.10"
+    hostname: "server1"
+    descr: "Plex Server"
+  - interface: "lan"
+    mac: "11:22:33:44:55:66"
+    ipaddr: "192.168.1.11"
+    hostname: "nas1"
+    descr: "NAS Server"
+
+# DNS Host Overrides (Unbound)
+opnsense_dns_hosts:
+  - hostname: "server1"
+    domain: "home.local"
+    ip: "192.168.1.10"
+    descr: "Plex Server"
+  - hostname: "nas1"
+    domain: "home.local"
+    ip: "192.168.1.11"
+    descr: "NAS Server"
+  - hostname: "firewall"
+    domain: "home.local"
+    ip: "192.168.1.1"
+    descr: "OPNsense Firewall"
+
+# DNS Domain Overrides (Forward zones)
+opnsense_dns_domains:
+  - domain: "internal.corp"
+    server: "10.0.0.10"
+    descr: "Corporate DNS Server"
+
+# Unbound DNS Settings
+opnsense_unbound_settings:
+  enable: true
+  port: 53
+  dnssec: true
+  forwarding: false
+  regdhcp: true  # Register DHCP leases in DNS
+  regdhcpstatic: true  # Register DHCP static mappings in DNS
+
+# Firewall Rules
+opnsense_firewall_rules:
+  # LAN Rules
+  - interface: "lan"
+    description: "Allow LAN to any"
+    action: "pass"
+    protocol: "any"
+    source: "lan"
+    destination: "any"
+  - interface: "lan"
+    description: "Allow DNS to firewall"
+    action: "pass"
+    protocol: "tcp/udp"
+    source: "lan"
+    destination: "lan address"
+    destination_port: "53"
+
+  # Management VLAN Rules
+  - interface: "opt1"
+    description: "Allow MGMT to servers"
+    action: "pass"
+    protocol: "any"
+    source: "opt1"
+    destination: "192.168.20.0/24"
+
+  # IoT VLAN Rules (restrictive)
+  - interface: "opt2"
+    description: "Allow IoT to internet only"
+    action: "pass"
+    protocol: "any"
+    source: "opt2"
+    destination: "!RFC1918"  # Not private networks
+  - interface: "opt2"
+    description: "Block IoT to LAN"
+    action: "block"
+    protocol: "any"
+    source: "opt2"
+    destination: "lan"
+
+  # WAN Rules
+  - interface: "wan"
+    description: "Allow established connections"
+    action: "pass"
+    protocol: "any"
+    source: "any"
+    destination: "any"
+    statetype: "keep state"
+  - interface: "wan"
+    description: "Block all other WAN traffic"
+    action: "block"
+    protocol: "any"
+    source: "any"
+    destination: "any"

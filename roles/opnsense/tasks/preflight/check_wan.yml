@@ -1,0 +1,45 @@
+---
+- name: Query interface assignments
+  oxlorg.opnsense.raw:
+    url: 'interfaces/overview/interfacesInfo'
+  register: interfaces_info
+
+- name: Find WAN interface in results
+  ansible.builtin.set_fact:
+    wan_interface: "{{ interfaces_info.response.rows | selectattr('identifier', 'equalto', 'wan') | first | default({}) }}"
+
+- name: Assert WAN interface configuration
+  ansible.builtin.assert:
+    that:
+      - wan_interface | length > 0
+      - wan_interface.device == wan_interface_name
+      - wan_interface.config.ipaddr == 'dhcp'  # or check the appropriate field
+    fail_msg: |
+      WAN interface configuration check failed:
+      - WAN exists: {{ wan_interface | length > 0 }}
+      - Device is ix0: {{ wan_interface.device | default('NOT SET') == 'ix0' }}
+      - DHCP enabled: {{ wan_interface.config.ipaddr | default('NOT SET') == 'dhcp' }}
+    success_msg: "WAN interface correctly configured on {{ wan_interface_name }} with DHCP"
+
+- name: Check WAN 'Block private networks' is enabled
+  ansible.builtin.fail:
+    msg: "WAN 'Block private networks' is not enabled (blockpriv={{ wan_interface.config.blockpriv | default('NOT SET') }})"
+  when: not (wan_interface.config.blockpriv | default(false) | bool)
+
+- name: Check WAN 'Block bogon networks' is enabled
+  ansible.builtin.fail:
+    msg: "WAN 'Block bogon networks' is not enabled (blockbogons={{ wan_interface.config.blockbogons | default('NOT SET') }})"
+  when: not (wan_interface.config.blockbogons | default(false) | bool)
+
+- name: WAN security settings validated
+  ansible.builtin.debug:
+    msg: "✓ WAN security settings correct: Block private networks and Block bogon networks both enabled"
+
+- name: Check WAN 'spoofmac' is correct
+  ansible.builtin.fail:
+    msg: "WAN 'spoofmac' value is not correct (spoofmac={{ wan_interface.config.spoofmac | default('NOT SET') }})"
+  when: not (wan_interface.config.spoofmac == spoof_mac)
+
+- name: WAN security settings validated
+  ansible.builtin.debug:
+    msg: "✓ WAN spoof_mac settings correct."
