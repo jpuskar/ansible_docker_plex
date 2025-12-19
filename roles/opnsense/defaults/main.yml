@@ -6,6 +6,7 @@ opnsense_api_secret: "{{ vault_opnsense_api_secret }}"
 opnsense_validate_certs: false
 
 opnsense_hostname: firewall
+opnsense_timezone: "America/New_York"
 
 # Enable/disable configuration sections
 opnsense_configure_vlans: true
