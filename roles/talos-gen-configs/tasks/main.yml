@@ -1,11 +1,9 @@
 ---
 # TODO: aescbcEncryptionSecret
-# TODO: allowSchedulingOnControlPlanes
-# TODO: cilium
 
 - name: set workingdir to repo-location/tmp/talos/cluster-name
   set_fact:
-    talos_working_dir: "{{ playbook_dir }}/../tmp/talos/{{ talos_cluster_name }}"
+    talos_working_dir: "{{ repo_dir }}/tmp/talos/{{ talos_cluster_name }}"
 
 - name: create working directory
   file:
@@ -29,6 +27,7 @@
   loop:
     - luks-config.yaml
     - prep-for-cilium.yaml
+    - allowSchedulingOnControlPlanes.yaml
 
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 - name: run talosctl gen config
@@ -41,8 +40,10 @@
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
         --additional-sans "{{ talos_additional_sans | join(',') }}" \
         --install-image=factory.talos.dev/installer-secureboot/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.11.5 \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-luks-config.yaml \
-        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml
+        --force
     chdir: "{{ talos_working_dir }}"
   register: talosctl_gen_config_output
 
