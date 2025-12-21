@@ -3,7 +3,7 @@
 # TODO: allowSchedulingOnControlPlanes
 # TODO: cilium
 
-- name: set workingdir to repo-location/tmp/talos/k8s2
+- name: set workingdir to repo-location/tmp/talos/cluster-name
   set_fact:
     talos_working_dir: "{{ playbook_dir }}/../tmp/talos/{{ talos_cluster_name }}"
 

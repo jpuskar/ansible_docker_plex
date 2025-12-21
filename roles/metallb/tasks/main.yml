@@ -1,0 +1,23 @@
+---
+- name: set values_file_path fact
+  set_fact:
+    values_file_path: "{{ temp_dir }}/metallb-values.yaml"
+
+- name: render values file to temp
+  template:
+    src: metallb-values.yaml
+    dest: "{{ values_file_path }}"
+
+- name: helm repoadd
+  shell:
+    cmd: |-
+      helm repo add metallb https://metallb.github.io/metallb
+
+- name: helm install metallb
+  shell:
+    cmd: |-
+      helm install metallb metallb/metallb \
+        --upgrade \
+        --version v0.15.3 \
+        --values {{ values_file_path }} \
+        --kubeconfig {{ kubeconfig_file_path }}

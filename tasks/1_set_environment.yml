@@ -1,0 +1,10 @@
+---
+- name: set temp_dir fact
+  set_fact:
+    temp_dir: "{{ playbook_dir }}/../tmp/temp"
+
+- name: create temp_dir
+  file:
+    path: "{{ temp_dir }}"
+    state: directory
+    mode: '0755'
