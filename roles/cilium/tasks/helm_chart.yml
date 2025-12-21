@@ -1,0 +1,21 @@
+---
+- name: render cilium helm chart values file
+  template:
+    src: cilium-values.yaml
+    dest: "{{ temp_dir }}/cilium-values.yaml"
+    backup: yes
+
+- name: add cilium helm repo
+  shell:
+    cmd: |-
+      helm repo add cilium https://helm.cilium.io/
+
+- name: run helm install for cilium
+  shell:
+    cmd: |-
+      helm install --upgrade \
+      cilium \
+          cilium/cilium \
+          --version 1.18.5 \
+          --namespace kube-system \
+          --values {{ temp_dir }}/cilium-values.yaml

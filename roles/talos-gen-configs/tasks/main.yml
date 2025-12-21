@@ -21,11 +21,14 @@
       The secrets file needs generated with:
       talosctl gen secrets -o {{ talos_cluster_name }}-secrets.yaml
 
-- name: template out luks-config to working-dir
+- name: template out patches to working-dir
   template:
-    src: luks-config.yaml
-    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-luks-config.yaml"
+    src: "{{ item }}"
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}"
     backup: true
+  loop:
+    - luks-config.yaml
+    - prep-for-cilium.yaml
 
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 - name: run talosctl gen config
@@ -37,7 +40,9 @@
         --install-disk /dev/{{ talos_install_disk }} \
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
         --additional-sans "{{ talos_additional_sans | join(',') }}" \
-        --install-image=factory.talos.dev/installer-secureboot/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.11.5
+        --install-image=factory.talos.dev/installer-secureboot/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.11.5 \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-luks-config.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml
     chdir: "{{ talos_working_dir }}"
   register: talosctl_gen_config_output
 

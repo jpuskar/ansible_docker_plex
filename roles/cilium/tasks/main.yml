@@ -1,0 +1,3 @@
+---
+- name: include helm_chart tasks
+  include_tasks: helm_chart.yml
