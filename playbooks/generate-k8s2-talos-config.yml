@@ -1,0 +1,7 @@
+---
+# ansible-playbook generate-k8s2-talos-config.yml -e talos_luks_passphrase="asdf"
+- hosts: k8s2
+  connection: local
+  tasks:
+    - include_role:
+        name: talos-gen-configs
