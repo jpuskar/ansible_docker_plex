@@ -13,11 +13,11 @@
     cmd: |-
       helm repo add metallb https://metallb.github.io/metallb
 
-- name: helm install metallb
-  shell:
-    cmd: |-
-      helm install metallb metallb/metallb \
-        --upgrade \
-        --version v0.15.3 \
-        --values {{ values_file_path }} \
-        --kubeconfig {{ kubeconfig_file_path }}
+#- name: helm install metallb
+#  shell:
+#    cmd: |-
+#      helm install metallb metallb/metallb \
+#        --upgrade \
+#        --version v0.15.3 \
+#        --values {{ values_file_path }} \
+#        --kubeconfig {{ kubeconfig_file_path }}

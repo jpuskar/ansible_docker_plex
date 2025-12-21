@@ -1,0 +1,17 @@
+---
+- name: set repo_dir fact
+  set_fact:
+    repo_dir: "{{ (playbook_dir ~ '/..') | realpath }}"
+
+- name: set temp_dir fact
+  set_fact:
+    temp_dir: "{{ (repo_dir ~ '/tmp/temp') | realpath }}"
+
+- name: create temp_dir
+  file:
+    path: "{{ temp_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: include cluster vars
+  include_vars: "{{ (repo_dir ~ '/inventory/group_vars/cluster/' ~ cluster_name ~ '.yml') | realpath }}"
