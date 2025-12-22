@@ -5,13 +5,15 @@
 ```shell
 ansible-playbook playbooks/generate-k8s2-talos-config.yml -e talos_luks_passphrase=asdf
 ```
-Then: cd `tmp/talos/k8s2`.
+
+Then: `cd tmp/talos/k8s2`.
 Then:
 ```shell
-talosctl --talosconfig=./talosconfig config endpoints {{ talos_control_plane_ip }}
-talosctl apply-config --insecure --file controlplane.yaml --nodes {{ talos_control_plane_ip }}
-talosctl bootstrap --talosconfig=./talosconfig --nodes {{ talos_control_plane_ip }}
-talosctl kubeconfig --talosconfig=./talosconfig --nodes {{ talos_control_plane_ip }}
+NODES="192.168.25.151"
+talosctl --talosconfig=./talosconfig config endpoints ${NODES}
+talosctl apply-config --insecure --file controlplane.yaml --nodes ${NODES}
+talosctl bootstrap --talosconfig=./talosconfig --nodes ${NODES}
+talosctl kubeconfig --talosconfig=./talosconfig --nodes ${NODES}
 ```
 
 # Notes for manual runs

@@ -10,12 +10,18 @@
     cmd: |-
       helm repo add cilium https://helm.cilium.io/
 
+- name: add cilium helm repo
+  shell:
+    cmd: |-
+      helm repo update cilium
+
 - name: run helm install for cilium
   shell:
     cmd: |-
-      helm install --upgrade \
-      cilium \
+      helm upgrade \
+        cilium \
           cilium/cilium \
-          --version 1.18.5 \
-          --namespace kube-system \
-          --values {{ temp_dir }}/cilium-values.yaml
+            --install \
+            --version 1.18.5 \
+            --namespace kube-system \
+            --values "{{ temp_dir }}/cilium-values.yaml"

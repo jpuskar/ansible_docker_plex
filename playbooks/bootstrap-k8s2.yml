@@ -6,6 +6,6 @@
     - name: include tasks/1_set_vars.yml
       include_tasks: ../tasks/1_set_vars.yml
 
-    - name: include metallb role
+    - name: include cilium role
       include_role:
-        name: metallb
+        name: cilium
