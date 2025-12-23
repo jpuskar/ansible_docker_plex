@@ -4,6 +4,7 @@ import logging
 
 import email
 import email.header
+import re
 import smtplib
 
 from typing import Tuple
@@ -20,7 +21,10 @@ from email.mime.base import MIMEBase
 logger = logging.getLogger(__name__)
 
 
-def decode_subject(subject_line):
+def decode_subject(
+        subject_line,
+        fallback_subject: str,
+):
     """Decode email subject line from various encodings to clean ASCII"""
     try:
         # Handle RFC 2047 encoded subjects like =?UTF-8?B?...?=
@@ -53,7 +57,7 @@ def decode_subject(subject_line):
 
         # If nothing readable remains, use fallback
         if not cleaned or cleaned.isspace():
-            cleaned = config['fallback_subject']
+            cleaned = fallback_subject
 
         # Final trim of whitespace and ensure no leading/trailing spaces
         cleaned = cleaned.strip()
@@ -65,7 +69,7 @@ def decode_subject(subject_line):
 
     except Exception as e:
         logger.warning(f"Failed to decode subject '{subject_line}': {e}")
-        return config['fallback_subject']
+        return fallback_subject
 
 
 class SMTPProxyHandler:
@@ -100,12 +104,12 @@ class SMTPProxyHandler:
                 logger.info("YOLOv8n model loaded successfully")
             except Exception as e:
                 logger.error(f"Failed to load YOLO model: {e}")
-                self.ai_detection_enabled = False
+                raise e
 
     async def detect_objects_in_image(self, image_data):
         """Use local YOLOv8 to detect people, vehicles, or animals in an image"""
         try:
-            if not self.ai_detection_enabled or self.model is None:
+            if not self.ai_detection_enabled:
                 logger.info("AI detection disabled, allowing email through")
                 return True
 
@@ -116,7 +120,12 @@ class SMTPProxyHandler:
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(
                 None,
-                lambda: self.model.predict(img, conf=self.confidence_threshold, imgsz=416, verbose=False)
+                lambda: self.model.predict(
+                    img,
+                    conf=self.confidence_threshold,
+                    imgsz=416,
+                    verbose=False,
+                )
             )
 
             # Check if any target objects were detected
@@ -126,10 +135,10 @@ class SMTPProxyHandler:
                     for cls_id in detected_classes:
                         if cls_id in self.target_classes:
                             class_name = result.names[cls_id]
-                            logger.info(f"Detected {class_name} in image (confidence: {result.boxes.conf[detected_classes == cls_id].max():.2f})")
+                            logger.info(f"Detected ({class_name}) in image (confidence: {result.boxes.conf[detected_classes == cls_id].max():.2f})")
                             return True
 
-            logger.info("No people/vehicles/animals detected in image")
+            logger.info("No people/vehicles/animals detected in image.")
             return False
 
         except Exception as e:
@@ -156,13 +165,13 @@ class SMTPProxyHandler:
             if hasattr(session, 'login_data'):
                 logger.info(f"Session login_data type: {type(session.login_data)}")
             if hasattr(session, 'auth_data'):
-                logger.info(f"Session auth_data: {session.auth_data}")
+                logger.info(f"Session auth_data: {'*' * 8 if session.auth_data else 'None'}")
             if hasattr(session, '_login_data'):
                 logger.info(f"Session _login_data: {session._login_data}")
             if hasattr(session, 'username'):
                 logger.info(f"Session username: {session.username}")
             if hasattr(session, 'password'):
-                logger.info(f"Session password: {'*' * len(session.password) if session.password else 'None'}")
+                logger.info(f"Session password: {'*' * 8 if session.password else 'None'}")
             if hasattr(session, 'authenticated'):
                 logger.info(f"Session authenticated: {session.authenticated}")
 
@@ -176,7 +185,7 @@ class SMTPProxyHandler:
                     username = auth_data.get('username')
                     password = auth_data.get('password')
                     logger.info(
-                        f"Extracted - Username: {username}, Password: {'*' * len(password) if password else 'None'}")
+                        f"Extracted - Username: {username}, Password: {'*' * 8 if password else 'None'}")
 
             logger.info(f"=== SESSION DEBUG END ===")
 
@@ -185,7 +194,7 @@ class SMTPProxyHandler:
 
             # Decode and clean the subject
             original_subject = message.get('Subject', self.fallback_subject)
-            clean_subject = decode_subject(original_subject)
+            clean_subject = decode_subject(original_subject, fallback_subject=self.fallback_subject)
 
             # Check if subject should be filtered out
             filter_keywords = self.filter_keywords
@@ -223,8 +232,8 @@ class SMTPProxyHandler:
 
             # If we found images but no detectable objects, filter out the email
             if image_attachments and not has_detectable_object:
-                logger.info(f"FILTERING OUT email - no people/vehicles/animals detected in images")
-                return '250 Message accepted for delivery (filtered - no objects detected)'
+                logger.info(f"FILTERING OUT email - no people/vehicles/animals detected in images.")
+                return '250 Message accepted for delivery (filtered - no objects detected).'
 
             logger.info(f"Email passed filtering checks, forwarding to Shinobi")
 
@@ -275,7 +284,7 @@ class SMTPProxyHandler:
             final_password = password or getattr(session, 'password', None)
 
             logger.info(
-                f"Using credentials - Username: {final_username}, Password: {'*' * len(final_password) if final_password else 'None'}")
+                f"Using credentials - Username: {final_username}, Password: {'*' * 8 if final_password else 'None'}")
 
             await self.forward_email(
                 envelope,
@@ -290,17 +299,23 @@ class SMTPProxyHandler:
             logger.error(f"Error processing email: {e}")
             return '451 Temporary failure'
 
-    async def forward_email(self, envelope, message_data, username=None, password=None):
+    async def forward_email(
+            self,
+            envelope,
+            message_data,
+            username=None,
+            password=None,
+    ):
         """Forward the cleaned email to Shinobi SMTP server"""
         try:
             logger.info(f"Connecting to {self.forward_host}:{self.forward_port}")
             with smtplib.SMTP(self.forward_host, self.forward_port) as smtp:
                 # Use authentication if provided
                 if username and password:
-                    logger.info(f"Authenticating with username: {username}")
+                    logger.info(f"Authenticating with username: ({username}).")
                     smtp.login(username, password)
                 else:
-                    logger.info("No authentication provided, proceeding without auth")
+                    logger.info("No authentication provided, proceeding without auth.")
 
                 smtp.send_message(
                     email.message_from_string(message_data),
