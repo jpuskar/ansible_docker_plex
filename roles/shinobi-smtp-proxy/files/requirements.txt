@@ -1,5 +1,0 @@
-aiosmtpd
-numpy
-pillow
-pyyaml
-ultralytics
