@@ -15,3 +15,7 @@
 
 - name: include cluster vars
   include_vars: "{{ (repo_dir ~ '/inventory/group_vars/cluster/' ~ cluster_name ~ '.yml') | realpath }}"
+
+- name: set kubeconfig_path fact
+  set_fact:
+    kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/{{ cluster_name }}.yaml"

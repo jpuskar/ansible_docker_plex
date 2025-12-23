@@ -21,6 +21,7 @@
       helm upgrade \
         cilium \
           cilium/cilium \
+            --kubeconfig {{ kubeconfig_path }} \
             --install \
             --version 1.18.5 \
             --namespace kube-system \
