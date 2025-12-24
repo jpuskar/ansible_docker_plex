@@ -1,193 +1,121 @@
-import asyncio
-import io
-import logging
-
 import email
-import email.header
-import re
-import smtplib
+import logging
+from typing import Any, List, Optional, Tuple
 
-from typing import Tuple
-
-from PIL import Image
-from ultralytics import YOLO
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.image import MIMEImage
-from email.mime.base import MIMEBase
+from email_utils import decode_subject, create_forwarded_message
+from email_filter import EmailFilter
+from email_forwarder import EmailForwarder
+from object_detector import ObjectDetector
 
 
 logger = logging.getLogger(__name__)
 
 
-def decode_subject(
-        subject_line,
-        fallback_subject: str,
-):
-    """Decode email subject line from various encodings to clean ASCII"""
-    try:
-        # Handle RFC 2047 encoded subjects like =?UTF-8?B?...?=
-        decoded_parts = email.header.decode_header(subject_line)
-        decoded_subject = ""
-
-        for part, encoding in decoded_parts:
-            if isinstance(part, bytes):
-                if encoding:
-                    decoded_text = part.decode(encoding)
-                else:
-                    # Try common encodings
-                    for enc in ['utf-8', 'latin-1', 'ascii']:
-                        try:
-                            decoded_text = part.decode(enc)
-                            break
-                        except UnicodeDecodeError:
-                            continue
-                    else:
-                        decoded_text = part.decode('utf-8', errors='replace')
-            else:
-                decoded_text = part
-
-            decoded_subject += decoded_text
-
-        # Clean up the subject - convert to ASCII-safe characters
-        cleaned = decoded_subject.encode('ascii', errors='replace').decode('ascii')
-        # Replace question marks (from failed conversions) with spaces
-        cleaned = re.sub(r'\?+', ' ', cleaned).strip()
-
-        # If nothing readable remains, use fallback
-        if not cleaned or cleaned.isspace():
-            cleaned = fallback_subject
-
-        # Final trim of whitespace and ensure no leading/trailing spaces
-        cleaned = cleaned.strip()
-        # Extra cleaning: remove multiple spaces and trim again
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-
-        logger.info(f"Subject decoded: '{subject_line}' -> '{cleaned}'")
-        return cleaned
-
-    except Exception as e:
-        logger.warning(f"Failed to decode subject '{subject_line}': {e}")
-        return fallback_subject
-
-
 class SMTPProxyHandler:
+    """SMTP proxy handler that filters and forwards emails based on content"""
+
     def __init__(
-            self,
-            forward_host: str,
-            forward_port: int,
-            fallback_subject: str,
-            filter_keywords: Tuple[str],
-            ai_detection_enabled: bool = True,
-            confidence_threshold: float = 0.25,
+        self,
+        forward_host: str,
+        forward_port: int,
+        fallback_subject: str,
+        filter_keywords: Tuple[str, ...],
+        ai_detection_enabled: bool = True,
+        confidence_threshold: float = 0.25,
+    ) -> None:
+        """Initialize the SMTP proxy handler
 
-    ):
-        self.forward_host = forward_host
-        self.forward_port = forward_port
-        self.ai_detection_enabled = ai_detection_enabled
-        self.confidence_threshold = confidence_threshold
+        Args:
+            forward_host: Hostname or IP of the destination SMTP server
+            forward_port: Port number of the destination SMTP server
+            fallback_subject: Default subject to use if decoding fails
+            filter_keywords: Tuple of keywords to filter out from subjects
+            ai_detection_enabled: Whether to enable AI object detection
+            confidence_threshold: Minimum confidence score for AI detections (0.0-1.0)
+        """
         self.fallback_subject = fallback_subject
-        self.filter_keywords = filter_keywords
-        self.model = None
 
-        # COCO class IDs for people, vehicles, and animals
-        # person=0, bicycle=1, car=2, motorcycle=3, bus=5, truck=7,
-        # bird=14, cat=15, dog=16, horse=17, sheep=18, cow=19, elephant=20, bear=21, zebra=22, giraffe=23
-        self.target_classes = [0, 1, 2, 3, 5, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
-
-        # Initialize YOLO model if detection is enabled
-        if self.ai_detection_enabled:
-            try:
-                logger.info("Loading YOLOv8n model...")
-                self.model = YOLO('yolov8n.pt')  # Nano model - fastest
-                logger.info("YOLOv8n model loaded successfully")
-            except Exception as e:
-                logger.error(f"Failed to load YOLO model: {e}")
-                raise e
-
-    async def detect_objects_in_image(self, image_data):
-        """Use local YOLOv8 to detect people, vehicles, or animals in an image"""
-        try:
-            if not self.ai_detection_enabled:
-                logger.info("AI detection disabled, allowing email through")
-                return True
-
-            # Load image from bytes
-            img = Image.open(io.BytesIO(image_data))
-
-            # Run YOLO detection (runs in thread pool to avoid blocking)
-            loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(
-                None,
-                lambda: self.model.predict(
-                    img,
-                    conf=self.confidence_threshold,
-                    imgsz=416,
-                    verbose=False,
-                )
+        # Initialize object detector if enabled
+        object_detector: Optional[ObjectDetector] = None
+        if ai_detection_enabled:
+            # COCO class IDs for people, vehicles, and animals
+            # person=0, bicycle=1, car=2, motorcycle=3, bus=5, truck=7,
+            # bird=14, cat=15, dog=16, horse=17, sheep=18, cow=19, elephant=20, bear=21, zebra=22, giraffe=23
+            target_classes = [0, 1, 2, 3, 5, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+            object_detector = ObjectDetector(
+                model_path='yolov8n.pt',
+                confidence_threshold=confidence_threshold,
+                target_classes=target_classes
             )
 
-            # Check if any target objects were detected
-            for result in results:
-                if result.boxes is not None and len(result.boxes) > 0:
-                    detected_classes = result.boxes.cls.cpu().numpy().astype(int)
-                    for cls_id in detected_classes:
-                        if cls_id in self.target_classes:
-                            class_name = result.names[cls_id]
-                            logger.info(f"Detected ({class_name}) in image (confidence: {result.boxes.conf[detected_classes == cls_id].max():.2f})")
-                            return True
+        # Initialize filter and forwarder
+        self.email_filter = EmailFilter(filter_keywords, object_detector)
+        self.email_forwarder = EmailForwarder(forward_host, forward_port)
 
-            logger.info("No people/vehicles/animals detected in image.")
-            return False
+    async def handle_MAIL(
+        self,
+        server: Any,
+        session: Any,
+        envelope: Any,
+        address: str,
+        mail_options: List[str]
+    ) -> str:
+        """Handle SMTP MAIL FROM command
 
-        except Exception as e:
-            logger.error(f"Error during AI detection: {e}")
-            return True  # Allow through on error to avoid false negatives
+        Args:
+            server: SMTP server instance
+            session: SMTP session instance
+            envelope: Email envelope
+            address: Sender email address
+            mail_options: SMTP MAIL options
 
-    async def handle_MAIL(self, server, session, envelope, address, mail_options):
+        Returns:
+            SMTP response code and message
+        """
         logger.info(f"MAIL FROM: {address}")
         envelope.mail_from = address
         return '250 OK'
 
-    async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
+    async def handle_RCPT(
+        self,
+        server: Any,
+        session: Any,
+        envelope: Any,
+        address: str,
+        rcpt_options: List[str]
+    ) -> str:
+        """Handle SMTP RCPT TO command
+
+        Args:
+            server: SMTP server instance
+            session: SMTP session instance
+            envelope: Email envelope
+            address: Recipient email address
+            rcpt_options: SMTP RCPT options
+
+        Returns:
+            SMTP response code and message
+        """
         logger.info(f"RCPT TO: {address}")
         envelope.rcpt_tos.append(address)
         return '250 OK'
 
-    async def handle_DATA(self, server, session, envelope):
+    async def handle_DATA(self, server: Any, session: Any, envelope: Any) -> str:
+        """Handle SMTP DATA command - processes and forwards email
+
+        Args:
+            server: SMTP server instance
+            session: SMTP session instance
+            envelope: Email envelope with content
+
+        Returns:
+            SMTP response code and message
+        """
         try:
             logger.info(f"Received email from {envelope.mail_from} to {envelope.rcpt_tos}")
 
-            # Debug session attributes
-            logger.info(f"=== SESSION DEBUG ===")
-            logger.info(f"Session ID: {id(session)}")
-            if hasattr(session, 'login_data'):
-                logger.info(f"Session login_data type: {type(session.login_data)}")
-            if hasattr(session, 'auth_data'):
-                logger.info(f"Session auth_data: {'*' * 8 if session.auth_data else 'None'}")
-            if hasattr(session, '_login_data'):
-                logger.info(f"Session _login_data: {session._login_data}")
-            if hasattr(session, 'username'):
-                logger.info(f"Session username: {session.username}")
-            if hasattr(session, 'password'):
-                logger.info(f"Session password: {'*' * 8 if session.password else 'None'}")
-            if hasattr(session, 'authenticated'):
-                logger.info(f"Session authenticated: {session.authenticated}")
-
-            # Try to extract credentials from auth_data
-            username = None
-            password = None
-            if hasattr(session, 'auth_data') and session.auth_data:
-                auth_data = session.auth_data
-                logger.info(f"Trying to extract from auth_data: {auth_data}")
-                if isinstance(auth_data, dict):
-                    username = auth_data.get('username')
-                    password = auth_data.get('password')
-                    logger.info(
-                        f"Extracted - Username: {username}, Password: {'*' * 8 if password else 'None'}")
-
-            logger.info(f"=== SESSION DEBUG END ===")
+            # Extract credentials from session for forwarding
+            username, password = self._extract_credentials(session)
 
             # Parse the email
             message = email.message_from_bytes(envelope.content)
@@ -196,101 +124,29 @@ class SMTPProxyHandler:
             original_subject = message.get('Subject', self.fallback_subject)
             clean_subject = decode_subject(original_subject, fallback_subject=self.fallback_subject)
 
-            # Check if subject should be filtered out
-            filter_keywords = self.filter_keywords
-            if filter_keywords:
-                for keyword in filter_keywords:
-                    if keyword.lower() in clean_subject.lower():
-                        logger.info(
-                            f"FILTERING OUT email with subject '{clean_subject}' (matched keyword: '{keyword}')")
-                        return '250 Message accepted for delivery (filtered)'
+            # Check if email should be filtered
+            should_filter, reason = await self.email_filter.should_filter(message, clean_subject)
+            if should_filter:
+                logger.info(f"Email filtered: {reason}")
+                return f'250 Message accepted for delivery (filtered - {reason})'
 
-            # Extract and analyze images with AI detection
-            has_detectable_object = False
-            image_attachments = []
-
-            for part in message.walk():
-                content_type = part.get_content_type()
-                if content_type.startswith('image/'):
-                    try:
-                        image_data = part.get_payload(decode=True)
-                        if image_data:
-                            logger.info(f"Found image attachment: {content_type}")
-                            image_attachments.append(part)
-
-                            # Check if image contains people, vehicles, or animals
-                            detected = await self.detect_objects_in_image(image_data)
-                            if detected:
-                                has_detectable_object = True
-                                logger.info("Object detected in image, will forward email")
-                            else:
-                                logger.info("No relevant objects detected in image")
-                    except Exception as e:
-                        logger.error(f"Error processing image attachment: {e}")
-                        # On error, assume detection to avoid false negatives
-                        has_detectable_object = True
-
-            # If we found images but no detectable objects, filter out the email
-            if image_attachments and not has_detectable_object:
-                logger.info(f"FILTERING OUT email - no people/vehicles/animals detected in images.")
-                return '250 Message accepted for delivery (filtered - no objects detected).'
-
-            logger.info(f"Email passed filtering checks, forwarding to Shinobi")
+            logger.info("Email passed filtering checks, forwarding")
 
             # Create new message with cleaned subject
-            new_message = MIMEMultipart()
-            new_message['From'] = envelope.mail_from
-            new_message['Subject'] = clean_subject
-            new_message['To'] = ', '.join(envelope.rcpt_tos)
+            new_message = create_forwarded_message(
+                message,
+                envelope.mail_from,
+                envelope.rcpt_tos,
+                clean_subject
+            )
 
-            # Copy other headers (except the ones we're setting)
-            for key, value in message.items():
-                if key.lower() not in ['from', 'subject', 'to']:
-                    new_message[key] = value
-
-            # Copy all parts including images
-            if message.is_multipart():
-                for part in message.walk():
-                    content_type = part.get_content_type()
-                    if content_type == 'text/plain':
-                        new_message.attach(MIMEText(part.get_payload(decode=False), 'plain'))
-                    elif content_type == 'text/html':
-                        new_message.attach(MIMEText(part.get_payload(decode=False), 'html'))
-                    elif content_type.startswith('image/'):
-                        # Attach image
-                        img_data = part.get_payload(decode=True)
-                        if img_data:
-                            img_part = MIMEImage(img_data, _subtype=content_type.split('/')[1])
-                            if part.get('Content-Disposition'):
-                                img_part['Content-Disposition'] = part.get('Content-Disposition')
-                            if part.get('Content-ID'):
-                                img_part['Content-ID'] = part.get('Content-ID')
-                            new_message.attach(img_part)
-                    elif part.get_content_maintype() != 'multipart':
-                        # Attach other types of content
-                        payload = part.get_payload(decode=True)
-                        if payload:
-                            attachment = MIMEBase(part.get_content_maintype(), part.get_content_subtype())
-                            attachment.set_payload(payload)
-                            if part.get('Content-Disposition'):
-                                attachment['Content-Disposition'] = part.get('Content-Disposition')
-                            new_message.attach(attachment)
-            else:
-                content = message.get_payload()
-                new_message.attach(MIMEText(content, 'plain'))
-
-            # Forward to Shinobi with authentication from session or extracted auth_data
-            final_username = username or getattr(session, 'username', None)
-            final_password = password or getattr(session, 'password', None)
-
-            logger.info(
-                f"Using credentials - Username: {final_username}, Password: {'*' * 8 if final_password else 'None'}")
-
-            await self.forward_email(
-                envelope,
+            # Forward to destination SMTP server
+            await self.email_forwarder.forward(
+                envelope.mail_from,
+                envelope.rcpt_tos,
                 new_message.as_string(),
-                final_username,
-                final_password
+                username,
+                password
             )
 
             return '250 Message accepted for delivery'
@@ -299,32 +155,55 @@ class SMTPProxyHandler:
             logger.error(f"Error processing email: {e}")
             return '451 Temporary failure'
 
-    async def forward_email(
-            self,
-            envelope,
-            message_data,
-            username=None,
-            password=None,
-    ):
-        """Forward the cleaned email to Shinobi SMTP server"""
-        try:
-            logger.info(f"Connecting to {self.forward_host}:{self.forward_port}")
-            with smtplib.SMTP(self.forward_host, self.forward_port) as smtp:
-                # Use authentication if provided
-                if username and password:
-                    logger.info(f"Authenticating with username: ({username}).")
-                    smtp.login(username, password)
-                else:
-                    logger.info("No authentication provided, proceeding without auth.")
+    def _extract_credentials(self, session: Any) -> Tuple[Optional[str], Optional[str]]:
+        """Extract username and password from SMTP session
 
-                smtp.send_message(
-                    email.message_from_string(message_data),
-                    from_addr=envelope.mail_from,
-                    to_addrs=envelope.rcpt_tos
+        Args:
+            session: SMTP session instance
+
+        Returns:
+            Tuple of (username, password), both may be None
+        """
+        logger.info("=== SESSION DEBUG ===")
+        logger.info(f"Session ID: {id(session)}")
+
+        username: Optional[str] = None
+        password: Optional[str] = None
+
+        # Debug log session attributes
+        if hasattr(session, 'login_data'):
+            logger.info(f"Session login_data type: {type(session.login_data)}")
+        if hasattr(session, 'auth_data'):
+            logger.info(f"Session auth_data: {'*' * 8 if session.auth_data else 'None'}")
+        if hasattr(session, '_login_data'):
+            logger.info(f"Session _login_data: {session._login_data}")
+        if hasattr(session, 'username'):
+            logger.info(f"Session username: {session.username}")
+        if hasattr(session, 'password'):
+            logger.info(f"Session password: {'*' * 8 if session.password else 'None'}")
+        if hasattr(session, 'authenticated'):
+            logger.info(f"Session authenticated: {session.authenticated}")
+
+        # Try to extract credentials from auth_data
+        if hasattr(session, 'auth_data') and session.auth_data:
+            auth_data = session.auth_data
+            logger.info(f"Trying to extract from auth_data: {auth_data}")
+            if isinstance(auth_data, dict):
+                username = auth_data.get('username')
+                password = auth_data.get('password')
+                logger.info(
+                    f"Extracted - Username: {username}, Password: {'*' * 8 if password else 'None'}"
                 )
 
-            logger.info(f"Successfully forwarded email to {self.forward_host}:{self.forward_port}")
+        # Fallback to session attributes
+        if not username:
+            username = getattr(session, 'username', None)
+        if not password:
+            password = getattr(session, 'password', None)
 
-        except Exception as e:
-            logger.error(f"Failed to forward email: {e}")
-            raise
+        logger.info(
+            f"Final credentials - Username: {username}, Password: {'*' * 8 if password else 'None'}"
+        )
+        logger.info("=== SESSION DEBUG END ===")
+
+        return username, password
