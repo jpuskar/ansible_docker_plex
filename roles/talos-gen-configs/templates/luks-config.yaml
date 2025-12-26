@@ -5,9 +5,18 @@ name: STATE
 encryption:
   provider: luks2
   keys:
+{% if talos_use_tpm | default(true) %}
     - slot: 0
       tpm:
         checkSecurebootStatusOnEnroll: true
+    - slot: 1
+      static:
+        passphrase: {{ talos_luks_passphrase }}
+{% else %}
+    - slot: 0
+      static:
+        passphrase: {{ talos_luks_passphrase }}
+{% endif %}
 ---
 apiVersion: v1alpha1
 kind: VolumeConfig
@@ -15,6 +24,7 @@ name: EPHEMERAL
 encryption:
   provider: luks2
   keys:
+{% if talos_use_tpm | default(true) %}
     - slot: 0
       tpm:
         checkSecurebootStatusOnEnroll: true
@@ -22,3 +32,8 @@ encryption:
     - slot: 1
       static:
         passphrase: {{ talos_luks_passphrase }}
+{% else %}
+    - slot: 0
+      static:
+        passphrase: {{ talos_luks_passphrase }}
+{% endif %}

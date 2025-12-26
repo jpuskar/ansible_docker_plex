@@ -1,0 +1,7 @@
+---
+# k8s4 has compatibility issues with LUKS encryption
+# Disable LUKS encryption entirely
+talos_enable_luks: false
+
+# Install disk for k8s4
+talos_install_disk: sda

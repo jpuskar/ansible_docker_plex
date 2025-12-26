@@ -6,6 +6,10 @@
     - name: include tasks/1_set_vars.yml
       include_tasks: ../tasks/1_set_vars.yml
 
+    - name: include gateway-api role
+      include_role:
+        name: gateway-api
+
     - name: include cilium role
       include_role:
         name: cilium

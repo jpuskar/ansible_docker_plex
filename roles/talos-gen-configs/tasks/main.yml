@@ -19,32 +19,49 @@
       The secrets file needs generated with:
       talosctl gen secrets -o {{ talos_cluster_name }}-secrets.yaml
 
-- name: template out patches to working-dir
+- name: template out common patches to working-dir
   template:
     src: "{{ item }}"
     dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}"
     backup: true
   loop:
-    - luks-config.yaml
     - prep-for-cilium.yaml
     - allowSchedulingOnControlPlanes.yaml
 
+- name: get all hosts in cluster group
+  set_fact:
+    cluster_hosts: "{{ groups[talos_cluster_name] }}"
+
+- name: template out per-node LUKS config patches
+  template:
+    src: luks-config.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}-luks-config.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  when: hostvars[item].talos_enable_luks | default(true)
+  vars:
+    # Load host-specific vars for each node
+    talos_use_tpm: "{{ hostvars[item].talos_use_tpm | default(true) }}"
+
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
-- name: run talosctl gen config
+- name: run talosctl gen config for each node
   shell:
     cmd: |-
       talosctl gen config \
         {{ talos_cluster_name }} \
         https://{{ talos_control_plane_ip }}:6443 \
-        --install-disk /dev/{{ talos_install_disk }} \
+        --install-disk /dev/{{ hostvars[item].talos_install_disk | default(talos_install_disk) }} \
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
         --additional-sans "{{ talos_additional_sans | join(',') }}" \
         --install-image=factory.talos.dev/installer-secureboot/376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba:v1.11.5 \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
-        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-luks-config.yaml \
+        {% if hostvars[item].talos_enable_luks | default(true) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}-luks-config.yaml \
+        {% endif %}--output-types controlplane \
+        --output controlplane-{{ item }}.yaml \
         --force
     chdir: "{{ talos_working_dir }}"
+  loop: "{{ cluster_hosts }}"
   register: talosctl_gen_config_output
 
 - debug:
