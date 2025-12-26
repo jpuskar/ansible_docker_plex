@@ -1,0 +1,32 @@
+---
+# Talos image registry
+# Each image entry contains:
+#   - name: Human-readable identifier
+#   - image: Full image URL for talosctl --install-image parameter
+#   - tags: Metadata for matching (secureboot, version, extensions)
+#
+# Images are matched in order - first match wins
+talos_images_info:
+  # v1.12.0 with SecureBoot and Intel microcode
+  - name: "v1.12.0-secureboot-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.0"
+    tags:
+      secureboot: true
+      version: "v1.12.0"
+      extensions:
+        - intel-ucode
+
+  # v1.12.0 with Intel microcode
+  - name: "v1.12.0-intel-ucode"
+    image: "factory.talos.dev/metal-installer/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.0"
+    tags:
+      secureboot: false
+      version: "v1.12.0"
+      extensions:
+        - intel-ucode
+
+# Default image requirements (can be overridden per-host in host_vars)
+talos_image_requirements:
+  secureboot: true
+  version: "v1.11.5"
+  extensions: []

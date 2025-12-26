@@ -1,7 +1,11 @@
 ---
-# k8s4 has compatibility issues with LUKS encryption
+# k8s4 has compatibility issues with LUKS encryption and SecureBoot
 # Disable LUKS encryption entirely
 talos_enable_luks: false
 
-# Install disk for k8s4
+talos_image_requirements:
+  secureboot: false
+  version: "v1.12.0"
+  extensions: ["intel-ucode"]
+
 talos_install_disk: sda

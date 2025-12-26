@@ -1,7 +1,13 @@
 ---
+talos_enable_luks: true
+
 # k8s3 has TPM 1.2, which is not supported by Talos
 # Use passphrase-only encryption instead
 talos_use_tpm: false
 
-# Install disk for k8s3
+talos_image_requirements:
+  secureboot: false
+  version: "v1.12.0"
+  extensions: ["intel-ucode"]
+
 talos_install_disk: sda
