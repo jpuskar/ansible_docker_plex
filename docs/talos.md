@@ -91,7 +91,18 @@ Bios notes:
    2. Advanced -> Option ROMs -> Disable
 
 
+## Adding a new node
+1. opnsense -> DHCP -> Add reservation to k8s VLAN. Make sure to fill out client ID.
+2. Clear TPM keys.
+3. Enroll Talos keys from USB.
+4. Boot to Talos USB.
+5. talosctl apply-config.
+6. reboot.
+
 
 # TODO
-- add SANs
-- get box on the correct VLAN
+- re-enroll LUKS keys
+- metrics-server
+- cert-manager
+- gitlab
+- 

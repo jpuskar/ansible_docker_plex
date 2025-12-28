@@ -1,0 +1,83 @@
+---
+- name: render cert-manager helm chart values file
+  template:
+    src: cert-manager-values.yaml
+    dest: "{{ temp_dir }}/cert-manager-values.yaml"
+    backup: yes
+
+- name: add cert-manager helm repo
+  shell:
+    cmd: helm repo add jetstack {{ cert_manager_repo_url }}
+
+- name: update cert-manager helm repo
+  shell:
+    cmd: helm repo update jetstack
+
+- name: create cert-manager namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ cert_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+  when: cert_manager_create_namespace | bool
+
+- name: install cert-manager via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        cert-manager \
+          {{ cert_manager_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ cert_manager_version }} \
+            --namespace {{ cert_manager_namespace }} \
+            --values "{{ temp_dir }}/cert-manager-values.yaml"
+
+- name: wait for cert-manager to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/name=cert-manager \
+        -n {{ cert_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=300s
+  when: cert_manager_deploy_ca | bool
+
+- name: render self-signed ClusterIssuer
+  template:
+    src: self-signed-clusterissuer.yaml
+    dest: "{{ temp_dir }}/self-signed-clusterissuer.yaml"
+    backup: yes
+  when: cert_manager_deploy_ca | bool
+
+- name: deploy self-signed ClusterIssuer
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ temp_dir }}/self-signed-clusterissuer.yaml
+  when: cert_manager_deploy_ca | bool
+
+- name: render root CA certificate
+  template:
+    src: root-ca-certificate.yaml
+    dest: "{{ temp_dir }}/root-ca-certificate.yaml"
+    backup: yes
+  when: cert_manager_deploy_ca | bool
+
+- name: deploy root CA certificate
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ temp_dir }}/root-ca-certificate.yaml
+  when: cert_manager_deploy_ca | bool
+
+- name: wait for root CA certificate to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready certificate/{{ cert_manager_ca_name }} \
+        -n {{ cert_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=120s
+  when: cert_manager_deploy_ca | bool

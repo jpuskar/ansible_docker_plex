@@ -27,6 +27,8 @@
   loop:
     - prep-for-cilium.yaml
     - allowSchedulingOnControlPlanes.yaml
+    - rotate-server-certificates.yaml
+    - kubelet-serving-cert-approver.yaml
 
 - name: get all hosts in cluster group
   set_fact:
@@ -69,6 +71,8 @@
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-rotate-server-certificates.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
         {% if hostvars[node_name].talos_enable_luks | default(true) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
         {% endif %}--output-types controlplane \
         --output controlplane-{{ node_name }}.yaml \

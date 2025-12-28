@@ -1,0 +1,59 @@
+---
+- name: render trust-manager helm chart values file
+  template:
+    src: trust-manager-values.yaml
+    dest: "{{ temp_dir }}/trust-manager-values.yaml"
+    backup: yes
+
+- name: add trust-manager helm repo
+  shell:
+    cmd: helm repo add jetstack {{ trust_manager_repo_url }}
+
+- name: update trust-manager helm repo
+  shell:
+    cmd: helm repo update jetstack
+
+- name: create trust-manager namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ trust_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+  when: trust_manager_create_namespace | bool
+
+- name: install trust-manager via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        trust-manager \
+          {{ trust_manager_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ trust_manager_version }} \
+            --namespace {{ trust_manager_namespace }} \
+            --values "{{ temp_dir }}/trust-manager-values.yaml"
+
+- name: wait for trust-manager to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/name=trust-manager \
+        -n {{ trust_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=300s
+  when: trust_manager_deploy_bundle | bool
+
+- name: render CA bundle
+  template:
+    src: ca-bundle.yaml
+    dest: "{{ temp_dir }}/ca-bundle.yaml"
+    backup: yes
+  when: trust_manager_deploy_bundle | bool
+
+- name: deploy CA bundle
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ temp_dir }}/ca-bundle.yaml
+  when: trust_manager_deploy_bundle | bool

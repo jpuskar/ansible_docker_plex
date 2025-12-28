@@ -1,0 +1,19 @@
+# cert-manager Helm values
+installCRDs: {{ cert_manager_install_crds | lower }}
+
+global:
+  leaderElection:
+    namespace: {{ cert_manager_namespace }}
+
+replicaCount: {{ cert_manager_replicas }}
+
+prometheus:
+  enabled: {{ cert_manager_enable_prometheus | lower }}
+  servicemonitor:
+    enabled: {{ cert_manager_enable_prometheus | lower }}
+
+webhook:
+  replicaCount: {{ cert_manager_replicas }}
+
+cainjector:
+  replicaCount: {{ cert_manager_replicas }}
