@@ -10,7 +10,7 @@ spec:
   project: default
 
   source:
-    chart: rawfile-csi
+    chart: rawfile-localpv
     repoURL: https://openebs.github.io/rawfile-localpv
     targetRevision: 0.12.2
     helm:
@@ -40,9 +40,10 @@ spec:
     namespace: openebs-rawfile
 
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # Manual sync only - no automated deployment
+    # automated:
+    #   prune: true
+    #   selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:

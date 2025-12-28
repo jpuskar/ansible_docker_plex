@@ -21,9 +21,10 @@ spec:
     namespace: openebs-rawfile
 
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # Manual sync only - no automated deployment
+    # automated:
+    #   prune: true
+    #   selfHeal: true
     retry:
       limit: 5
       backoff:
