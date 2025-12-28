@@ -1,0 +1,53 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openebs-rawfile
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    chart: rawfile-csi
+    repoURL: https://openebs.github.io/rawfile-localpv
+    targetRevision: 0.12.2
+    helm:
+      values: |
+        # Node plugin configuration
+        node:
+          storage:
+            path: /var/openebs/rawfile
+          nodeSelector:
+            encryption.talos.dev/tpm: "true"
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+
+        # Controller configuration
+        controller:
+          nodeSelector:
+            encryption.talos.dev/tpm: "true"
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openebs-rawfile
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

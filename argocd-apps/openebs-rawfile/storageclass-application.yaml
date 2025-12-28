@@ -1,0 +1,32 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openebs-rawfile-storageclass
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git  # Change this
+    targetRevision: HEAD
+    path: argocd-apps/openebs-rawfile
+    directory:
+      include: 'storageclass.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openebs-rawfile
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

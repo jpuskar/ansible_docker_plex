@@ -1,0 +1,25 @@
+# OpenEBS Rawfile CSI Helm values for ArgoCD deployment
+
+# Node plugin configuration
+node:
+  storage:
+    path: /var/openebs/rawfile
+
+  # Only run on TPM-encrypted nodes
+  nodeSelector:
+    encryption.talos.dev/tpm: "true"
+
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Controller configuration
+controller:
+  nodeSelector:
+    encryption.talos.dev/tpm: "true"
+
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

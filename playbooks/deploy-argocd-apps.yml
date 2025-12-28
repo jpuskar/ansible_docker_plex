@@ -1,0 +1,77 @@
+---
+# Deploy ArgoCD Applications
+# This playbook creates ArgoCD Application resources in the cluster
+# ArgoCD then syncs and manages the actual workloads
+
+- name: Deploy ArgoCD Applications
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    # Path to kubeconfig
+    kubeconfig_path: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/config') }}"
+
+    # Git repository URL (update this to your repo)
+    argocd_repo_url: "https://github.com/YOUR_ORG/YOUR_REPO.git"
+
+    # Applications to deploy
+    applications:
+      - name: openebs-rawfile
+        manifest: "{{ playbook_dir }}/../argocd-apps/openebs-rawfile/application.yaml"
+      - name: openebs-rawfile-storageclass
+        manifest: "{{ playbook_dir }}/../argocd-apps/openebs-rawfile/storageclass-application.yaml"
+
+  tasks:
+    - name: Check if ArgoCD is installed
+      shell:
+        cmd: |-
+          kubectl get namespace argocd \
+            --kubeconfig {{ kubeconfig_path }}
+      register: argocd_namespace_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if ArgoCD is not installed
+      fail:
+        msg: "ArgoCD namespace not found. Please install ArgoCD first."
+      when: argocd_namespace_check.rc != 0
+
+    - name: Update Git repo URL in storageclass application
+      replace:
+        path: "{{ playbook_dir }}/../argocd-apps/openebs-rawfile/storageclass-application.yaml"
+        regexp: 'https://github.com/YOUR_ORG/YOUR_REPO.git'
+        replace: "{{ argocd_repo_url }}"
+      when: argocd_repo_url != "https://github.com/YOUR_ORG/YOUR_REPO.git"
+
+    - name: Deploy ArgoCD Applications
+      shell:
+        cmd: |-
+          kubectl apply \
+            --kubeconfig {{ kubeconfig_path }} \
+            -f {{ item.manifest }}
+      loop: "{{ applications }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Wait for Applications to be created
+      shell:
+        cmd: |-
+          kubectl wait --for=condition=ready application/{{ item.name }} \
+            -n argocd \
+            --kubeconfig {{ kubeconfig_path }} \
+            --timeout=60s
+      loop: "{{ applications }}"
+      loop_control:
+        label: "{{ item.name }}"
+      failed_when: false
+
+    - name: Show Application status
+      shell:
+        cmd: |-
+          kubectl get applications -n argocd \
+            --kubeconfig {{ kubeconfig_path }}
+      register: app_status
+
+    - name: Display Application status
+      debug:
+        var: app_status.stdout_lines
