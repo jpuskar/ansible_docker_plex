@@ -1,0 +1,43 @@
+---
+- name: render argocd helm chart values file
+  template:
+    src: argocd-values.yaml
+    dest: "{{ temp_dir }}/argocd-values.yaml"
+    backup: yes
+
+- name: add argocd helm repo
+  shell:
+    cmd: helm repo add argo {{ argocd_repo_url }}
+
+- name: update argocd helm repo
+  shell:
+    cmd: helm repo update argo
+
+- name: create argocd namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ argocd_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+  when: argocd_create_namespace | bool
+
+- name: install argocd via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        argocd \
+          {{ argocd_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ argocd_version }} \
+            --namespace {{ argocd_namespace }} \
+            --values "{{ temp_dir }}/argocd-values.yaml"
+
+#- name: wait for argocd server to be ready
+#  shell:
+#    cmd: |-
+#      kubectl wait --for=condition=ready pod \
+#        -l app.kubernetes.io/name=argocd-server \
+#        -n {{ argocd_namespace }} \
+#        --kubeconfig {{ kubeconfig_path }} \
+#        --timeout=300s

@@ -1,0 +1,89 @@
+# ArgoCD Helm values
+global:
+  domain: {{ argocd_server_ingress_host }}
+
+# Controller
+controller:
+  replicas: {{ argocd_controller_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Server
+server:
+  replicas: {{ argocd_server_replicas }}
+  insecure: {{ argocd_server_insecure | lower }}
+
+  ingress:
+    enabled: {{ argocd_server_ingress_enabled | lower }}
+{% if argocd_server_ingress_enabled %}
+    hosts:
+      - {{ argocd_server_ingress_host }}
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: ca-issuer
+    tls:
+      - secretName: argocd-server-tls
+        hosts:
+          - {{ argocd_server_ingress_host }}
+{% endif %}
+
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Repo server
+repoServer:
+  replicas: {{ argocd_repo_server_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Redis
+redis:
+  enabled: {{ argocd_redis_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Dex (for SSO)
+dex:
+  enabled: {{ argocd_dex_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# ApplicationSet controller
+applicationSet:
+  enabled: {{ argocd_applicationset_enabled | lower }}
+  replicas: {{ argocd_applicationset_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Notifications controller
+notifications:
+  enabled: {{ argocd_notifications_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# High Availability
+{% if argocd_ha_enabled %}
+redis-ha:
+  enabled: true
+{% endif %}
+
+# Admin password
+{% if argocd_admin_password is defined %}
+configs:
+  secret:
+    argocdServerAdminPassword: {{ argocd_admin_password | password_hash('bcrypt') }}
+{% endif %}
