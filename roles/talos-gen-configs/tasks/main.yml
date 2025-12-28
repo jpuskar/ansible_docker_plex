@@ -32,16 +32,27 @@
   set_fact:
     cluster_hosts: "{{ groups[talos_cluster_name] }}"
 
+- name: template out per-node hostname config patches
+  template:
+    src: hostname.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+
 - name: template out per-node LUKS config patches
   template:
     src: luks-config.yaml
-    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}-luks-config.yaml"
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml"
     backup: true
   loop: "{{ cluster_hosts }}"
-  when: hostvars[item].talos_enable_luks | default(true)
+  loop_control:
+    loop_var: node_name
+  when: hostvars[node_name].talos_enable_luks | default(true)
   vars:
     # Load host-specific vars for each node
-    talos_use_tpm: "{{ hostvars[item].talos_use_tpm | default(true) }}"
+    talos_use_tpm: "{{ hostvars[node_name].talos_use_tpm | default(true) }}"
 
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 # Images are selected based on requirements defined in host_vars or defaults
@@ -51,21 +62,24 @@
       talosctl gen config \
         {{ talos_cluster_name }} \
         https://{{ talos_control_plane_ip }}:6443 \
-        --install-disk /dev/{{ hostvars[item].talos_install_disk | default(talos_install_disk) }} \
+        --install-disk /dev/{{ hostvars[node_name].talos_install_disk | default(talos_install_disk) }} \
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
         --additional-sans "{{ talos_additional_sans | join(',') }}" \
         --install-image={{ selected_image }} \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
-        {% if hostvars[item].talos_enable_luks | default(true) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}-luks-config.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml \
+        {% if hostvars[node_name].talos_enable_luks | default(true) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
         {% endif %}--output-types controlplane \
-        --output controlplane-{{ item }}.yaml \
+        --output controlplane-{{ node_name }}.yaml \
         --force
     chdir: "{{ talos_working_dir }}"
   loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
   vars:
     # Get image requirements for this host (or use defaults)
-    node_requirements: "{{ hostvars[item].talos_image_requirements | default(talos_image_requirements) }}"
+    node_requirements: "{{ hostvars[node_name].talos_image_requirements | default(talos_image_requirements) }}"
     # Select the first matching image from the registry
     selected_image: "{{ talos_images_info | select_talos_image(node_requirements) }}"
   register: talosctl_gen_config_output
