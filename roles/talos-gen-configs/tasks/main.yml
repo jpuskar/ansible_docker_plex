@@ -43,6 +43,15 @@
   loop_control:
     loop_var: node_name
 
+- name: template out per-node label config patches
+  template:
+    src: node-labels.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-labels.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+
 - name: template out per-node LUKS config patches
   template:
     src: luks-config.yaml
@@ -51,10 +60,10 @@
   loop: "{{ cluster_hosts }}"
   loop_control:
     loop_var: node_name
-  when: hostvars[node_name].talos_enable_luks | default(true)
+  when: hostvars[node_name].talos_enable_luks
   vars:
     # Load host-specific vars for each node
-    talos_use_tpm: "{{ hostvars[node_name].talos_use_tpm | default(true) }}"
+    talos_use_tpm: "{{ hostvars[node_name].talos_use_tpm }}"
 
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 # Images are selected based on requirements defined in host_vars or defaults
@@ -71,10 +80,11 @@
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-labels.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-rotate-server-certificates.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
-        {% if hostvars[node_name].talos_enable_luks | default(true) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
-        {% endif %}--output-types controlplane \
+        {% if hostvars[node_name].talos_enable_luks %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
+        {% endif %} --output-types controlplane \
         --output controlplane-{{ node_name }}.yaml \
         --force
     chdir: "{{ talos_working_dir }}"

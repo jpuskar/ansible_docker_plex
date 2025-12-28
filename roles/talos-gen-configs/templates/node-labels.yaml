@@ -1,0 +1,20 @@
+---
+machine:
+  nodeLabels:
+    # Encryption labels for CSI targeting
+{% if hostvars[node_name].talos_enable_luks %}
+    encryption.talos.dev/enabled: "true"
+{% if hostvars[node_name].talos_use_tpm %}
+    encryption.talos.dev/tpm: "true"
+    encryption.talos.dev/type: "luks-tpm"
+{% else %}
+    encryption.talos.dev/tpm: "false"
+    encryption.talos.dev/type: "luks-passphrase"
+{% endif %}
+{% else %}
+    encryption.talos.dev/enabled: "false"
+    encryption.talos.dev/tpm: "false"
+    encryption.talos.dev/type: "none"
+{% endif %}
+    # Node identifier
+    node.kubernetes.io/instance-name: {{ node_name }}

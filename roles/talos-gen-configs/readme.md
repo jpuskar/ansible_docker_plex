@@ -88,6 +88,48 @@ talos_image_requirements:
     - intel-ucode
 ```
 
+## Node Labels
+
+The role automatically applies labels to each node based on its encryption configuration. These labels allow you to target specific nodes (e.g., for CSI storage classes).
+
+### Encryption Labels
+
+Each node receives the following labels:
+
+- `encryption.talos.dev/enabled`: "true" or "false" - Whether LUKS encryption is enabled
+- `encryption.talos.dev/tpm`: "true" or "false" - Whether TPM is used for encryption
+- `encryption.talos.dev/type`: Encryption type used:
+  - `luks-tpm`: LUKS with TPM unlock
+  - `luks-passphrase`: LUKS with passphrase only
+  - `none`: No encryption
+- `node.kubernetes.io/instance-name`: Node hostname
+
+### Example Usage with CSI
+
+Target nodes with TPM encryption for storage classes:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: encrypted-storage
+provisioner: your-csi-driver
+parameters:
+  encrypted: "true"
+allowedTopologies:
+- matchLabelExpressions:
+  - key: encryption.talos.dev/tpm
+    values:
+    - "true"
+```
+
+View node labels:
+
+```bash
+kubectl get nodes --show-labels
+kubectl get nodes -l encryption.talos.dev/tpm=true
+```
+
 ## Available Images
 
 ### 1.12.0 - SecureBoot with Intel Microcode
