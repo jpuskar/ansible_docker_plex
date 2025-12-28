@@ -10,8 +10,8 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git  # Change this
-    targetRevision: HEAD
+    repoURL: https://github.com/jpuskar/ansible_docker_plex  # Change this
+    targetRevision: zfs-disk-replace
     path: argocd-apps/openebs-rawfile
     directory:
       include: 'storageclass.yaml'

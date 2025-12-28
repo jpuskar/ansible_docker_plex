@@ -1,0 +1,10 @@
+---
+- name: Apply ArgoCD applications from files
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ role_path }}/files/{{ item }}
+  loop:
+    - openebs-rawfile-application.yaml
+    - openebs-rawfile-storageclass-application.yaml
