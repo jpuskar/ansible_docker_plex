@@ -18,7 +18,8 @@ expose:
       ingress.kubernetes.io/ssl-redirect: "true"
 
 # CA bundle for trusting internal certificates
-caBundleSecretName: ca-bundle-secret
+# Uses CA from the PostgreSQL TLS certificate secret
+caBundleSecretName: harbor-postgres-tls
 
 # External PostgreSQL database
 database:

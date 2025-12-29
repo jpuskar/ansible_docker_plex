@@ -1,5 +1,4 @@
 ---
-# Bundle that creates ConfigMaps
 apiVersion: trust.cert-manager.io/v1alpha1
 kind: Bundle
 metadata:
@@ -14,25 +13,10 @@ spec:
       name: {{ trust_manager_ca_secret_name }}
       key: {{ trust_manager_ca_secret_key }}
   target:
-    # Sync to all namespaces as ConfigMap
+    # Sync to all namespaces
     configMap:
       key: {{ trust_manager_bundle_configmap_key }}
----
-# Bundle that creates Secrets (for applications that need Secrets)
-apiVersion: trust.cert-manager.io/v1alpha1
-kind: Bundle
-metadata:
-  name: {{ trust_manager_bundle_name }}-secret
-  namespace: {{ trust_manager_namespace }}
-spec:
-  sources:
-  # Include default system CAs
-  - useDefaultCAs: true
-  # Include the self-signed root CA from cert-manager
-  - secret:
-      name: {{ trust_manager_ca_secret_name }}
-      key: {{ trust_manager_ca_secret_key }}
-  target:
-    # Sync to all namespaces as Secret
-    secret:
-      key: ca.crt
+    # Optional: Add namespace selector to limit distribution
+    # namespaceSelector:
+    #   matchLabels:
+    #     trust-injection: enabled
