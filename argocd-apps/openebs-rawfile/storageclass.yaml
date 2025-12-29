@@ -9,10 +9,3 @@ volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 parameters:
   fsType: ext4
-
-# Only provision volumes on nodes with TPM encryption
-allowedTopologies:
-- matchLabelExpressions:
-  - key: encryption.talos.dev/tpm
-    values:
-    - "true"
