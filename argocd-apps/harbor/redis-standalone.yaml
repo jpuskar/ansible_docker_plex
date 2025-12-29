@@ -5,6 +5,10 @@ metadata:
   name: harbor-redis
   namespace: harbor
 spec:
+  # Only run on TPM-encrypted nodes
+  nodeSelector:
+    encryption.talos.dev/tpm: "true"
+
   podSecurityContext:
     runAsUser: 1000
     fsGroup: 1000
@@ -12,9 +16,6 @@ spec:
   kubernetesConfig:
     image: quay.io/opstree/redis:v7.0.12
     imagePullPolicy: IfNotPresent
-    # Only run on TPM-encrypted nodes
-    nodeSelector:
-      encryption.talos.dev/tpm: "true"
     resources:
       requests:
         cpu: 100m
