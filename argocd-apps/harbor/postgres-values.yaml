@@ -64,7 +64,7 @@ backups:
   enabled: false
 
 # TLS configuration using cert-manager certificate
-customTLSSecret:
+customRootCATLSSecret:
   name: harbor-postgres-tls
 
 # PostgreSQL configuration
