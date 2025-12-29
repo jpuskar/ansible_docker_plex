@@ -35,6 +35,14 @@ spec:
     server: https://kubernetes.default.svc
     namespace: openebs-rawfile
 
+  # Ignore differences in randomly generated secret
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: openebs-rawfile-rawfile-localpv-secrets
+      jsonPointers:
+        - /data/internal-signature
+
   syncPolicy:
     # Manual sync only - no automated deployment
     # automated:
