@@ -1,0 +1,67 @@
+---
+# Percona PostgreSQL Cluster for Harbor
+
+# Cluster name
+crName: harbor-postgres
+
+# PostgreSQL instances configuration
+instances:
+  - name: instance1
+    replicas: 2  # HA with 2 replicas for Harbor
+
+    # Only run on TPM-encrypted nodes
+    nodeSelector:
+      encryption.talos.dev/tpm: "true"
+
+    # Storage configuration using OpenEBS Rawfile
+    dataVolumeClaimSpec:
+      storageClassName: openebs-rawfile
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
+
+    # Pod anti-affinity to spread replicas across nodes
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  postgres-operator.crunchydata.com/cluster: harbor-postgres
+                  postgres-operator.crunchydata.com/instance-set: instance1
+
+# pgBouncer connection pooler
+proxy:
+  pgBouncer:
+    replicas: 2
+
+    # Only run on TPM-encrypted nodes
+    nodeSelector:
+      encryption.talos.dev/tpm: "true"
+
+    # Anti-affinity for pgBouncer pods
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  postgres-operator.crunchydata.com/cluster: harbor-postgres
+                  postgres-operator.crunchydata.com/role: pgbouncer
+
+# PostgreSQL configuration
+postgresVersion: 17
+
+# Custom PostgreSQL configuration for Harbor
+patroni:
+  dynamicConfiguration:
+    postgresql:
+      parameters:
+        max_connections: 100
+        shared_buffers: 128MB

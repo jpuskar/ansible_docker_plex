@@ -1,0 +1,117 @@
+---
+# Harbor Helm values
+
+# External URL for Harbor
+externalURL: https://harbor.local
+
+# Expose Harbor via Ingress
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    certSource: auto
+  ingress:
+    hosts:
+      core: harbor.local
+    className: ""
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "true"
+
+# External PostgreSQL database
+database:
+  type: external
+  external:
+    host: harbor-postgres-primary.harbor.svc.cluster.local
+    port: "5432"
+    username: postgres
+    # Password will be retrieved from the secret created by Percona operator
+    # Secret name: harbor-postgres-pguser-postgres
+    existingSecret: harbor-postgres-pguser-postgres
+    coreDatabase: registry
+    sslmode: disable
+  maxIdleConns: 50
+  maxOpenConns: 100
+
+# External Redis
+redis:
+  type: external
+  external:
+    addr: harbor-redis.harbor.svc.cluster.local:6379
+    coreDatabaseIndex: "0"
+    jobserviceDatabaseIndex: "1"
+    registryDatabaseIndex: "2"
+    trivyAdapterIndex: "5"
+
+# Persistence for registry and other components
+persistence:
+  enabled: true
+  resourcePolicy: "keep"
+  persistentVolumeClaim:
+    registry:
+      storageClass: openebs-rawfile
+      size: 50Gi
+      accessMode: ReadWriteOnce
+    jobservice:
+      jobLog:
+        storageClass: openebs-rawfile
+        size: 5Gi
+        accessMode: ReadWriteOnce
+    trivy:
+      storageClass: openebs-rawfile
+      size: 10Gi
+      accessMode: ReadWriteOnce
+
+  imageChartStorage:
+    type: filesystem
+    filesystem:
+      rootdirectory: /storage
+
+# Harbor core configuration
+core:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# JobService configuration
+jobservice:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Registry configuration
+registry:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Trivy scanner configuration
+trivy:
+  enabled: true
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Portal (UI) configuration
+portal:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Nginx configuration
+nginx:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

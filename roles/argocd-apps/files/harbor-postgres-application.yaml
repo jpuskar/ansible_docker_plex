@@ -1,0 +1,39 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor-postgres
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Multi-source: Helm chart from Helm repo, values from Git
+  sources:
+    # Helm chart source
+    - repoURL: https://percona.github.io/percona-helm-charts/
+      chart: pg-db
+      targetRevision: 2.8.2
+      helm:
+        valueFiles:
+          - $values/argocd-apps/harbor/postgres-values.yaml
+
+    # Git repo source for values
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
