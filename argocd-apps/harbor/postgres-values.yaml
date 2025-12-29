@@ -57,8 +57,7 @@ proxy:
 
 # Disable backups
 backups:
-  pgbackrest:
-    repos: []
+  enabled: false
 
 # PostgreSQL configuration
 postgresVersion: 17
