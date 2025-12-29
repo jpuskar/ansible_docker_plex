@@ -39,6 +39,7 @@ spec:
   storage:
     volumeClaimTemplate:
       spec:
+        storageClassName: openebs-rawfile
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
