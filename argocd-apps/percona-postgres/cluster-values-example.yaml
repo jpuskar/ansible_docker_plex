@@ -1,0 +1,101 @@
+# Percona PostgreSQL Cluster Helm values
+# This creates an actual PostgreSQL database cluster
+
+# Cluster name
+crName: postgres-ha
+
+# PostgreSQL instances configuration
+instances:
+  - name: instance1
+    replicas: 3  # HA with 3 replicas
+
+    # Storage configuration using OpenEBS Rawfile
+    dataVolumeClaimSpec:
+      storageClassName: openebs-rawfile
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+
+    # WAL storage (optional, for performance)
+    # walVolumeClaimSpec:
+    #   storageClassName: openebs-rawfile
+    #   accessModes:
+    #     - ReadWriteOnce
+    #   resources:
+    #     requests:
+    #       storage: 5Gi
+
+    # Pod anti-affinity to spread replicas across nodes
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  postgres-operator.crunchydata.com/cluster: postgres-ha
+                  postgres-operator.crunchydata.com/instance-set: instance1
+
+# Backup configuration
+backups:
+  pgbackrest:
+    # Backup repository storage
+    repos:
+      - name: repo1
+        volume:
+          volumeClaimSpec:
+            storageClassName: openebs-rawfile
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi
+
+    # Backup schedule (cron format)
+    global:
+      repo1-retention-full: "14"  # Keep 14 full backups
+
+    # Manual backup configuration
+    manual:
+      repoName: repo1
+      options:
+        - --type=full
+
+# pgBouncer connection pooler
+proxy:
+  pgBouncer:
+    replicas: 2
+
+    # Anti-affinity for pgBouncer pods
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  postgres-operator.crunchydata.com/cluster: postgres-ha
+                  postgres-operator.crunchydata.com/role: pgbouncer
+
+# PostgreSQL configuration
+postgresVersion: 17
+
+# PMM monitoring (optional)
+# pmm:
+#   enabled: false
+
+# Standby mode (for replicas of another cluster)
+# standby:
+#   enabled: false
+
+# Custom PostgreSQL configuration
+# patroni:
+#   dynamicConfiguration:
+#     postgresql:
+#       parameters:
+#         max_connections: 200
+#         shared_buffers: 256MB

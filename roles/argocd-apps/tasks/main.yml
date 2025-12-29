@@ -8,3 +8,4 @@
   loop:
     - openebs-rawfile-application.yaml
     - openebs-rawfile-storageclass-application.yaml
+    - percona-postgres-operator-application.yaml
