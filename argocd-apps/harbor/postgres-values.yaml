@@ -9,10 +9,6 @@ instances:
   - name: instance1
     replicas: 2  # HA with 2 replicas for Harbor
 
-    # Only run on TPM-encrypted nodes
-    nodeSelector:
-      encryption.talos.dev/tpm: "true"
-
     # Storage configuration using OpenEBS Rawfile
     dataVolumeClaimSpec:
       storageClassName: openebs-rawfile
@@ -22,14 +18,22 @@ instances:
         requests:
           storage: 20Gi
 
-    # Pod anti-affinity to spread replicas across nodes
+    # Affinity rules: require TPM nodes and spread across nodes
     affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: encryption.talos.dev/tpm
+                  operator: In
+                  values:
+                    - "true"
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           - topologyKey: kubernetes.io/hostname
             labelSelector:
               matchLabels:
-                postgres-operator.crunchydata.com/cluster: harbor-postgres
+                postgres-operator.crunchydata.com/cluster: harbor-postgres-pg-db
                 postgres-operator.crunchydata.com/instance-set: instance1
 
 # pgBouncer connection pooler
@@ -37,18 +41,22 @@ proxy:
   pgBouncer:
     replicas: 2
 
-    # Only run on TPM-encrypted nodes
-    nodeSelector:
-      encryption.talos.dev/tpm: "true"
-
-    # Anti-affinity for pgBouncer pods
+    # Affinity rules: require TPM nodes and spread across nodes
     affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: encryption.talos.dev/tpm
+                  operator: In
+                  values:
+                    - "true"
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
           - topologyKey: kubernetes.io/hostname
             labelSelector:
               matchLabels:
-                postgres-operator.crunchydata.com/cluster: harbor-postgres
+                postgres-operator.crunchydata.com/cluster: harbor-postgres-pg-db
                 postgres-operator.crunchydata.com/role: pgbouncer
 
 # Disable backups
