@@ -1,5 +1,5 @@
 ---
-- name: Apply ArgoCD applications from files
+- name: Apply ArgoCD Application manifests
   shell:
     cmd: |-
       kubectl apply \
