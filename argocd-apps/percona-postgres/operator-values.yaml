@@ -2,8 +2,7 @@
 # Percona PostgreSQL Operator Helm values
 
 # Watch all namespaces for PostgresCluster resources
-watchAllNamespaces: false
-# watchNamespace: percona-postgres  # Uncomment to watch only this namespace
+watchAllNamespaces: true
 
 # Operator replica count
 replicaCount: 1
