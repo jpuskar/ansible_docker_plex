@@ -75,6 +75,7 @@ users:
   - name: harbor
     databases:
       - registry
+    grantPublicSchemaAccess: true
     options: "LOGIN"
     password:
       type: ASCII
