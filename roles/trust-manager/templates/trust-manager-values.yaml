@@ -10,6 +10,3 @@ app:
 # CRDs are installed separately or with cert-manager
 crds:
   enabled: true
-
-secretTargets:
-  enabled: true
