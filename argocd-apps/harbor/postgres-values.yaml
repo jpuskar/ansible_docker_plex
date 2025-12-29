@@ -70,6 +70,15 @@ customRootCATLSSecret:
 # PostgreSQL configuration
 postgresVersion: 17
 
+# Create Harbor user and database
+users:
+  - name: harbor
+    databases:
+      - registry
+    options: "LOGIN"
+    password:
+      type: ASCII
+
 # Custom PostgreSQL configuration for Harbor
 patroni:
   dynamicConfiguration:

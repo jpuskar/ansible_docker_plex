@@ -27,8 +27,8 @@ database:
   external:
     host: harbor-postgres-pg-db-pgbouncer.harbor.svc
     port: "5432"
-    username: harbor-postgres-pg-db
-    existingSecret: harbor-postgres-pg-db-pguser-harbor-postgres-pg-db
+    username: harbor
+    existingSecret: harbor-postgres-pg-db-pguser-harbor
     coreDatabase: registry
     sslmode: require
   maxIdleConns: 50
