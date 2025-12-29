@@ -63,6 +63,10 @@ proxy:
 backups:
   enabled: false
 
+# TLS configuration using cert-manager certificate
+customTLSSecret:
+  name: harbor-postgres-tls
+
 # PostgreSQL configuration
 postgresVersion: 17
 

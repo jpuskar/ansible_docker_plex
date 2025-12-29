@@ -17,6 +17,9 @@ expose:
     annotations:
       ingress.kubernetes.io/ssl-redirect: "true"
 
+# CA bundle for trusting internal certificates
+caBundleSecretName: ca-bundle-secret
+
 # External PostgreSQL database
 database:
   type: external
@@ -26,7 +29,7 @@ database:
     username: harbor-postgres-pg-db
     existingSecret: harbor-postgres-pg-db-pguser-harbor-postgres-pg-db
     coreDatabase: registry
-    sslmode: disable
+    sslmode: require
   maxIdleConns: 50
   maxOpenConns: 100
 

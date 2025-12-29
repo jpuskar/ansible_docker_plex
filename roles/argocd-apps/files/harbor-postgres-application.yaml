@@ -9,7 +9,7 @@ metadata:
 spec:
   project: default
 
-  # Multi-source: Helm chart from Helm repo, values from Git
+  # Multi-source: Helm chart from Helm repo, values and cert from Git
   sources:
     # Helm chart source
     - repoURL: https://percona.github.io/percona-helm-charts/
@@ -23,6 +23,13 @@ spec:
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
       targetRevision: zfs-disk-replace
       ref: values
+
+    # Git repo source for TLS certificate
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: argocd-apps/harbor
+      directory:
+        include: 'postgres-tls-certificate.yaml'
 
   destination:
     server: https://kubernetes.default.svc
