@@ -1,14 +1,15 @@
 # OpenEBS Rawfile CSI Helm values for ArgoCD deployment
 
-# Node plugin configuration
+# Disable default StorageClass - we manage it via Git
+storageClasses:
+  - enabled: false
+
+# Node plugin configuration (runs as DaemonSet on all nodes)
 node:
-  storage:
-    path: /var/openebs/rawfile
+  # Data directory path on the node
+  dataDirPath: /var/openebs/rawfile
 
-  # Only run on TPM-encrypted nodes
-  nodeSelector:
-    encryption.talos.dev/tpm: "true"
-
+  # Allow scheduling on control plane nodes
   tolerations:
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
@@ -16,9 +17,6 @@ node:
 
 # Controller configuration
 controller:
-  nodeSelector:
-    encryption.talos.dev/tpm: "true"
-
   tolerations:
     - key: node-role.kubernetes.io/control-plane
       operator: Exists
