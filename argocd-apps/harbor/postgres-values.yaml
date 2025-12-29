@@ -25,14 +25,12 @@ instances:
     # Pod anti-affinity to spread replicas across nodes
     affinity:
       podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              topologyKey: kubernetes.io/hostname
-              labelSelector:
-                matchLabels:
-                  postgres-operator.crunchydata.com/cluster: harbor-postgres
-                  postgres-operator.crunchydata.com/instance-set: instance1
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                postgres-operator.crunchydata.com/cluster: harbor-postgres
+                postgres-operator.crunchydata.com/instance-set: instance1
 
 # pgBouncer connection pooler
 proxy:
@@ -46,14 +44,12 @@ proxy:
     # Anti-affinity for pgBouncer pods
     affinity:
       podAntiAffinity:
-        preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              topologyKey: kubernetes.io/hostname
-              labelSelector:
-                matchLabels:
-                  postgres-operator.crunchydata.com/cluster: harbor-postgres
-                  postgres-operator.crunchydata.com/role: pgbouncer
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                postgres-operator.crunchydata.com/cluster: harbor-postgres
+                postgres-operator.crunchydata.com/role: pgbouncer
 
 # Disable backups
 backups:
