@@ -1,8 +1,7 @@
 # OpenEBS Rawfile CSI Helm values for ArgoCD deployment
 
 # Disable default StorageClass - we manage it via Git
-storageClasses:
-  - enabled: false
+storageClasses: []
 
 # Node plugin configuration (runs as DaemonSet on all nodes)
 node:
