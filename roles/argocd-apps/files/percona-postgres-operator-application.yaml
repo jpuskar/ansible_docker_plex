@@ -37,7 +37,8 @@ spec:
 
   syncPolicy:
     # Manual sync only
-    syncOptions: []
+    syncOptions:
+      - ServerSideApply=true  # Ensures CRDs are installed before other resources
     retry:
       limit: 5
       backoff:
