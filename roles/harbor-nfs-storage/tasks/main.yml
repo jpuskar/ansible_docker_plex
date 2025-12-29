@@ -1,0 +1,25 @@
+---
+- name: Create NFS StorageClass for Harbor registry
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ role_path }}/templates/nfs-storageclass.yaml
+
+- name: Create NFS PersistentVolume for Harbor registry
+  template:
+    src: registry-nfs-pv.yaml
+    dest: /tmp/harbor-registry-nfs-pv.yaml
+    mode: '0600'
+
+- name: Apply Harbor registry NFS PV
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f /tmp/harbor-registry-nfs-pv.yaml
+
+- name: Remove temporary PV file
+  file:
+    path: /tmp/harbor-registry-nfs-pv.yaml
+    state: absent
