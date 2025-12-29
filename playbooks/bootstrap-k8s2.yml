@@ -31,3 +31,7 @@
     - name: include argocd-apps role
       include_role:
         name: argocd-apps
+
+    - name: include harbor-nfs-storage role
+      include_role:
+        name: harbor-nfs-storage

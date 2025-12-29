@@ -21,12 +21,10 @@ expose:
 database:
   type: external
   external:
-    host: harbor-postgres-primary.harbor.svc.cluster.local
+    host: harbor-postgres-pg-db-pgbouncer.harbor.svc
     port: "5432"
-    username: postgres
-    # Password will be retrieved from the secret created by Percona operator
-    # Secret name: harbor-postgres-pguser-postgres
-    existingSecret: harbor-postgres-pguser-postgres
+    username: harbor-postgres-pg-db
+    existingSecret: harbor-postgres-pg-db-pguser-harbor-postgres-pg-db
     coreDatabase: registry
     sslmode: disable
   maxIdleConns: 50
