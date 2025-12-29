@@ -55,6 +55,11 @@ proxy:
                   postgres-operator.crunchydata.com/cluster: harbor-postgres
                   postgres-operator.crunchydata.com/role: pgbouncer
 
+# Disable backups
+backups:
+  pgbackrest:
+    repos: []
+
 # PostgreSQL configuration
 postgresVersion: 17
 
