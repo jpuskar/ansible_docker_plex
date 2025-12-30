@@ -13,9 +13,4 @@ kind: CiliumL2AnnouncementPolicy
 metadata:
   name: l2announce
 spec:
-  serviceSelector:
-    matchExpressions:
-      - key: io.kubernetes.service.type
-        operator: In
-        values:
-          - LoadBalancer
+  loadBalancerIPs: true

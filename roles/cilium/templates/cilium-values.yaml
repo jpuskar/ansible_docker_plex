@@ -20,10 +20,10 @@ securityContext:
       - NET_ADMIN
       - SYS_ADMIN
       - SYS_RESOURCE
-    cgroup:
-      autoMount:
-        enabled: false
-      hostRoot: /sys/fs/cgroup
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
 k8sServiceHost: localhost
 k8sServicePort: 7445
 ingressController:
@@ -31,8 +31,13 @@ ingressController:
   loadbalancerMode: dedicated
   default: true
 gatewayAPI:
+  enabled: false
+  enableAlpn: false
+  enableAppProtocol: false
+l2announcements:
   enabled: true
-  enableAlpn: true
-  enableAppProtocol: true
 operator:
   replicas: 1
+externalIPs:
+  enabled: true
+devices: en+
