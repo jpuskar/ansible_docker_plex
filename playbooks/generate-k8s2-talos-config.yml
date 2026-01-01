@@ -8,5 +8,36 @@
     - name: include tasks/1_set_vars.yml
       include_tasks: ../tasks/1_set_vars.yml
 
+    - name: Get LUKS password file path from environment variable
+      set_fact:
+        luks_password_file_path: "{{ lookup('env', 'LUKS_PASSWORD_PATH') }}"
+      no_log: true
+
+    - name: Verify LUKS password file exists
+      stat:
+        path: "{{ luks_password_file_path }}"
+      register: luks_password_file_stat
+      no_log: true
+
+    - name: Assert LUKS password file exists and is a file
+      assert:
+        that:
+          - luks_password_file_stat.stat.exists
+          - luks_password_file_stat.stat.isreg
+        fail_msg: "LUKS_PASSWORD_PATH must point to an existing regular file"
+      no_log: true
+
+    - name: Read LUKS password from file
+      set_fact:
+        talos_luks_passphrase: "{{ lookup('file', luks_password_file_path) | trim }}"
+      no_log: true
+
+    - name: Validate LUKS password contains only safe characters
+      assert:
+        that:
+          - talos_luks_passphrase is match('^[A-Za-z0-9\-_./=+@:~!#$%&*]+$')
+        fail_msg: "LUKS password contains unsafe characters (only A-Za-z0-9-_./=+@:~!#$%&* allowed, no quotes)"
+      no_log: true
+
     - include_role:
         name: talos-gen-configs

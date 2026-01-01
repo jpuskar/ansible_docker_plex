@@ -42,6 +42,30 @@ repoServer:
     serviceMonitor:
       enabled: {{ argocd_metrics_enabled | lower }}
 
+{% if argocd_sops_enabled %}
+  # Custom image with SOPS support
+  image:
+    repository: {{ argocd_sops_image_registry }}/{{ argocd_sops_image_name }}
+    tag: {{ argocd_sops_image_tag }}
+
+  # Mount age key for SOPS decryption
+  volumes:
+    - name: sops-age-key
+      secret:
+        secretName: argocd-sops-age
+        optional: true
+
+  volumeMounts:
+    - name: sops-age-key
+      mountPath: /home/argocd/.config/sops/age
+      readOnly: true
+
+  # Environment variables for SOPS
+  env:
+    - name: SOPS_AGE_KEY_FILE
+      value: /home/argocd/.config/sops/age/keys.txt
+{% endif %}
+
 # Redis
 redis:
   enabled: {{ argocd_redis_enabled | lower }}

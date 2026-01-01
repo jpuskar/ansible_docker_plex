@@ -16,3 +16,5 @@ tmp/
 /tmp/
 
 __pycache__/
+
+.key

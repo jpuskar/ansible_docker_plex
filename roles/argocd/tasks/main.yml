@@ -21,6 +21,48 @@
         --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
   when: argocd_create_namespace | bool
 
+- name: Read ArgoCD SOPS AGE key from file
+  set_fact:
+    argocd_sops_age_key: "{{ lookup('file', lookup('env', 'ARGOCD_SOPS_AGE_KEY_PATH')) }}"
+  no_log: true
+
+- name: validate sops age key is defined
+  assert:
+    that:
+      - argocd_sops_age_key is defined
+      - argocd_sops_age_key | length > 0
+    fail_msg: "argocd_sops_age_key must be defined when argocd_sops_enabled is true. Generate with: age-keygen -o age.key"
+  when: argocd_sops_enabled
+
+- name: validate sops age key format
+  assert:
+    that:
+      - argocd_sops_age_key is match("^# created:.*\n# public key:.*\nAGE-SECRET-KEY-1[A-Z0-9]+$", multiline=True) or argocd_sops_age_key is match("^AGE-SECRET-KEY-1[A-Z0-9]+$")
+      - argocd_sops_age_key | length > 50
+    fail_msg: |
+      argocd_sops_age_key must be a valid age private key in one of these formats:
+      - Just the key: AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+      - Full output:
+        # created: 2024-01-01T00:00:00Z
+        # public key: age1xxxxx...
+        AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  when: argocd_sops_enabled and argocd_sops_age_key is defined
+
+- name: create sops age secret for argocd
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-sops-age
+        namespace: "{{ argocd_namespace }}"
+      type: Opaque
+      stringData:
+        keys.txt: "{{ argocd_sops_age_key }}"
+  when: argocd_sops_enabled and argocd_sops_age_key is defined
+
 - name: install argocd via helm
   shell:
     cmd: |-
