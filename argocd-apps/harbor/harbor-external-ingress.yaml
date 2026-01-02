@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: cilium
   rules:
-  - host: cilium-ingress-harbor-ingress.harbor.svc.cluster.local
+  - host: cilium-ingress-harbor-ingress.harbor.MY_DOMAIN
     http:
       paths:
       - backend:
@@ -52,5 +52,5 @@ spec:
         pathType: Prefix
   tls:
   - hosts:
-    - cilium-ingress-harbor-ingress.harbor.svc.cluster.local
+    - cilium-ingress-harbor-ingress.harbor.MY_DOMAIN
     secretName: harbor-ingress-external

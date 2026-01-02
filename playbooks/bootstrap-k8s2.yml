@@ -28,6 +28,10 @@
       include_role:
         name: argocd
 
+    - name: include kyverno role
+      include_role:
+        name: kyverno
+
     - name: include argocd-apps role
       include_role:
         name: argocd-apps

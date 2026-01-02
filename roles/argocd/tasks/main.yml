@@ -25,6 +25,7 @@
   set_fact:
     argocd_sops_age_key: "{{ lookup('file', lookup('env', 'ARGOCD_SOPS_AGE_KEY_PATH')) }}"
   no_log: true
+  when: argocd_sops_enabled
 
 - name: validate sops age key is defined
   assert:
@@ -46,7 +47,7 @@
         # created: 2024-01-01T00:00:00Z
         # public key: age1xxxxx...
         AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  when: argocd_sops_enabled and argocd_sops_age_key is defined
+  when: argocd_sops_enabled
 
 - name: create sops age secret for argocd
   kubernetes.core.k8s:
@@ -61,7 +62,42 @@
       type: Opaque
       stringData:
         keys.txt: "{{ argocd_sops_age_key }}"
-  when: argocd_sops_enabled and argocd_sops_age_key is defined
+  when: argocd_sops_enabled
+
+- name: create sops plugin configmap for argocd
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-sops-plugin-config
+        namespace: "{{ argocd_namespace }}"
+      data:
+        plugin.yaml: |
+          apiVersion: argoproj.io/v1alpha1
+          kind: ConfigManagementPlugin
+          metadata:
+            name: sops-helm
+          spec:
+            version: v1.0
+            discover:
+              find:
+                command:
+                  - sh
+                  - "-c"
+                  - "find . -name 'secrets*.yaml' -o -name 'Chart.yaml'"
+            generate:
+              command:
+                - bash
+                - "-c"
+                - |
+                  helm template $ARGOCD_APP_NAME . --include-crds \
+                    --namespace $ARGOCD_APP_NAMESPACE \
+                    $ARGOCD_ENV_HELM_ARGS | \
+                  sops -d --input-type yaml --output-type yaml /dev/stdin
+  when: argocd_sops_enabled
 
 - name: install argocd via helm
   shell:

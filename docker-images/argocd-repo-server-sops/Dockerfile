@@ -44,12 +44,12 @@ ENV HELM_SECRETS_BACKEND="sops" \
     HELM_SECRETS_KUBECTL_PATH="/usr/local/bin/kubectl" \
     HELM_SECRETS_CURL_PATH="/usr/bin/curl"
 
-# Fix permissions for argocd user
-RUN chown -R argocd:argocd ${HELM_PLUGINS} && \
-    chown argocd:argocd /usr/local/bin/sops /usr/local/bin/age /usr/local/bin/age-keygen
+# Fix permissions for argocd user (UID 999)
+RUN chown -R 999:999 ${HELM_PLUGINS} && \
+    chown 999:999 /usr/local/bin/sops /usr/local/bin/age /usr/local/bin/age-keygen
 
-# Switch back to argocd user
-USER argocd
+# Switch back to argocd user (UID 999)
+USER 999
 
 # Verify installations
 RUN sops --version && \

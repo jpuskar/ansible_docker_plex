@@ -45,7 +45,8 @@ argocd_ha_enabled: true
 argocd_metrics_enabled: false
 
 # SOPS integration
-argocd_sops_enabled: true
+argocd_sops_enabled: false
+
 # Custom repo-server image with SOPS support
 argocd_sops_image_registry: "docker.io/jpuskar"
 argocd_sops_image_name: "argocd-sops-sidecar"

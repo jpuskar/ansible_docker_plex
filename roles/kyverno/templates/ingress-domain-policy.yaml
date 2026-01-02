@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: replace-ingress-domain
+  annotations:
+    policies.kyverno.io/title: Replace Ingress Domain Placeholder
+    policies.kyverno.io/category: Other
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Replaces {{ kyverno_domain_placeholder }} with {{ kyverno_domain_actual }} in all Ingress host fields.
+spec:
+  background: false
+  rules:
+    - name: replace-domain-in-rules
+      match:
+        any:
+          - resources:
+              kinds:
+                - Ingress
+      mutate:
+        foreach:
+          - list: "request.object.spec.rules"
+            patchesJson6902: |-
+              - path: /spec/rules/{% raw %}{{ elementIndex }}{% endraw %}/host
+                op: replace
+                value: "{% raw %}{{ regex_replace_all('{% endraw %}{{ kyverno_domain_placeholder }}{% raw %}', '{{ element.host }}', '{% endraw %}{{ kyverno_domain_actual }}{% raw %}') }}{% endraw %}"
+    - name: replace-domain-in-tls
+      match:
+        any:
+          - resources:
+              kinds:
+                - Ingress
+      mutate:
+        foreach:
+          - list: "request.object.spec.tls[]"
+            foreach:
+              - list: "element.hosts"
+                patchesJson6902: |-
+                  - path: /spec/tls/{% raw %}{{ elementIndex0 }}{% endraw %}/hosts/{% raw %}{{ elementIndex1 }}{% endraw %}
+                    op: replace
+                    value: "{% raw %}{{ regex_replace_all('{% endraw %}{{ kyverno_domain_placeholder }}{% raw %}', '{{ element }}', '{% endraw %}{{ kyverno_domain_actual }}{% raw %}') }}{% endraw %}"
