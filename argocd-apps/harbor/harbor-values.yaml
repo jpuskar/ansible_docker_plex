@@ -2,7 +2,7 @@
 # Harbor Helm values
 
 # External URL for Harbor
-externalURL: https://MY_DOMAIN
+externalURL: https://harbor.MY_DOMAIN
 
 # Expose Harbor via Ingress
 expose:
