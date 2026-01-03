@@ -39,3 +39,4 @@ coredns_external_loadbalancer_ip: !vault |
   3331
 
 kyverno_domain_actual: "{{ cluster_domain }}"
+harbor_domain: "{{ cluster_domain }}"
