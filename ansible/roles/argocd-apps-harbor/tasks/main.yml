@@ -1,0 +1,7 @@
+---
+- name: render harbor values file
+
+- name: add harbor helm repo and update
+
+- name: template harbor
+

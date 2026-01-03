@@ -1,6 +1,0 @@
-ansible
-ansible-core
-dnspython
-httpx
-requests
-lxml

@@ -1,0 +1,38 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name:
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Multi-source: Helm chart from Helm repo, values and namespace from Git
+  sources:
+    # Git repo source for values
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "harbor"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

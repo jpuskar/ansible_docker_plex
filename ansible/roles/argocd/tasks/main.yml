@@ -1,0 +1,154 @@
+---
+- name: render argocd helm chart values file
+  template:
+    src: argocd-values.yaml
+    dest: "{{ temp_dir }}/argocd-values.yaml"
+    backup: yes
+
+- name: add argocd helm repo
+  shell:
+    cmd: helm repo add argo {{ argocd_repo_url }}
+
+- name: update argocd helm repo
+  shell:
+    cmd: helm repo update argo
+
+- name: create argocd namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ argocd_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+  when: argocd_create_namespace | bool
+
+- name: Read Ansible vault password from file
+  set_fact:
+    argocd_ansible_vault_password: "{{ lookup('file', lookup('env', 'ANSIBLE_VAULT_PASSWORD_PATH')) }}"
+  no_log: true
+  when: argocd_ansible_enabled
+
+#- name: Read ArgoCD SOPS AGE key from file
+#  set_fact:
+#    argocd_sops_age_key: "{{ lookup('file', lookup('env', 'ARGOCD_SOPS_AGE_KEY_PATH')) }}"
+#  no_log: true
+#  when: argocd_sops_enabled
+#
+#- name: validate sops age key is defined
+#  assert:
+#    that:
+#      - argocd_sops_age_key is defined
+#      - argocd_sops_age_key | length > 0
+#    fail_msg: "argocd_sops_age_key must be defined when argocd_sops_enabled is true. Generate with: age-keygen -o age.key"
+#  when: argocd_sops_enabled
+#
+#- name: validate sops age key format
+#  assert:
+#    that:
+#      - argocd_sops_age_key is match("^# created:.*\n# public key:.*\nAGE-SECRET-KEY-1[A-Z0-9]+$", multiline=True) or argocd_sops_age_key is match("^AGE-SECRET-KEY-1[A-Z0-9]+$")
+#      - argocd_sops_age_key | length > 50
+#    fail_msg: |
+#      argocd_sops_age_key must be a valid age private key in one of these formats:
+#      - Just the key: AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#      - Full output:
+#        # created: 2024-01-01T00:00:00Z
+#        # public key: age1xxxxx...
+#        AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+#  when: argocd_sops_enabled
+#
+#- name: create sops age secret for argocd
+#  kubernetes.core.k8s:
+#    kubeconfig: "{{ kubeconfig_path }}"
+#    state: present
+#    definition:
+#      apiVersion: v1
+#      kind: Secret
+#      metadata:
+#        name: argocd-sops-age
+#        namespace: "{{ argocd_namespace }}"
+#      type: Opaque
+#      stringData:
+#        keys.txt: "{{ argocd_sops_age_key }}"
+#  when: argocd_sops_enabled
+#
+#- name: create sops plugin configmap for argocd
+#  kubernetes.core.k8s:
+#    kubeconfig: "{{ kubeconfig_path }}"
+#    state: present
+#    definition:
+#      apiVersion: v1
+#      kind: ConfigMap
+#      metadata:
+#        name: argocd-sops-plugin-config
+#        namespace: "{{ argocd_namespace }}"
+#      data:
+#        plugin.yaml: |
+#          apiVersion: argoproj.io/v1alpha1
+#          kind: ConfigManagementPlugin
+#          metadata:
+#            name: sops-helm
+#          spec:
+#            version: v1.0
+#            discover:
+#              find:
+#                command:
+#                  - sh
+#                  - "-c"
+#                  - "find . -name 'secrets*.yaml' -o -name 'Chart.yaml'"
+#            generate:
+#              command:
+#                - bash
+#                - "-c"
+#                - |
+#                  helm template $ARGOCD_APP_NAME . --include-crds \
+#                    --namespace $ARGOCD_APP_NAMESPACE \
+#                    $ARGOCD_ENV_HELM_ARGS | \
+#                  sops -d --input-type yaml --output-type yaml /dev/stdin
+#  when: argocd_sops_enabled
+
+- name: create ansible vault password secret for argocd
+  kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-ansible-vault
+        namespace: "{{ argocd_namespace }}"
+      type: Opaque
+      stringData:
+        vault-password: "{{ argocd_ansible_vault_password }}"
+  when: argocd_ansible_enabled
+  no_log: true
+
+- name: render ansible plugin config
+  template:
+    src: ansible-plugin-config.yaml
+    dest: "{{ temp_dir }}/ansible-plugin-config.yaml"
+  when: argocd_ansible_enabled
+
+- name: create ansible plugin configmap for argocd
+  shell:
+    cmd: kubectl apply -f {{ temp_dir }}/ansible-plugin-config.yaml --kubeconfig {{ kubeconfig_path }}
+  when: argocd_ansible_enabled
+
+- name: install argocd via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        argocd \
+          {{ argocd_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ argocd_version }} \
+            --namespace {{ argocd_namespace }} \
+            --values "{{ temp_dir }}/argocd-values.yaml"
+
+#- name: wait for argocd server to be ready
+#  shell:
+#    cmd: |-
+#      kubectl wait --for=condition=ready pod \
+#        -l app.kubernetes.io/name=argocd-server \
+#        -n {{ argocd_namespace }} \
+#        --kubeconfig {{ kubeconfig_path }} \
+#        --timeout=300s

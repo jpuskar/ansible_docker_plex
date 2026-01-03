@@ -1,0 +1,57 @@
+---
+# ARGOCD Env Vars
+- name: set cluster_name fact
+  set_fact:
+    cluster_name: "{{ lookup('env', 'ARGOCD_ENV_CLUSTER_NAME') | to_json | from_json }}"
+  when: cluster_name is not defined
+
+- name: set app_name fact
+  set_fact:
+    app_name: "{{ lookup('env', 'ARGOCD_ENV_APP_NAME') | to_json | from_json }}"
+  when: app_name is not defined
+
+- name: set app_revision fact
+  set_fact:
+    app_revision: "{{ lookup('env', 'ARGOCD_ENV_APP_REVISION') | to_json | from_json }}"
+  when: app_revision is not defined
+
+# Dirs
+- name: set global_cache_dir fact
+  set_fact:
+    global_cache_dir: "~/tmp/global_cache"
+
+- name: create global_cache_dir if needed
+  file:
+    path: "{{ global_cache_dir }}"
+    state: directory
+
+
+- name: set output_dir_path fact
+  set_fact:
+    output_dir_path: "~/tmp/rendered/{{ cluster_name }}/{{ app_name }}/{{ app_revision }}"
+
+- name: create output_dir_path if needed
+  file:
+    path: "{{ output_dir_path }}"
+    state: directory
+
+
+- name: set repo_dir fact
+  set_fact:
+    repo_dir: "{{ (playbook_dir ~ '/../..') | realpath }}"
+
+
+- name: create temp_dir_path
+  tempfile:
+    state: directory
+    suffix: "{{ app_name }}-{{ app_revision }}"
+  register: tmp_dir_create
+
+- name: set temp_dir_path fact
+  set_fact:
+    temp_dir_path: "{{ tmp_dir_create.path }}"
+
+
+# Ansible group_vars
+- name: include cluster vars
+  include_vars: "{{ (repo_dir ~ '/inventory/group_vars/cluster/' ~ cluster_name ~ '.yml') | realpath }}"

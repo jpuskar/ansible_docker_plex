@@ -1,0 +1,73 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace for Harbor resources
+namespace: harbor
+
+# Base resources
+resources:
+  - harbor-values.yaml
+  - harbor-external-ingress.yaml
+
+# Generate ConfigMap from domain configuration file
+# This file is created/managed by Ansible (cluster-domain role)
+configMapGenerator:
+  - name: cluster-domain
+    envs:
+      - ../../config/domain/domain.env
+    options:
+      disableNameSuffixHash: true
+
+# Replace MY_DOMAIN placeholder with actual domain from ConfigMap
+replacements:
+  # Replace domain in Ingress host fields
+  - source:
+      kind: ConfigMap
+      name: cluster-domain
+      fieldPath: data.DOMAIN
+    targets:
+      # Harbor external ingress - main host
+      - select:
+          kind: Ingress
+          name: cilium-ingress-harbor-ingress
+        fieldPaths:
+          - spec.rules.0.host
+        options:
+          delimiter: '.'
+          index: 2  # Replace MY_DOMAIN in: cilium-ingress-harbor-ingress.harbor.MY_DOMAIN
+      # Harbor external ingress - TLS hosts
+      - select:
+          kind: Ingress
+          name: cilium-ingress-harbor-ingress
+        fieldPaths:
+          - spec.tls.0.hosts.0
+        options:
+          delimiter: '.'
+          index: 2  # Replace MY_DOMAIN in TLS section
+
+  # Replace domain in Harbor Helm values (ConfigMap)
+  - source:
+      kind: ConfigMap
+      name: cluster-domain
+      fieldPath: data.DOMAIN
+    targets:
+      # Harbor values ConfigMap - externalURL
+      - select:
+          kind: ConfigMap
+          name: harbor-values
+        fieldPaths:
+          - data.[values.yaml]
+        options:
+          # This will replace MY_DOMAIN in the entire values.yaml content
+          # Note: This is a text replacement, so it works for any occurrence
+          create: true
+
+# Labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: harbor
+  app.kubernetes.io/managed-by: argocd
+
+# Annotations applied to all resources
+commonAnnotations:
+  argocd.argoproj.io/sync-wave: "2"  # Deploy after prerequisites

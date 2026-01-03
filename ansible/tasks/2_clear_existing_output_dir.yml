@@ -1,0 +1,14 @@
+---
+- name: check output dir for pre-existing objects
+  find:
+    paths: "{{ output_dir_path }}"
+    patterns:
+      - "*.yml"
+      - "*.yaml"
+  register: files_to_delete
+
+- name: delete pre-existing objects
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ files_to_delete.files }}"

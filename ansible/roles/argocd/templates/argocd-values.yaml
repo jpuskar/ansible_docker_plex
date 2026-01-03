@@ -1,0 +1,156 @@
+# ArgoCD Helm values
+global:
+  domain: {{ argocd_server_ingress_host }}
+
+# Controller
+controller:
+  replicas: {{ argocd_controller_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Server
+server:
+  replicas: {{ argocd_server_replicas }}
+  insecure: {{ argocd_server_insecure | lower }}
+
+  ingress:
+    enabled: {{ argocd_server_ingress_enabled | lower }}
+{% if argocd_server_ingress_enabled %}
+    hosts:
+      - {{ argocd_server_ingress_host }}
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      cert-manager.io/cluster-issuer: ca-issuer
+    tls:
+      - secretName: argocd-server-tls
+        hosts:
+          - {{ argocd_server_ingress_host }}
+{% endif %}
+
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Repo server
+repoServer:
+  replicas: {{ argocd_repo_server_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+#{% if argocd_sops_enabled or argocd_ansible_enabled %}
+  volumes:
+#{% if argocd_sops_enabled %}
+#    - name: sops-age-key
+#      secret:
+#        secretName: argocd-sops-age
+#        optional: true
+#    - name: sops-plugin-config
+#      configMap:
+#        name: argocd-sops-plugin-config
+#{% endif %}
+{% if argocd_ansible_enabled %}
+    - name: ansible-vault-password
+      secret:
+        secretName: argocd-ansible-vault
+        optional: true
+    - name: ansible-plugin-config
+      configMap:
+        name: argocd-ansible-plugin-config
+{% endif %}
+    - name: cmp-plugin
+      emptyDir: {}
+
+  extraContainers:
+#{% if argocd_sops_enabled %}
+#    - name: sops-plugin
+#      image: {{ argocd_sops_image_registry }}/{{ argocd_sops_image_name }}:{{ argocd_sops_image_tag }}
+#      command: ["/var/run/argocd/argocd-cmp-server"]
+#      securityContext:
+#        runAsNonRoot: true
+#        runAsUser: 999
+#      env:
+#        - name: SOPS_AGE_KEY_FILE
+#          value: /home/argocd/.config/sops/age/keys.txt
+#      volumeMounts:
+#        - name: sops-age-key
+#          mountPath: /home/argocd/.config/sops/age
+#          readOnly: true
+#        - name: cmp-plugin
+#          mountPath: /home/argocd/cmp-server/plugins
+#        - name: sops-plugin-config
+#          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+#          subPath: plugin.yaml
+#{% endif %}
+{% if argocd_ansible_enabled %}
+    - name: ansible-plugin
+      image: {{ argocd_ansible_image_registry }}/{{ argocd_ansible_image_name }}:{{ argocd_ansible_image_tag }}
+      command: ["/var/run/argocd/argocd-cmp-server"]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+      env:
+        - name: ANSIBLE_VAULT_PASSWORD_FILE
+          value: /ansible_vault/password
+      volumeMounts:
+        - name: ansible-vault-password
+          mountPath: /ansible_vault/password
+          subPath: vault-password
+          readOnly: true
+        - name: cmp-plugin
+          mountPath: /home/argocd/cmp-server/plugins
+        - name: ansible-plugin-config
+          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+{% endif %}
+#{% endif %}
+
+# Redis
+redis:
+  enabled: {{ argocd_redis_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Dex (for SSO)
+dex:
+  enabled: {{ argocd_dex_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# ApplicationSet controller
+applicationSet:
+  enabled: {{ argocd_applicationset_enabled | lower }}
+  replicas: {{ argocd_applicationset_replicas }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# Notifications controller
+notifications:
+  enabled: {{ argocd_notifications_enabled | lower }}
+  metrics:
+    enabled: {{ argocd_metrics_enabled | lower }}
+    serviceMonitor:
+      enabled: {{ argocd_metrics_enabled | lower }}
+
+# High Availability
+{% if argocd_ha_enabled %}
+redis-ha:
+  enabled: true
+{% endif %}
+
+# Admin password
+{% if argocd_admin_password is defined %}
+configs:
+  secret:
+    argocdServerAdminPassword: {{ argocd_admin_password | password_hash('bcrypt') }}
+{% endif %}
