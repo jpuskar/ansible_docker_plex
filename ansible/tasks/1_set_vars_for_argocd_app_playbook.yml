@@ -35,6 +35,8 @@
     path: "{{ output_dir_path }}"
     state: directory
 
+- debug:
+    var: output_dir_path
 
 - name: set repo_dir fact
   set_fact:
