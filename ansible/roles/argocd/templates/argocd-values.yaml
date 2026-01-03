@@ -57,14 +57,9 @@ repoServer:
     - name: ansible-plugin-config
       configMap:
         name: argocd-ansible-plugin-config
-    - name: cmp-plugin
-      emptyDir: {}
     - name: var-files
       emptyDir: {}
     - name: cmp-tmp
-      emptyDir: {}
-{% else %}
-    - name: cmp-plugin
       emptyDir: {}
 {% endif %}
 
@@ -88,7 +83,7 @@ repoServer:
           readOnly: true
         - name: var-files
           mountPath: /var/run/argocd
-        - name: cmp-plugin
+        - name: plugins
           mountPath: /home/argocd/cmp-server/plugins
         - name: ansible-plugin-config
           mountPath: /home/argocd/cmp-server/config/plugin.yaml

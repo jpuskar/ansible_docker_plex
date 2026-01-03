@@ -1,10 +1,21 @@
 ---
+- name: Template ArgoCD Application manifests to temp dir
+  template:
+    src: "{{ item }}"
+    dest: "{{ temp_dir }}/{{ item }}"
+  loop:
+    - openebs-rawfile-application.yaml
+    - openebs-rawfile-storageclass-application.yaml
+    - percona-postgres-operator-application.yaml
+    - redis-operator-application.yaml
+    - harbor-application.yaml
+
 - name: Apply ArgoCD Application manifests
   shell:
     cmd: |-
       kubectl apply \
         --kubeconfig {{ kubeconfig_path }} \
-        -f {{ role_path }}/files/{{ item }}
+        -f {{ temp_dir }}/{{ item }}
   loop:
     - openebs-rawfile-application.yaml
     - openebs-rawfile-storageclass-application.yaml

@@ -5,28 +5,5 @@ metadata:
   name: argocd-ansible-plugin-config
   namespace: {{ argocd_namespace }}
 data:
-  plugin.yaml: |
-    apiVersion: argoproj.io/v1alpha1
-    kind: ConfigManagementPlugin
-    metadata:
-      name: ansible
-    spec:
-      version: v1.0
-      discover:
-        fileName: "./ansible.cfg"
-      init:
-        command:
-          - sh
-          - c
-          - |-
-            mkdir -p ~/tmp/logs/${ARGOCD_ENV_CLUSTER_NAME}/${ARGOCD_ENV_APP_NAME}/${ARGOCD_APP_REVISION}; \
-            ANSIBLE_LOCAL_TEMP=$(mktemp -d) \
-              ansible-playbook ./playbooks/argocd_app_${ARGOCD_ENV_APP_NAME}.yml \
-                --vault-password-file /ansible_vault/password \
-                > ~/tmp/logs/${ARGOCD_ENV_CLUSTER_NAME}/${ARGOCD_ENV_APP_NAME}/${ARGOCD_APP_REVISION}/ansible_log.txt 2>&1
-      generate:
-        command:
-          - sh
-          - -c
-          - |-
-            "sed -s '$G' ~/tmp/rendered/${ARGOCD_ENV_CLUSTER_NAME}/${ARGOCD_ENV_APP_NAME}/${ARGOCD_APP_REVISION}/*.yaml"
+  plugin.yaml: |-
+    {{ lookup('template', 'ansible-plugin-config-contents.yaml') | indent(4) }}
