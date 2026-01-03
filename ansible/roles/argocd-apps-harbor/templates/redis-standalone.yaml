@@ -1,0 +1,46 @@
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: harbor-redis
+  namespace: {{ harbor_namespace }}
+spec:
+  # Only run on TPM-encrypted nodes
+  nodeSelector:
+    encryption.talos.dev/tpm: "{{ harbor_node_selector_tpm }}"
+
+  podSecurityContext:
+    runAsUser: 1000
+    fsGroup: 1000
+
+  kubernetesConfig:
+    image: {{ harbor_redis_image }}
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
+
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:v1.45.0
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  storage:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: {{ harbor_redis_storage_class }}
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ harbor_redis_storage_size }}

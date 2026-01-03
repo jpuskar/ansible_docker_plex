@@ -1,0 +1,25 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: harbor-postgres-tls
+  namespace: {{ harbor_namespace }}
+spec:
+  secretName: harbor-postgres-tls
+  issuerRef:
+    name: ca-issuer
+    kind: ClusterIssuer
+  commonName: {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer.{{ harbor_namespace }}.svc
+  dnsNames:
+    - {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer
+    - {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer.{{ harbor_namespace }}
+    - {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer.{{ harbor_namespace }}.svc
+    - {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer.{{ harbor_namespace }}.svc.cluster.local
+    - {{ harbor_postgres_cluster_name }}-pg-db-primary
+    - {{ harbor_postgres_cluster_name }}-pg-db-primary.{{ harbor_namespace }}
+    - {{ harbor_postgres_cluster_name }}-pg-db-primary.{{ harbor_namespace }}.svc
+    - {{ harbor_postgres_cluster_name }}-pg-db-primary.{{ harbor_namespace }}.svc.cluster.local
+    - "*.{{ harbor_postgres_cluster_name }}-pg-db-pods.{{ harbor_namespace }}.svc.cluster.local"
+  usages:
+    - server auth
+    - client auth

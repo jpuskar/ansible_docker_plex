@@ -1,2 +1,5 @@
 ---
-- name: template out redis for harbor
+- name: Template out Redis manifest for Harbor
+  template:
+    src: redis-standalone.yaml
+    dest: "{{ output_dir_path }}/redis-standalone.yaml"

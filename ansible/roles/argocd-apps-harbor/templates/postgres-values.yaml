@@ -1,0 +1,89 @@
+---
+# Percona PostgreSQL Cluster for Harbor
+
+# Cluster name
+crName: {{ harbor_postgres_cluster_name }}
+
+# PostgreSQL instances configuration
+instances:
+  - name: instance1
+    replicas: {{ harbor_postgres_replicas }}  # HA with replicas for Harbor
+
+    # Storage configuration using OpenEBS Rawfile
+    dataVolumeClaimSpec:
+      storageClassName: {{ harbor_postgres_storage_class }}
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: {{ harbor_postgres_storage_size }}
+
+    # Affinity rules: require TPM nodes and spread across nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: encryption.talos.dev/tpm
+                  operator: In
+                  values:
+                    - "{{ harbor_node_selector_tpm }}"
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                postgres-operator.crunchydata.com/cluster: {{ harbor_postgres_cluster_name }}-pg-db
+                postgres-operator.crunchydata.com/instance-set: instance1
+
+# pgBouncer connection pooler
+proxy:
+  pgBouncer:
+    replicas: {{ harbor_postgres_replicas }}
+
+    # Affinity rules: require TPM nodes and spread across nodes
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: encryption.talos.dev/tpm
+                  operator: In
+                  values:
+                    - "{{ harbor_node_selector_tpm }}"
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                postgres-operator.crunchydata.com/cluster: {{ harbor_postgres_cluster_name }}-pg-db
+                postgres-operator.crunchydata.com/role: pgbouncer
+
+# Disable backups
+backups:
+  enabled: false
+
+# TLS configuration using cert-manager certificate
+customRootCATLSSecret:
+  name: harbor-postgres-tls
+
+# PostgreSQL configuration
+postgresVersion: {{ harbor_postgres_version }}
+
+# Create Harbor user and database
+users:
+  - name: {{ harbor_postgres_user }}
+    databases:
+      - {{ harbor_postgres_database }}
+    grantPublicSchemaAccess: true
+    options: "LOGIN"
+    password:
+      type: ASCII
+
+# Custom PostgreSQL configuration for Harbor
+patroni:
+  dynamicConfiguration:
+    postgresql:
+      parameters:
+        max_connections: 100
+        shared_buffers: 128MB

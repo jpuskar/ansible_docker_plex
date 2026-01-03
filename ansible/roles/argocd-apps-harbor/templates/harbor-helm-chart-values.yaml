@@ -1,1 +1,107 @@
 ---
+# Harbor Helm values
+
+# External URL for Harbor
+externalURL: https://harbor.{{ harbor_domain }}
+
+# Expose Harbor via Ingress
+expose:
+  type: ingress
+  tls:
+    enabled: true
+    certSource: auto
+  ingress:
+    hosts:
+      core: harbor.local
+    className: ""
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "true"
+
+# CA bundle for trusting internal certificates
+# Uses CA from the PostgreSQL TLS certificate secret
+caBundleSecretName: harbor-postgres-tls
+
+# External PostgreSQL database
+database:
+  type: external
+  external:
+    host: {{ harbor_postgres_cluster_name }}-pg-db-pgbouncer.{{ harbor_namespace }}.svc
+    port: "5432"
+    username: {{ harbor_postgres_user }}
+    existingSecret: {{ harbor_postgres_cluster_name }}-pg-db-pguser-{{ harbor_postgres_user }}
+    coreDatabase: {{ harbor_postgres_database }}
+    sslmode: require
+  maxIdleConns: 50
+  maxOpenConns: 100
+
+# External Redis
+redis:
+  type: external
+  external:
+    addr: harbor-redis.{{ harbor_namespace }}.svc.cluster.local:6379
+    coreDatabaseIndex: "0"
+    jobserviceDatabaseIndex: "1"
+    registryDatabaseIndex: "2"
+    trivyAdapterIndex: "5"
+
+# Persistence for registry and other components
+persistence:
+  enabled: true
+  resourcePolicy: "keep"
+  persistentVolumeClaim:
+    registry:
+      storageClass: {{ harbor_registry_storage_class }}
+      size: {{ harbor_registry_storage_size }}
+      accessMode: ReadWriteMany
+    jobservice:
+      jobLog:
+        storageClass: {{ harbor_jobservice_storage_class }}
+        size: {{ harbor_jobservice_storage_size }}
+        accessMode: ReadWriteOnce
+    trivy:
+      storageClass: {{ harbor_trivy_storage_class }}
+      size: {{ harbor_trivy_storage_size }}
+      accessMode: ReadWriteOnce
+
+  imageChartStorage:
+    type: filesystem
+    filesystem:
+      rootdirectory: /storage
+
+# Harbor core configuration
+core:
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}
+
+# JobService configuration
+jobservice:
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}
+
+# Registry configuration
+registry:
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}
+
+# Trivy scanner configuration
+trivy:
+  enabled: true
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Portal (UI) configuration
+portal:
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}
+
+# Nginx configuration
+nginx:
+  tolerations:
+{{ harbor_tolerations | to_nice_yaml(indent=2) | indent(4, first=True) }}

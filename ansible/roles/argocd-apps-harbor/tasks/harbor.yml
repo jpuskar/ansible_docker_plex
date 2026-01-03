@@ -1,0 +1,37 @@
+---
+- name: Template out Harbor Helm values to temp dir
+  template:
+    src: harbor-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/harbor-values.yaml"
+
+- name: Add Harbor Helm repository
+  shell:
+    cmd: |-
+      helm repo add harbor {{ harbor_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm harbor repositories
+  shell:
+    cmd: |-
+      helm repo update harbor
+  changed_when: false
+
+- name: Generate Harbor manifests using helm template
+  shell: |
+    helm template {{ harbor_chart_name }} harbor/{{ harbor_chart_name }} \
+      --version {{ harbor_chart_version }} \
+      --namespace {{ harbor_namespace }} \
+      --values {{ temp_dir_path }}/harbor-values.yaml \
+      --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | from_yaml | to_yaml }}"
+    dest: {{ output_dir_path }}/harbor-helm-manifests.yaml
+
+- name: Template out Harbor external ingress
+  template:
+    src: harbor-external-ingress.yaml
+    dest: "{{ output_dir_path }}/harbor-external-ingress.yaml"
