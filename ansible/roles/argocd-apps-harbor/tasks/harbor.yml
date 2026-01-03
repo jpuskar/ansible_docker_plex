@@ -29,7 +29,7 @@
 - name: write output manifests for helm template
   copy:
     content: "{{ helm_template_command.stdout | from_yaml | to_yaml }}"
-    dest: {{ output_dir_path }}/harbor-helm-manifests.yaml
+    dest: "{{ output_dir_path }}/harbor-helm-manifests.yaml"
 
 - name: Template out Harbor external ingress
   template:
