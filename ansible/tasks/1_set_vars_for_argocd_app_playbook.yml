@@ -12,7 +12,7 @@
 
 - name: set app_revision fact
   set_fact:
-    app_revision: "{{ lookup('env', 'ARGOCD_ENV_APP_REVISION') | to_json | from_json }}"
+    app_revision: "{{ lookup('env', 'ARGOCD_APP_REVISION') | to_json | from_json }}"
   when: app_revision is not defined
 
 # Dirs
