@@ -2,16 +2,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name:
+  name: harbor
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
-  # Multi-source: Helm chart from Helm repo, values and namespace from Git
   sources:
-    # Git repo source for values
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
       targetRevision: zfs-disk-replace
       path: "./ansible/"

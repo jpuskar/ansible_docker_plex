@@ -14,10 +14,6 @@
       include_role:
         name: cilium
 
-    - name: include cluster-domain role
-      include_role:
-        name: cluster-domain
-
     - name: include cert-manager role
       include_role:
         name: cert-manager
@@ -32,18 +28,18 @@
       include_role:
         name: argocd
 
-    - name: include kyverno role
-      include_role:
-        name: kyverno
-
     - name: include argocd-apps role
       include_role:
         name: argocd-apps
 
-    - name: include harbor-nfs-storage role
-      include_role:
-        name: harbor-nfs-storage
-
-    - name: include coredns-external role
-      include_role:
-        name: coredns-external
+#    - name: include kyverno role
+#      include_role:
+#        name: kyverno
+#
+#    - name: include harbor-nfs-storage role
+#      include_role:
+#        name: harbor-nfs-storage
+#
+#    - name: include coredns-external role
+#      include_role:
+#        name: coredns-external

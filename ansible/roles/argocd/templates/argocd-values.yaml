@@ -41,18 +41,14 @@ repoServer:
     enabled: {{ argocd_metrics_enabled | lower }}
     serviceMonitor:
       enabled: {{ argocd_metrics_enabled | lower }}
+{% if argocd_ansible_enabled %}
 
-#{% if argocd_sops_enabled or argocd_ansible_enabled %}
+  volumeMounts:
+    - name: var-files
+      mountPath: /var/run/argocd
+{% endif %}
+
   volumes:
-#{% if argocd_sops_enabled %}
-#    - name: sops-age-key
-#      secret:
-#        secretName: argocd-sops-age
-#        optional: true
-#    - name: sops-plugin-config
-#      configMap:
-#        name: argocd-sops-plugin-config
-#{% endif %}
 {% if argocd_ansible_enabled %}
     - name: ansible-vault-password
       secret:
@@ -61,34 +57,23 @@ repoServer:
     - name: ansible-plugin-config
       configMap:
         name: argocd-ansible-plugin-config
-{% endif %}
     - name: cmp-plugin
       emptyDir: {}
+    - name: var-files
+      emptyDir: {}
+    - name: cmp-tmp
+      emptyDir: {}
+{% else %}
+    - name: cmp-plugin
+      emptyDir: {}
+{% endif %}
 
   extraContainers:
-#{% if argocd_sops_enabled %}
-#    - name: sops-plugin
-#      image: {{ argocd_sops_image_registry }}/{{ argocd_sops_image_name }}:{{ argocd_sops_image_tag }}
-#      command: ["/var/run/argocd/argocd-cmp-server"]
-#      securityContext:
-#        runAsNonRoot: true
-#        runAsUser: 999
-#      env:
-#        - name: SOPS_AGE_KEY_FILE
-#          value: /home/argocd/.config/sops/age/keys.txt
-#      volumeMounts:
-#        - name: sops-age-key
-#          mountPath: /home/argocd/.config/sops/age
-#          readOnly: true
-#        - name: cmp-plugin
-#          mountPath: /home/argocd/cmp-server/plugins
-#        - name: sops-plugin-config
-#          mountPath: /home/argocd/cmp-server/config/plugin.yaml
-#          subPath: plugin.yaml
-#{% endif %}
 {% if argocd_ansible_enabled %}
+
     - name: ansible-plugin
       image: {{ argocd_ansible_image_registry }}/{{ argocd_ansible_image_name }}:{{ argocd_ansible_image_tag }}
+      imagePullPolicy: Always
       command: ["/var/run/argocd/argocd-cmp-server"]
       securityContext:
         runAsNonRoot: true
@@ -101,13 +86,16 @@ repoServer:
           mountPath: /ansible_vault/password
           subPath: vault-password
           readOnly: true
+        - name: var-files
+          mountPath: /var/run/argocd
         - name: cmp-plugin
           mountPath: /home/argocd/cmp-server/plugins
         - name: ansible-plugin-config
           mountPath: /home/argocd/cmp-server/config/plugin.yaml
           subPath: plugin.yaml
+        - name: cmp-tmp
+          mountPath: /tmp
 {% endif %}
-#{% endif %}
 
 # Redis
 redis:

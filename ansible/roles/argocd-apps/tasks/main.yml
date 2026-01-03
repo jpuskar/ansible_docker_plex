@@ -10,6 +10,4 @@
     - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
     - redis-operator-application.yaml
-    - harbor-postgres-application.yaml
-    - harbor-redis-application.yaml
     - harbor-application.yaml
