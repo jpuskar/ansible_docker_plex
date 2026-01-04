@@ -24,10 +24,29 @@ spec:
     server: https://kubernetes.default.svc
     namespace: harbor
 
+  # Ignore Harbor checksum annotations that change on every Helm render
+  # These annotations trigger pod restarts but don't represent actual changes
+  ignoreDifferences:
+    - group: "apps"
+      kind: "Deployment"
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1configmap
+        - /spec/template/metadata/annotations/checksum~1secret
+        - /spec/template/metadata/annotations/checksum~1secret-core
+        - /spec/template/metadata/annotations/checksum~1secret-jobservice
+        - /spec/template/metadata/annotations/checksum~1tls
+    - group: "apps"
+      kind: "StatefulSet"
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1configmap
+        - /spec/template/metadata/annotations/checksum~1secret
+        - /spec/template/metadata/annotations/checksum~1tls
+
   syncPolicy:
     syncOptions:
       - ServerSideApply=true
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:

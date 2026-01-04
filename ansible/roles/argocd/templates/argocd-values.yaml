@@ -131,9 +131,77 @@ redis-ha:
   enabled: true
 {% endif %}
 
-# Admin password
-{% if argocd_admin_password is defined %}
+# Admin password and configs
 configs:
+{% if argocd_admin_password is defined %}
   secret:
     argocdServerAdminPassword: {{ argocd_admin_password | password_hash('bcrypt') }}
 {% endif %}
+  cm:
+    # Resource exclusions - merging defaults with custom additions
+    # Default exclusions reduce API load and UI clutter
+    resource.exclusions: |
+      ### Network resources created by the Kubernetes control plane
+      - apiGroups:
+        - ''
+        - discovery.k8s.io
+        kinds:
+        - Endpoints
+        - EndpointSlice
+      ### Internal Kubernetes resources
+      - apiGroups:
+        - coordination.k8s.io
+        kinds:
+        - Lease
+      ### Internal Kubernetes Authz/Authn resources
+      - apiGroups:
+        - authentication.k8s.io
+        - authorization.k8s.io
+        kinds:
+        - SelfSubjectReview
+        - TokenReview
+        - LocalSubjectAccessReview
+        - SelfSubjectAccessReview
+        - SelfSubjectRulesReview
+        - SubjectAccessReview
+      ### Intermediate Certificate Requests
+      - apiGroups:
+        - certificates.k8s.io
+        kinds:
+        - CertificateSigningRequest
+      - apiGroups:
+        - cert-manager.io
+        kinds:
+        - CertificateRequest
+      ### Cilium internal resources
+      - apiGroups:
+        - cilium.io
+        kinds:
+        - CiliumIdentity
+        - CiliumEndpoint
+        - CiliumEndpointSlice
+      ### Kyverno intermediate and reporting resources
+      - apiGroups:
+        - kyverno.io
+        - reports.kyverno.io
+        - wgpolicyk8s.io
+        kinds:
+        - PolicyReport
+        - ClusterPolicyReport
+        - EphemeralReport
+        - ClusterEphemeralReport
+        - AdmissionReport
+        - ClusterAdmissionReport
+        - BackgroundScanReport
+        - ClusterBackgroundScanReport
+        - UpdateRequest
+      ### CUSTOM: Cilium secret sync namespace
+      ### Cilium syncs ingress TLS secrets to this namespace for its datapath
+      - apiGroups:
+        - ""
+        kinds:
+        - Secret
+        clusters:
+        - "*"
+        namespaces:
+        - cilium-secrets
