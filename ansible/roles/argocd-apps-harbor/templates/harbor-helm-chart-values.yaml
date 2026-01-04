@@ -4,6 +4,10 @@
 # External URL for Harbor
 externalURL: "{{ harbor_external_url }}"
 
+# Use ESO-generated admin password
+existingSecretAdminPassword: "harbor-admin-secret"
+existingSecretAdminPasswordKey: "HARBOR_ADMIN_PASSWORD"
+
 # Expose Harbor via Ingress
 expose:
   type: ingress
