@@ -2,7 +2,7 @@
 # Harbor Helm values
 
 # External URL for Harbor
-externalURL: https://harbor.{{ harbor_domain }}
+externalURL: "{{ harbor_external_url }}"
 
 # Expose Harbor via Ingress
 expose:
@@ -12,10 +12,12 @@ expose:
     certSource: auto
   ingress:
     hosts:
-      core: harbor.local
-    className: ""
+      core: "{{ harbor_external_url }}"
+    className: "cilium"
     annotations:
+      io.cilium/lb-ipam-ips: "{{ harbor_ingress_ip }}"
       ingress.kubernetes.io/ssl-redirect: "true"
+      ingress.kubernetes.io/proxy-body-size: "0"
 
 # CA bundle for trusting internal certificates
 # Uses CA from the PostgreSQL TLS certificate secret

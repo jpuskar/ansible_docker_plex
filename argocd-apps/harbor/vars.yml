@@ -1,7 +1,0 @@
----
-# Harbor domain configuration
-# This file should be encrypted with: ansible-vault encrypt vars.yml
-# The ArgoCD Ansible CMP plugin will decrypt it automatically
-
-# Your actual domain
-cluster_domain: "example.com"

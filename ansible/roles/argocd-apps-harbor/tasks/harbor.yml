@@ -31,7 +31,7 @@
     content: "{{ helm_template_command.stdout }}"
     dest: "{{ output_dir_path }}/harbor-helm-manifests.yaml"
 
-- name: Template out Harbor external ingress
-  template:
-    src: harbor-external-ingress.yaml
-    dest: "{{ output_dir_path }}/harbor-external-ingress.yaml"
+#- name: Template out Harbor external ingress
+#  template:
+#    src: harbor-external-ingress.yaml
+#    dest: "{{ output_dir_path }}/harbor-external-ingress.yaml"

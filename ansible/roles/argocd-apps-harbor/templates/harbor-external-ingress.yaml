@@ -5,6 +5,7 @@ metadata:
   name: harbor-ingress-external
   namespace: {{ harbor_namespace }}
   annotations:
+    io.cilium/lb-ipam-ips: "{{ harbor_ingress_ip }}"
     ingress.kubernetes.io/ssl-redirect: "true"
     ingress.kubernetes.io/proxy-body-size: "0"
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
