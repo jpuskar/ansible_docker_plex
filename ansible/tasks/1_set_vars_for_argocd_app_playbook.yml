@@ -53,6 +53,10 @@
   set_fact:
     temp_dir_path: "{{ tmp_dir_create.path }}"
 
+- name: show tmp_dir_path
+  debug:
+    var: temp_dir_path
+
 
 # Ansible group_vars
 - name: include cluster vars
