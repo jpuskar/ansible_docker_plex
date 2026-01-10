@@ -7,8 +7,8 @@
 #
 # Images are matched in order - first match wins
 talos_images_info:
-  - name: "v1.12.0-secureboot-arm-nvidia-nonfree-lts"
-    image: "factory.talos.dev/metal-installer-secureboot/44ee92089d43ec37a9193f8b2050f2259e9ee71c6d8e51718533871284284abf:v1.12.1"
+  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
+    image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
     tags:
       arch: arm64
       secureboot: true
@@ -16,25 +16,54 @@ talos_images_info:
       extensions:
         - siderolabs/ctr
         - siderolabs/glibc
-        - siderolabs/nonfree-kmod-nvidia-lts
         - siderolabs/nvidia-container-toolkit-lts
         - siderolabs/nvidia-gdrdrv-device
-        - siderolabs/nvme-cli
+        - siderolabs/nvidia-open-gpu-kernel-modules-lts
         - siderolabs/util-linux-tools
 
-  - name: "v1.12.0-secureboot-arm-nvidia-2"
-    image: "factory.talos.dev/metal-installer-secureboot/f4ff4b63f275f5cf030716476fe34369bbfefd5fae211c8850590bc4a5fb821a:v1.12.1"
-    tags:
-      arch: arm64
-      secureboot: true
-      version: "v1.12.1"
-      extensions:
-        - ctr
-        - glibc
-        - nvidia-container-toolkit-production
-        - nvidia-gdrdrv-device
-        - nvme-cli
-        - util-linux-tools
+#  # NOTE: -production is v 570 which isn't supported on Blackwell (GB10 / Dells / DGX Spark)
+#  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
+#    image: "factory.talos.dev/metal-installer-secureboot/3e702fd886d26bcec7ad3e5ce95c1619f8ca6b90e455a90bba8633305ea9e8de:v1.12.1"
+#    tags:
+#      arch: arm64
+#      secureboot: true
+#      version: "v1.12.1"
+#      extensions:
+#        - siderolabs/ctr
+#        - siderolabs/glibc
+#        - siderolabs/nvidia-container-toolkit-production
+#        - siderolabs/nvidia-gdrdrv-device
+#        - siderolabs/nvidia-open-gpu-kernel-modules-production
+#        - siderolabs/util-linux-tools
+
+#  - name: "v1.12.0-secureboot-arm-nvidia-nonfree-lts"
+#    image: "factory.talos.dev/metal-installer-secureboot/44ee92089d43ec37a9193f8b2050f2259e9ee71c6d8e51718533871284284abf:v1.12.1"
+#    tags:
+#      arch: arm64
+#      secureboot: true
+#      version: "v1.12.1"
+#      extensions:
+#        - siderolabs/ctr
+#        - siderolabs/glibc
+#        - siderolabs/nonfree-kmod-nvidia-lts
+#        - siderolabs/nvidia-container-toolkit-lts
+#        - siderolabs/nvidia-gdrdrv-device
+#        - siderolabs/nvme-cli
+#        - siderolabs/util-linux-tools
+
+#  - name: "v1.12.0-secureboot-arm-nvidia-2"
+#    image: "factory.talos.dev/metal-installer-secureboot/f4ff4b63f275f5cf030716476fe34369bbfefd5fae211c8850590bc4a5fb821a:v1.12.1"
+#    tags:
+#      arch: arm64
+#      secureboot: true
+#      version: "v1.12.1"
+#      extensions:
+#        - ctr
+#        - glibc
+#        - nvidia-container-toolkit-production
+#        - nvidia-gdrdrv-device
+#        - nvme-cli
+#        - util-linux-tools
 #  - name: "v1.12.0-secureboot-arm-nvidia"
 #    image: "factory.talos.dev/metal-installer-secureboot/ad7d9ddbf684ff4ff626655fa77023939049131eb724eb01593779f43e600838:v1.12.1"
 #    tags:

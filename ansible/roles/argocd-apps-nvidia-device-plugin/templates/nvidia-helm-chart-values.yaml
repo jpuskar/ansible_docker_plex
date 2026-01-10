@@ -4,15 +4,15 @@
 image:
   tag: "v0.18.1"
 
-config:
-  map:
-    default: |-
-      version: v1
-      sharing:
-        mps:
-          resources:
-            - name: nvidia.com/gpu
-              replicas: 10
+#config:
+#  map:
+#    default: |-
+#      version: v1
+#      sharing:
+#        mps:
+#          resources:
+#            - name: nvidia.com/gpu
+#              replicas: 10
 
 # Runtime class for NVIDIA GPU workloads
 runtimeClassName: {{ nvidia_runtime_class }}
@@ -37,6 +37,8 @@ gfd:
 nfd:
   nameOverride: node-feature-discovery
   enableNodeFeatureApi: true
+
+# GPUDirect Storage
 gdsEnabled: true
 
 ## MPS (Multi-Process Service) for GPU sharing when MIG is not available

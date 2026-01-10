@@ -1,0 +1,130 @@
+---
+# Workaround for https://github.com/siderolabs/extensions/issues/940
+# Generates CDI spec on each GPU node to bypass broken ld.so.cache in Talos v1.12.x
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-cdi-generator
+  namespace: nvidia-device-plugin
+  labels:
+    app: nvidia-cdi-generator
+spec:
+  selector:
+    matchLabels:
+      app: nvidia-cdi-generator
+  template:
+    metadata:
+      labels:
+        app: nvidia-cdi-generator
+    spec:
+      # Only run on nodes with NVIDIA GPUs
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+
+      # High priority to ensure this runs before GPU workloads
+      priorityClassName: system-node-critical
+
+      hostPID: true
+
+      initContainers:
+      # Generate the CDI spec once at startup
+      - name: generate-cdi-spec
+        image: nvcr.io/nvidia/k8s/container-toolkit:v1.18.1
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            set -e
+            echo "Creating CDI directory..."
+            mkdir -p /host-var-cdi/dynamic
+
+            echo "Generating NVIDIA CDI spec..."
+            /usr/local/bin/nvidia-ctk cdi generate \
+              --driver-root=/usr/local/glibc \
+              --dev-root=/ \
+              --vendor=runtime.nvidia.com \
+              --nvidia-cdi-hook-path=/usr/local/bin/nvidia-cdi-hook.real \
+              --output=/host-var-cdi/dynamic/nvidia.yaml
+
+            echo "CDI spec generated successfully:"
+            ls -la /host-var-cdi/dynamic/nvidia.yaml
+
+            echo "First 50 lines of CDI spec:"
+            head -n 50 /host-var-cdi/dynamic/nvidia.yaml
+
+        securityContext:
+          privileged: true
+
+        volumeMounts:
+          - name: host-var-cdi
+            mountPath: /host-var-cdi
+          - name: host-usr-local
+            mountPath: /usr/local
+            readOnly: true
+          - name: host-dev
+            mountPath: /dev
+            readOnly: true
+
+      containers:
+      # Keep pod running to maintain the CDI spec
+      # (if pod exits, k8s might clean up or we lose visibility)
+      - name: keeper
+        image: nvcr.io/nvidia/k8s/container-toolkit:v1.18.1
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "CDI spec generated. Keeping pod alive..."
+            echo "CDI spec location: /host-var-cdi/dynamic/nvidia.yaml"
+
+            # Monitor the file and report any changes
+            while true; do
+              if [ ! -f /host-var-cdi/dynamic/nvidia.yaml ]; then
+                echo "WARNING: CDI spec file disappeared! Regenerating..."
+                mkdir -p /host-var-cdi/dynamic
+                /usr/local/bin/nvidia-ctk cdi generate \
+                  --driver-root=/usr/local/glibc \
+                  --dev-root=/ \
+                  --vendor=runtime.nvidia.com \
+                  --nvidia-cdi-hook-path=/usr/local/bin/nvidia-cdi-hook.real \
+                  --output=/host-var-cdi/dynamic/nvidia.yaml
+              fi
+              sleep 300  # Check every 5 minutes
+            done
+
+        securityContext:
+          privileged: true
+
+        volumeMounts:
+          - name: host-var-cdi
+            mountPath: /host-var-cdi
+          - name: host-usr-local
+            mountPath: /usr/local
+            readOnly: true
+          - name: host-dev
+            mountPath: /dev
+            readOnly: true
+
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+
+      volumes:
+        - name: host-var-cdi
+          hostPath:
+            path: /var/cdi
+            type: DirectoryOrCreate
+        - name: host-usr-local
+          hostPath:
+            path: /usr/local
+            type: Directory
+        - name: host-dev
+          hostPath:
+            path: /dev
+            type: Directory
+
+      tolerations:
+        # Allow running on GPU nodes even if they have taints
+        - operator: Exists
