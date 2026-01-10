@@ -4,6 +4,7 @@ Adds nodeSelector to the NFD worker daemonset
 """
 
 import yaml
+import json
 
 
 def patch_nfd_worker_nodeSelector(helm_output, node_selector):
@@ -17,6 +18,10 @@ def patch_nfd_worker_nodeSelector(helm_output, node_selector):
     Returns:
         String with modified YAML
     """
+    # Convert node_selector to plain dict to avoid Ansible type issues
+    # Use JSON round-trip to ensure we have plain Python types
+    node_selector_plain = json.loads(json.dumps(node_selector))
+
     # Parse the YAML documents (should be normalized by yq already)
     documents = list(yaml.safe_load_all(helm_output))
 
@@ -31,7 +36,7 @@ def patch_nfd_worker_nodeSelector(helm_output, node_selector):
                 template_spec = doc['spec']['template']['spec']
                 if 'nodeSelector' not in template_spec:
                     template_spec['nodeSelector'] = {}
-                template_spec['nodeSelector'].update(node_selector)
+                template_spec['nodeSelector'].update(node_selector_plain)
 
     # Convert back to YAML string
     output_parts = []
