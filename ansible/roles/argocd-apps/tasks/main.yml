@@ -11,6 +11,7 @@
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
     - nvidia-device-plugin-application.yaml
+    - nvidia-gpu-operator-application.yaml
 
 - name: Apply ArgoCD Application manifests
   shell:
@@ -26,3 +27,4 @@
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
     - nvidia-device-plugin-application.yaml
+    - nvidia-gpu-operator-application.yaml
