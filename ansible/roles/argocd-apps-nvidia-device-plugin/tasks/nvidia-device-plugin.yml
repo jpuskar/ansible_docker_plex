@@ -26,7 +26,16 @@
       --include-crds
   register: helm_template_command
 
+- name: Normalize YAML output through yq
+  shell: |
+    echo {{ helm_template_command.stdout | quote }} | yq eval '.' -
+  register: normalized_yaml
+
+- name: Patch NFD worker daemonset with nodeSelector
+  set_fact:
+    patched_manifests: "{{ normalized_yaml.stdout | patch_nfd_worker_nodeSelector(nvidia_node_selector) }}"
+
 - name: write output manifests for helm template
   copy:
-    content: "{{ helm_template_command.stdout }}"
+    content: "{{ patched_manifests }}"
     dest: "{{ output_dir_path }}/nvidia-device-plugin-helm-manifests.yaml"
