@@ -1,0 +1,50 @@
+---
+# Check MPS server logs for errors
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-mps-logs
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: check-logs
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== MPS Control Log ==="
+        cat /mps/nvidia.com/gpu/log/control.log
+        echo ""
+        echo "=== MPS Server Log ==="
+        cat /mps/nvidia.com/gpu/log/server.log
+        echo ""
+        echo "=== Check socket permissions ==="
+        ls -la /mps/nvidia.com/gpu/pipe/control
+        echo ""
+        echo "=== Try to connect to control socket manually ==="
+        echo "get_server_list" | timeout 2 nc -U /mps/nvidia.com/gpu/pipe/control || echo "Connection failed or timed out"
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: true
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

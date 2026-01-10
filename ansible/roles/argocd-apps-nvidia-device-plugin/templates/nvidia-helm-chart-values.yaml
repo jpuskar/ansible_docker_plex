@@ -36,9 +36,9 @@ nfd:
   enableNodeFeatureApi: true
 gdsEnabled: true
 
-# MPS (Multi-Process Service) for GPU sharing when MIG is not available
-{% if nvidia_mps_enabled %}
-mps:
-  root: {{ nvidia_mps_root | to_json }}
-  enableHostPID: {{ nvidia_mps_enable_host_pid | to_json }}
-{% endif %}
+## MPS (Multi-Process Service) for GPU sharing when MIG is not available
+#{% if nvidia_mps_enabled %}
+#mps:
+#  root: {{ nvidia_mps_root | to_json }}
+#  enableHostPID: {{ nvidia_mps_enable_host_pid | to_json }}
+#{% endif %}

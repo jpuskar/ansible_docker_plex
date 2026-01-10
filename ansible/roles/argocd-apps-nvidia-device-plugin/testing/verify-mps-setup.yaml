@@ -1,0 +1,118 @@
+---
+# Comprehensive MPS verification pod
+# Checks if MPS server is running and accessible
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-mps-verify
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: verify
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "========================================="
+        echo "MPS Configuration Verification"
+        echo "========================================="
+        echo ""
+
+        echo "1. Environment Variables:"
+        echo "   CUDA_MPS_PIPE_DIRECTORY: ${CUDA_MPS_PIPE_DIRECTORY:-NOT SET}"
+        echo "   CUDA_MPS_LOG_DIRECTORY: ${CUDA_MPS_LOG_DIRECTORY:-NOT SET}"
+        echo ""
+
+        echo "2. MPS Mount Point Check:"
+        if [ -d "/mps" ]; then
+          echo "   ✓ /mps directory exists"
+          ls -la /mps/
+        else
+          echo "   ✗ /mps directory does NOT exist"
+        fi
+        echo ""
+
+        echo "3. Expected Pipe Directory:"
+        EXPECTED_PIPE="${CUDA_MPS_PIPE_DIRECTORY:-/mps/nvidia.com/gpu/pipe}"
+        echo "   Path: $EXPECTED_PIPE"
+        if [ -d "$EXPECTED_PIPE" ]; then
+          echo "   ✓ Pipe directory exists"
+          echo "   Contents:"
+          ls -la "$EXPECTED_PIPE"
+        else
+          echo "   ✗ Pipe directory does NOT exist"
+        fi
+        echo ""
+
+        echo "4. Looking for MPS control socket:"
+        find /mps -name "control" 2>/dev/null | while read socket; do
+          echo "   Found: $socket"
+          ls -la "$socket"
+        done
+        echo ""
+
+        echo "5. Full /mps directory tree:"
+        find /mps -ls 2>/dev/null || echo "   Cannot read /mps"
+        echo ""
+
+        echo "6. Check for MPS server process (from device plugin pods):"
+        echo "   Note: MPS server runs in device plugin pod, not user pod"
+        echo ""
+
+        echo "7. Test basic GPU access (without MPS):"
+        nvidia-smi -L
+        echo ""
+
+        echo "8. Attempt simple CUDA initialization:"
+        cat > /tmp/test.cu << 'EOF'
+        #include <stdio.h>
+        #include <cuda_runtime.h>
+
+        int main() {
+            int deviceCount;
+            cudaError_t error = cudaGetDeviceCount(&deviceCount);
+            if (error != cudaSuccess) {
+                printf("CUDA Error: %s (code: %d)\n", cudaGetErrorString(error), error);
+                return 1;
+            }
+            printf("Found %d CUDA device(s)\n", deviceCount);
+            return 0;
+        }
+        EOF
+
+        # Try to compile and run if nvcc available
+        if command -v nvcc &> /dev/null; then
+          nvcc /tmp/test.cu -o /tmp/test && /tmp/test
+        else
+          echo "   nvcc not available in this image"
+        fi
+
+        echo ""
+        echo "========================================="
+        echo "Verification Complete"
+        echo "========================================="
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: false
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

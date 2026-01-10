@@ -1,0 +1,73 @@
+---
+# CUDA computation test using NVIDIA's official vector-add sample
+# Tests actual GPU computation, not just device access
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-cuda-vectoradd
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  hostPID: true
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: cuda-vectoradd
+#    image: nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda11.7.1-ubuntu20.04
+#    image: rapidsai/rapidsai-core:23.06-cuda11.8-runtime-ubuntu20.04-py3.10  # NOTE: not arm64
+    image: nvcr.io/nvidia/rapidsai/base:25.12-cuda12-py3.13
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        export CUDA_MPS_PIPE_DIRECTORY=/run/nvidia/mps/nvidia.com/gpu/pipe
+        export CUDA_MPS_LOG_DIRECTORY=/run/nvidia/mps/nvidia.com/gpu/pipe
+        python3 -c "
+        import cupy as cp
+        import time
+        a = cp.random.rand(2048, 2048, dtype=cp.float32)
+        b = cp.random.rand(2048, 2048, dtype=cp.float32)
+        end = time.time() + 30
+        count = 0
+        while time.time() < end:
+          cp.dot(a, b)
+          count += 1
+        print(f'Ran {count} matmuls')
+        "
+    securityContext:
+      privileged: true
+      runAsUser: 0
+      runAsGroup: 0
+
+    volumeMounts:
+      - name: mps
+        mountPath: /run/nvidia/mps
+
+#      - name: mps-root
+#        mountPath: /mps
+#        mountPropagation: HostToContainer
+#      - name: mps-shm
+#        mountPath: /dev/shm
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps
+      hostPath:
+        path: /run/nvidia/mps
+
+#    - name: mps-root
+#      hostPath:
+#        path: /run/nvidia/mps
+#        type: Directory
+#    - name: mps-shm
+#      hostPath:
+#        path: /run/nvidia/mps/shm
+#        type: Directory

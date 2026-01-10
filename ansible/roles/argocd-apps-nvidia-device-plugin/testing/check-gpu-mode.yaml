@@ -1,0 +1,57 @@
+---
+# Check and set GPU compute mode for MPS
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-check-mode
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  hostPID: true
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: check-mode
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== Current GPU Compute Mode ==="
+        nvidia-smi -q -d COMPUTE
+        echo ""
+
+        echo "=== Current Compute Mode Summary ==="
+        nvidia-smi --query-gpu=compute_mode --format=csv,noheader
+        echo ""
+
+        echo "=== Compute Mode Explanation ==="
+        echo "  Default: Multiple contexts allowed per device"
+        echo "  Exclusive_Thread: Only one CUDA context per thread"
+        echo "  Exclusive_Process: Only one process can use GPU (REQUIRED for MPS)"
+        echo "  Prohibited: No CUDA contexts allowed"
+        echo ""
+
+        echo "=== Attempting to set Exclusive_Process mode ==="
+        nvidia-smi -c EXCLUSIVE_PROCESS 2>&1 || echo "Failed - may need to be done on host or with different permissions"
+        echo ""
+
+        echo "=== After attempting change ==="
+        nvidia-smi --query-gpu=compute_mode --format=csv,noheader
+        echo ""
+
+        echo "=== Full nvidia-smi output ==="
+        nvidia-smi
+
+    securityContext:
+      privileged: true
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1

@@ -1,0 +1,55 @@
+---
+# Debug pod to check actual MPS directory structure on the host
+# Run this to see what paths actually exist
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-mps-debug
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: debug
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== MPS Root Directory Structure ==="
+        find /mps -type f -o -type d 2>/dev/null | sort
+        echo ""
+        echo "=== Looking for pipe files ==="
+        find /mps -name "pipe*" -o -name "control" 2>/dev/null
+        echo ""
+        echo "=== Directory tree ==="
+        ls -laR /mps/ 2>/dev/null || echo "Cannot access MPS directory"
+        echo ""
+        echo "=== Environment variables (injected by device plugin?) ==="
+        env | grep -i cuda || echo "No CUDA env vars found"
+        env | grep -i mps || echo "No MPS env vars found"
+        echo ""
+        echo "=== Test without explicit MPS env vars ==="
+        nvidia-smi
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: false
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

@@ -1,0 +1,58 @@
+---
+# MPS sharing test pod
+# This pod sleeps for 60 seconds to allow testing multiple pods simultaneously
+# Deploy multiple copies to verify MPS GPU sharing (up to 10 with current config)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-mps-test
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: cuda-test
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== NVIDIA MPS GPU Sharing Test ==="
+        echo "Pod: $(hostname)"
+        echo "Date: $(date)"
+        echo ""
+        echo "MPS Configuration:"
+        echo "  CUDA_MPS_PIPE_DIRECTORY: $CUDA_MPS_PIPE_DIRECTORY"
+        echo "  CUDA_MPS_LOG_DIRECTORY: $CUDA_MPS_LOG_DIRECTORY"
+        echo ""
+        echo "Running nvidia-smi:"
+        nvidia-smi
+        echo ""
+        echo "GPU processes (if MPS is working, you'll see nvidia-cuda-mps-server):"
+        nvidia-smi pmon -c 1
+        echo ""
+        echo "Sleeping for 60 seconds to allow testing multiple pods..."
+        sleep 60
+        echo "Test complete!"
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: false
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

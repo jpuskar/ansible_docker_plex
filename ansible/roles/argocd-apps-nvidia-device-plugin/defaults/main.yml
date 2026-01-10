@@ -30,7 +30,6 @@ nvidia_resources:
 
 # MPS (Multi-Process Service) configuration
 # Use MPS when GPU doesn't support MIG
-# NOTE: On Talos, /var paths are writable (not /run)
 nvidia_mps_enabled: true
-nvidia_mps_root: "/var/run/nvidia/mps"
+nvidia_mps_root: "/run/nvidia/mps"
 nvidia_mps_enable_host_pid: true

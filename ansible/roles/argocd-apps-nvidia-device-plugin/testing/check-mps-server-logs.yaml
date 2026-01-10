@@ -1,0 +1,52 @@
+---
+# Check MPS server logs to see why servers exit with status 1
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: check-mps-server-logs
+  namespace: nvidia-device-plugin
+spec:
+  restartPolicy: Never
+  hostPID: true
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: check-logs
+    image: alpine:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "=== MPS Server Log (should show why server fails) ==="
+        cat /mps/nvidia.com/gpu/log/server.log 2>/dev/null || echo "No server.log found"
+        echo ""
+        echo "=== Control Log ==="
+        tail -50 /mps/nvidia.com/gpu/log/control.log 2>/dev/null || echo "No control.log found"
+        echo ""
+        echo "=== All files in log directory ==="
+        ls -la /mps/nvidia.com/gpu/log/ 2>/dev/null || echo "Cannot access log directory"
+        echo ""
+        echo "=== Check if GPU is accessible from host namespace ==="
+        ls -la /dev/nvidia* 2>/dev/null || echo "No nvidia devices visible"
+
+    securityContext:
+      privileged: true
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: true
+      - name: dev
+        mountPath: /dev
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory
+    - name: dev
+      hostPath:
+        path: /dev
