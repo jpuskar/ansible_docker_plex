@@ -23,8 +23,6 @@ spec:
     command: ["/bin/bash", "-c"]
     args:
       - |
-        export CUDA_MPS_PIPE_DIRECTORY=/run/nvidia/mps/nvidia.com/gpu/pipe
-        export CUDA_MPS_LOG_DIRECTORY=/run/nvidia/mps/nvidia.com/gpu/pipe
         python3 -c "
         import cupy as cp
         import time
@@ -42,6 +40,12 @@ spec:
       runAsUser: 0
       runAsGroup: 0
 
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
     volumeMounts:
       - name: mps
         mountPath: /run/nvidia/mps
@@ -52,11 +56,7 @@ spec:
 #      - name: mps-shm
 #        mountPath: /dev/shm
 
-    resources:
-      limits:
-        nvidia.com/gpu: 1
-      requests:
-        nvidia.com/gpu: 1
+
 
   volumes:
     - name: mps
