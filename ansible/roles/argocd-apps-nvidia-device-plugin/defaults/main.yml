@@ -3,7 +3,7 @@
 
 # NVIDIA Device Plugin Helm chart configuration
 nvidia_chart_name: "nvidia-device-plugin"
-nvidia_chart_version: "0.18.0"
+nvidia_chart_version: "0.18.1"
 nvidia_namespace: "nvidia-device-plugin"
 
 # Runtime class for NVIDIA GPU workloads
