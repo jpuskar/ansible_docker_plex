@@ -4,7 +4,7 @@
 # NVIDIA GPU Operator Helm chart configuration
 gpu_operator_chart_name: "gpu-operator"
 gpu_operator_chart_version: "v25.10.1"
-gpu_operator_namespace: "nvidia-gpu-operator"
+gpu_operator_namespace: "gpu-operator"
 
 # Node selector to only deploy on nodes with NVIDIA GPUs
 gpu_operator_node_selector:
