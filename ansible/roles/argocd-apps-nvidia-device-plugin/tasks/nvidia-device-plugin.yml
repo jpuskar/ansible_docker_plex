@@ -23,17 +23,14 @@
       --version {{ nvidia_chart_version }} \
       --namespace {{ nvidia_namespace }} \
       --values {{ temp_dir_path }}/nvidia-values.yaml \
-      --include-crds
-  register: helm_template_command
-
-- name: Normalize YAML output through yq
-  shell: |
-    echo {{ helm_template_command.stdout | quote }} | yq eval '.' -
-  register: normalized_yaml
+      --include-crds | \
+    yq eval '.' - | \
+    sed '1s/^/---\n/' | sed '/^---$/!b;n;/^---$/d'
+  register: helm_template_normalized
 
 - name: Patch NFD worker daemonset with nodeSelector
   set_fact:
-    patched_manifests: "{{ normalized_yaml.stdout | patch_nfd_worker_nodeSelector(nvidia_node_selector) }}"
+    patched_manifests: "{{ helm_template_normalized.stdout | patch_nfd_worker_nodeSelector(nvidia_node_selector) }}"
 
 - name: write output manifests for helm template
   copy:
