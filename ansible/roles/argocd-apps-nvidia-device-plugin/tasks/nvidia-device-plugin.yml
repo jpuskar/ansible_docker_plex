@@ -18,15 +18,17 @@
   changed_when: false
 
 - name: Generate NVIDIA Device Plugin manifests using helm template
-  shell: |
-    set -euo pipefail
-    helm template nvidia-device-plugin nvidia-device-plugin/nvidia-device-plugin \
-      --version {{ nvidia_chart_version }} \
-      --namespace {{ nvidia_namespace }} \
-      --values {{ temp_dir_path }}/nvidia-values.yaml \
-      --include-crds | \
-    yq eval '.' - | \
-    sed '1s/^/---\n/' | sed '/^---$/!b;n;/^---$/d'
+  shell:
+    executable: /usr/bin/bash
+    cmd: |-
+      set -euo pipefail
+      helm template nvidia-device-plugin nvidia-device-plugin/nvidia-device-plugin \
+        --version {{ nvidia_chart_version }} \
+        --namespace {{ nvidia_namespace }} \
+        --values {{ temp_dir_path }}/nvidia-values.yaml \
+        --include-crds | \
+      yq eval '.' - | \
+      sed '1s/^/---\n/' | sed '/^---$/!b;n;/^---$/d'
   register: helm_template_normalized
 
 - name: Patch NFD worker daemonset with nodeSelector
