@@ -19,6 +19,7 @@
 
 - name: Generate NVIDIA Device Plugin manifests using helm template
   shell: |
+    set -euo pipefail
     helm template nvidia-device-plugin nvidia-device-plugin/nvidia-device-plugin \
       --version {{ nvidia_chart_version }} \
       --namespace {{ nvidia_namespace }} \
