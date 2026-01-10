@@ -9,5 +9,10 @@
     src: runtimeclass.yaml
     dest: "{{ output_dir_path }}/runtimeclass.yaml"
 
+- name: Template out passwd ConfigMap for Talos MPS support
+  template:
+    src: passwd-configmap.yaml
+    dest: "{{ output_dir_path }}/passwd-configmap.yaml"
+
 - name: Include nvidia-device-plugin tasks
   include_tasks: nvidia-device-plugin.yml
