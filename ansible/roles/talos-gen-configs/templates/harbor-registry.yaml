@@ -1,0 +1,11 @@
+---
+# Harbor registry configuration for Talos
+machine:
+  registries:
+    config:
+      {{ talos_harbor_registry_url | regex_replace('^https?://', '') }}:
+        auth:
+          username: {{ talos_harbor_robot_username }}
+          password: {{ talos_harbor_robot_password }}
+        tls:
+          insecureSkipVerify: {{ talos_harbor_insecure_skip_verify | lower }}

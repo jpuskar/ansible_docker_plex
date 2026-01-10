@@ -1,0 +1,12 @@
+---
+talos_enable_luks: true
+talos_use_tpm: true
+talos_enable_nvidia: true
+
+talos_image_requirements:
+  arch: arm64
+  secureboot: true
+  version: "v1.12.1"
+  extensions: ["nonfree-kmod-nvidia-lts"]
+
+talos_install_disk: nvme0n1

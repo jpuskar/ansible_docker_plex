@@ -9,7 +9,7 @@ def select_talos_image(images_info, requirements):
 
     Args:
         images_info: List of dicts with 'name', 'image', and 'tags' keys
-        requirements: Dict with required tag values (secureboot, version, extensions)
+        requirements: Dict with required tag values (secureboot, version, extensions, arch)
 
     Returns:
         String with the image URL, or None if no match found
@@ -27,6 +27,12 @@ def select_talos_image(images_info, requirements):
         # Check version requirement
         if 'version' in requirements:
             if tags.get('version') != requirements['version']:
+                match = False
+                continue
+
+        # Check architecture requirement
+        if 'arch' in requirements:
+            if tags.get('arch') != requirements['arch']:
                 match = False
                 continue
 

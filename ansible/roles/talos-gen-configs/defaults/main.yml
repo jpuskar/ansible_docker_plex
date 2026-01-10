@@ -7,10 +7,54 @@
 #
 # Images are matched in order - first match wins
 talos_images_info:
+  - name: "v1.12.0-secureboot-arm-nvidia-nonfree-lts"
+    image: "factory.talos.dev/metal-installer-secureboot/44ee92089d43ec37a9193f8b2050f2259e9ee71c6d8e51718533871284284abf:v1.12.1"
+    tags:
+      arch: arm64
+      secureboot: true
+      version: "v1.12.1"
+      extensions:
+        - siderolabs/ctr
+        - siderolabs/glibc
+        - siderolabs/nonfree-kmod-nvidia-lts
+        - siderolabs/nvidia-container-toolkit-lts
+        - siderolabs/nvidia-gdrdrv-device
+        - siderolabs/nvme-cli
+        - siderolabs/util-linux-tools
+
+  - name: "v1.12.0-secureboot-arm-nvidia-2"
+    image: "factory.talos.dev/metal-installer-secureboot/f4ff4b63f275f5cf030716476fe34369bbfefd5fae211c8850590bc4a5fb821a:v1.12.1"
+    tags:
+      arch: arm64
+      secureboot: true
+      version: "v1.12.1"
+      extensions:
+        - ctr
+        - glibc
+        - nvidia-container-toolkit-production
+        - nvidia-gdrdrv-device
+        - nvme-cli
+        - util-linux-tools
+#  - name: "v1.12.0-secureboot-arm-nvidia"
+#    image: "factory.talos.dev/metal-installer-secureboot/ad7d9ddbf684ff4ff626655fa77023939049131eb724eb01593779f43e600838:v1.12.1"
+#    tags:
+#      arch: arm64
+#      secureboot: true
+#      version: "v1.12.1"
+#      extensions:
+#        - ctr
+#        - glibc
+#        - lldpd
+#        - nvidia-container-toolkit-production
+#        - nvidia-fabricmanager-production
+#        - nvidia-gdrdrv-device
+#        - nvme-cli
+#        - util-linux-tools
   # v1.12.0 with SecureBoot and Intel microcode
   - name: "v1.12.0-secureboot-intel-ucode"
     image: "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.0"
     tags:
+      arch: amd64
       secureboot: true
       version: "v1.12.0"
       extensions:
@@ -20,6 +64,7 @@ talos_images_info:
   - name: "v1.12.0-intel-ucode"
     image: "factory.talos.dev/metal-installer/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.0"
     tags:
+      arch: amd64
       secureboot: false
       version: "v1.12.0"
       extensions:
@@ -30,3 +75,13 @@ talos_image_requirements:
   secureboot: true
   version: "v1.11.5"
   extensions: []
+
+# Harbor registry configuration for Talos
+# Enable this in later bootstrap phases after Harbor is deployed
+talos_harbor_registry_enabled: false
+
+# Harbor registry configuration (loaded from cluster vars when enabled)
+# talos_harbor_registry_url: "https://harbor.example.com"
+# talos_harbor_robot_username: "robot$talos-puller"
+# talos_harbor_robot_password: "secret"
+# talos_harbor_insecure_skip_verify: false

@@ -5,6 +5,9 @@
   set_fact:
     talos_working_dir: "{{ repo_dir }}/tmp/talos/{{ talos_cluster_name }}"
 
+- debug:
+    var: talos_working_dir
+
 - name: create working directory
   file:
     path: "{{ talos_working_dir }}"
@@ -29,6 +32,30 @@
     - allowSchedulingOnControlPlanes.yaml
     - rotate-server-certificates.yaml
     - kubelet-serving-cert-approver.yaml
+
+- name: Get Harbor robot credentials from Kubernetes secret
+  shell:
+    cmd: |
+      kubectl get secret harbor-robot-{{ harbor_robot_name }} -n harbor -o json
+  register: harbor_robot_secret_json
+  when: talos_harbor_registry_enabled
+  changed_when: false
+
+- name: Parse Harbor robot credentials
+  set_fact:
+    talos_harbor_registry_url: "{{ (harbor_robot_secret_json.stdout | from_json).data['registry-url'] | b64decode }}"
+    talos_harbor_robot_username: "{{ (harbor_robot_secret_json.stdout | from_json).data.username | b64decode }}"
+    talos_harbor_robot_password: "{{ (harbor_robot_secret_json.stdout | from_json).data.password | b64decode }}"
+    talos_harbor_insecure_skip_verify: "{{ not (harbor_validate_certs | default(false)) }}"
+  when: talos_harbor_registry_enabled
+  no_log: true
+
+- name: template out harbor registry config patch
+  template:
+    src: harbor-registry.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-harbor-registry.yaml"
+    backup: true
+  when: talos_harbor_registry_enabled
 
 - name: get all hosts in cluster group
   set_fact:
@@ -65,6 +92,16 @@
     # Load host-specific vars for each node
     talos_use_tpm: "{{ hostvars[node_name].talos_use_tpm }}"
 
+- name: template out per-node NVIDIA config patches
+  template:
+    src: nvidia.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-nvidia.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+  when: hostvars[node_name].talos_enable_nvidia | default(false)
+
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 # Images are selected based on requirements defined in host_vars or defaults
 - name: run talosctl gen config for each node
@@ -84,6 +121,8 @@
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-rotate-server-certificates.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
         {% if hostvars[node_name].talos_enable_luks %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
+        {% endif %}{% if hostvars[node_name].talos_enable_nvidia | default(false) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-nvidia.yaml \
+        {% endif %}{% if talos_harbor_registry_enabled %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-harbor-registry.yaml \
         {% endif %} --output-types controlplane \
         --output controlplane-{{ node_name }}.yaml \
         --force

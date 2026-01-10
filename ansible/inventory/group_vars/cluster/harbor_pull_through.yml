@@ -1,0 +1,50 @@
+---
+# Harbor Pull-Through Cache Configuration
+
+# Override or extend the default pull-through registries
+# Uncomment and customize as needed
+
+# harbor_pull_through_registries:
+#   - name: dockerhub
+#     display_name: "Docker Hub Proxy"
+#     endpoint_url: "https://registry-1.docker.io"
+#     endpoint_name: "Docker Hub"
+#     username: "{{ dockerhub_username }}"  # Optional: set in vault
+#     password: "{{ dockerhub_token }}"     # Optional: set in vault
+#     verify_remote_cert: true
+#
+#   - name: ghcr
+#     display_name: "GitHub Container Registry Proxy"
+#     endpoint_url: "https://ghcr.io"
+#     endpoint_name: "GHCR"
+#     # Optional: add GitHub PAT for private repos
+#     # username: "{{ github_username }}"
+#     # password: "{{ github_pat }}"
+#     verify_remote_cert: true
+#
+#   - name: quay
+#     display_name: "Quay.io Proxy"
+#     endpoint_url: "https://quay.io"
+#     endpoint_name: "Quay"
+#     verify_remote_cert: true
+#
+#   - name: gcr
+#     display_name: "Google Container Registry Proxy"
+#     endpoint_url: "https://gcr.io"
+#     endpoint_name: "GCR"
+#     verify_remote_cert: true
+#
+#   - name: registryk8s
+#     display_name: "Registry K8s Proxy"
+#     endpoint_url: "https://registry.k8s.io"
+#     endpoint_name: "Registry K8s"
+#     verify_remote_cert: true
+
+# Docker Hub credentials (optional, to avoid rate limits)
+# Create token at https://hub.docker.com/settings/security
+# dockerhub_username: !vault |
+#   $ANSIBLE_VAULT;1.1;AES256
+#   ...
+# dockerhub_token: !vault |
+#   $ANSIBLE_VAULT;1.1;AES256
+#   ...
