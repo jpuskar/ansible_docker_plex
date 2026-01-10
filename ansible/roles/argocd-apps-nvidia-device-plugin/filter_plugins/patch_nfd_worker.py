@@ -38,8 +38,8 @@ def patch_nfd_worker_nodeSelector(helm_output, node_selector):
     for doc in documents:
         if doc:  # Skip None/empty documents
             output_parts.append(yaml.dump(doc, default_flow_style=False, sort_keys=False))
-
-    return '---\n'.join(output_parts)
+    out_docs_str = '---\n' + '---\n'.join(output_parts)
+    return out_docs_str
 
 
 class FilterModule(object):
