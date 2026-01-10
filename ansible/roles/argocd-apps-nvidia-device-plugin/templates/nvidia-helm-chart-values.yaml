@@ -2,7 +2,7 @@
 # NVIDIA Device Plugin Helm values
 
 image:
-  tag: "0.18.1"
+  tag: "v0.18.1"
 
 config:
   map:
