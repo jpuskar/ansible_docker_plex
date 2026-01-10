@@ -10,6 +10,7 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - nvidia-device-plugin-application.yaml
 
 - name: Apply ArgoCD Application manifests
   shell:
@@ -24,3 +25,4 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - nvidia-device-plugin-application.yaml
