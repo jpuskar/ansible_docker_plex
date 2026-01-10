@@ -1,0 +1,29 @@
+---
+# NVIDIA Device Plugin ArgoCD Application Role Defaults
+
+# NVIDIA Device Plugin Helm chart configuration
+nvidia_chart_name: "nvidia-device-plugin"
+nvidia_chart_version: "0.18.0"
+nvidia_namespace: "nvidia-device-plugin"
+
+# Runtime class for NVIDIA GPU workloads
+nvidia_runtime_class: "nvidia"
+
+# Node selector to only deploy on nodes with NVIDIA GPUs
+nvidia_node_selector:
+  nvidia.com/gpu.present: "true"
+
+# Tolerations for scheduling
+nvidia_tolerations:
+  - key: nvidia.com/gpu
+    operator: Exists
+    effect: NoSchedule
+
+# Resource limits for the plugin daemonset
+nvidia_resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi

@@ -1,0 +1,24 @@
+---
+# NVIDIA Device Plugin Helm values
+
+# Runtime class for NVIDIA GPU workloads
+runtimeClassName: {{ nvidia_runtime_class }}
+
+# Node selector to only deploy on nodes with NVIDIA GPUs
+nodeSelector:
+{{ nvidia_node_selector | to_nice_yaml | indent(2, first=True) }}
+
+# Tolerations for scheduling
+tolerations:
+{{ nvidia_tolerations | to_nice_yaml | indent(2, first=True) }}
+
+# Resource limits for the plugin daemonset
+resources:
+{{ nvidia_resources | to_nice_yaml | indent(2, first=True) }}
+
+gfd:
+  enabled: true
+nfd:
+  nameOverride: node-feature-discovery
+  enableNodeFeatureApi: true
+gdsEnabled: true
