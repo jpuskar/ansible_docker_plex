@@ -27,3 +27,9 @@ nvidia_resources:
   requests:
     cpu: 50m
     memory: 64Mi
+
+# MPS (Multi-Process Service) configuration
+# Use MPS when GPU doesn't support MIG
+nvidia_mps_enabled: true
+nvidia_mps_root: "/run/nvidia/mps"
+nvidia_mps_enable_host_pid: true
