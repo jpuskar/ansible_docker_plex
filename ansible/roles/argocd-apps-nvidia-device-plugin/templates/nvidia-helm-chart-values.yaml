@@ -15,7 +15,7 @@ image:
 #              replicas: 10
 
 # Runtime class for NVIDIA GPU workloads
-runtimeClassName: {{ nvidia_runtime_class }}
+runtimeClassName: nvidia
 
 # Node selector to only deploy on nodes with NVIDIA GPUs
 nodeSelector:

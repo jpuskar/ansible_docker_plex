@@ -3,8 +3,11 @@
 # Drivers and toolkit are provided by Talos extensions
 
 nfd:
-  enabled: true
-  nodefeaturerules: true
+  enabled: false
+
+hostPaths:
+  rootFS: "/host"
+  driverInstallDir: "/run/nvidia/driver"
 
 # Disable driver container (Talos provides drivers via extensions)
 driver:
