@@ -8,7 +8,7 @@
 # Images are matched in order - first match wins
 talos_images_info:
   - name: "v1.12.0-secureboot-arm-nonfree-kmod-nvidia-lts"
-    image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
+    image: "factory.talos.dev/metal-installer-secureboot/7b0c116949aef384751870a9499d48f3c5e2bbc35072685a902d84dec8e2284a:v1.12.0"
     tags:
       arch: arm64
       secureboot: true
@@ -20,6 +20,7 @@ talos_images_info:
         - siderolabs/nonfree-kmod-nvidia-lts
         - siderolabs/nvidia-container-toolkit-lts
         - siderolabs/util-linux-tools
+#
 #  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
 #    image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
 #    tags:
