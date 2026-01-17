@@ -14,7 +14,8 @@ machine:
   # Enable CDI in containerd to work around ld.so.cache issue
   # See: https://github.com/siderolabs/extensions/issues/940
     - path: /etc/cri/conf.d/20-customization.part
-      op: create
       content: |
         [plugins."io.containerd.cri.v1.runtime"]
-          cdi_spec_dirs = ["/var/cdi/static", "/var/cdi/dynamic"]
+          enable_cdi = true
+          cdi_spec_dirs = ["/etc/cdi", "/var/run/cdi"]
+      op: create

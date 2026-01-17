@@ -1,3 +1,4 @@
+---
 machine:
   network:
     hostname: {{ node_name }}

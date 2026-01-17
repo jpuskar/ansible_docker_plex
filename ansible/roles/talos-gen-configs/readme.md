@@ -2,6 +2,24 @@
 
 This role uses a tag-based image selection system to automatically choose the appropriate Talos installation image for each node.
 
+## GB10 Extensions (as of 1.12.0)
+https://factory.talos.dev/?arch=arm64&board=undefined&bootloader=auto&cmdline-set=true&extensions=-&extensions=siderolabs%2Fbinfmt-misc&extensions=siderolabs%2Fglibc&extensions=siderolabs%2Fnfsrahead&extensions=siderolabs%2Fnvidia-container-toolkit-lts&extensions=siderolabs%2Futil-linux-tools&extensions=siderolabs%2Fnonfree-kmod-nvidia-lts&platform=metal&secureboot=true&target=metal&version=1.12.0
+
+### 1.12.0
+`7b0c116949aef384751870a9499d48f3c5e2bbc35072685a902d84dec8e2284a`
+```yaml
+customization:
+    systemExtensions:
+        officialExtensions:
+            - siderolabs/binfmt-misc
+            - siderolabs/glibc
+            - siderolabs/nfsrahead
+            - siderolabs/nonfree-kmod-nvidia-lts
+            - siderolabs/nvidia-container-toolkit-lts
+            - siderolabs/util-linux-tools
+```
+
+
 ## How It Works
 
 1. **Image Registry** (`defaults/main.yml`): Defines available Talos images with their properties (tags)

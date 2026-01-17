@@ -233,6 +233,14 @@ spec:
               # nvidia.com/gpu: 1
 ```
 
+Fails with errors:
+```shell
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 302, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: Found no NVIDIA driver on your system. Please check that you have an NVIDIA GPU and installed a driver from http://www.nvidia.com/Download/index.aspx
+```
 ```yaml
 apiVersion: v1
 kind: Pod
@@ -255,10 +263,33 @@ spec:
               torch.cuda.synchronize()
 ```
 
+BUT THIS WORKS!!
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: l4t-pytorch-burn3
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  containers:
+    - name: torch
+      image: nvcr.io/nvidia/pytorch:25.12-py3
+      command: ["python3", "-c"]
+      args:
+        - |
+          import torch
+          a = torch.randn((8192,8192), device="cuda")
+          b = torch.randn((8192,8192), device="cuda")
+          while True:
+              (a @ b).sum().item()
+              torch.cuda.synchronize()
+```
+
+
 ---
 stop here
 ---
-
 
 
 Create runtime class:

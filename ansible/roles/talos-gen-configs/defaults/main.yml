@@ -7,19 +7,32 @@
 #
 # Images are matched in order - first match wins
 talos_images_info:
-  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
+  - name: "v1.12.0-secureboot-arm-nonfree-kmod-nvidia-lts"
     image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
     tags:
       arch: arm64
       secureboot: true
-      version: "v1.12.1"
+      version: "v1.12.0"
       extensions:
-        - siderolabs/ctr
+        - siderolabs/binfmt-misc
         - siderolabs/glibc
+        - siderolabs/nfsrahead
+        - siderolabs/nonfree-kmod-nvidia-lts
         - siderolabs/nvidia-container-toolkit-lts
-        - siderolabs/nvidia-gdrdrv-device
-        - siderolabs/nvidia-open-gpu-kernel-modules-lts
         - siderolabs/util-linux-tools
+#  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
+#    image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
+#    tags:
+#      arch: arm64
+#      secureboot: true
+#      version: "v1.12.1"
+#      extensions:
+#        - siderolabs/ctr
+#        - siderolabs/glibc
+#        - siderolabs/nvidia-container-toolkit-lts
+#        - siderolabs/nvidia-gdrdrv-device
+#        - siderolabs/nvidia-open-gpu-kernel-modules-lts
+#        - siderolabs/util-linux-tools
 
 #  # NOTE: -production is v 570 which isn't supported on Blackwell (GB10 / Dells / DGX Spark)
 #  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
