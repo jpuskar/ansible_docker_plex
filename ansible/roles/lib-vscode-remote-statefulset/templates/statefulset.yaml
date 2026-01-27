@@ -8,15 +8,6 @@ metadata:
     app.kubernetes.io/name: vscode-remote
     app.kubernetes.io/instance: {{ vscode_instance_name }}
 spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: nvidia.com/gpu.present
-                operator: In
-                values:
-                  - "true"
   serviceName: {{ vscode_instance_name }}
   replicas: 1
   selector:
@@ -29,6 +20,15 @@ spec:
         app.kubernetes.io/name: vscode-remote
         app.kubernetes.io/instance: {{ vscode_instance_name }}
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
 {% if vscode_node_selector %}
       nodeSelector:
 {% for key, value in vscode_node_selector.items() %}
