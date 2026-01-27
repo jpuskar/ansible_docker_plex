@@ -36,7 +36,7 @@ vscode_standard_node_selector: {}
 
 # Tolerations
 vscode_standard_tolerations:
-  - key: "kubernetes.io/arch"
+  - key: "kubernetes.io.arch"
     operator: Equal
     value: "arm64"
     effect: NoSchedule
