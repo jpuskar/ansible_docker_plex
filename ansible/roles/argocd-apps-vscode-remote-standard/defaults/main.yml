@@ -11,9 +11,11 @@ vscode_image_pull_policy: "IfNotPresent"
 
 # SSH configuration
 vscode_ssh_port: 2222
+vscode_ssh_authorized_keys: []  # REQUIRED: List of SSH public keys
 
 # Service configuration
 vscode_service_type: "LoadBalancer"
+vscode_service_load_balancer_ip: ""  # Optional: Specific IP for LoadBalancer
 vscode_service_annotations: {}
 
 # Storage configuration

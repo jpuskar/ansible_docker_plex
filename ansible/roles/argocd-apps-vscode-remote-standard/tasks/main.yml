@@ -19,4 +19,3 @@
     vscode_node_selector: "{{ vscode_node_selector }}"
     vscode_tolerations: "{{ vscode_tolerations }}"
     vscode_env_vars: "{{ vscode_env_vars }}"
-    output_dir_path: "{{ output_dir_path }}"
