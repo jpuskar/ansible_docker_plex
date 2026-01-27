@@ -19,6 +19,7 @@ fi
 # Create sshd_config for non-privileged mode
 cat > ~/.ssh/sshd/sshd_config <<EOF
 Port ${SSH_PORT}
+PidFile ${HOME}/.ssh/sshd/sshd.pid
 HostKey ${HOME}/.ssh/sshd/ssh_host_rsa_key
 HostKey ${HOME}/.ssh/sshd/ssh_host_ecdsa_key
 HostKey ${HOME}/.ssh/sshd/ssh_host_ed25519_key
