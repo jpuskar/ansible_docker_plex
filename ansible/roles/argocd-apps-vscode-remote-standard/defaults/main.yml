@@ -7,7 +7,7 @@ vscode_standard_namespace: "vscode-remote"
 
 # Container image configuration
 vscode_standard_image: "docker.io/jpuskar/vscode-remote:latest"
-vscode_standard_image_pull_policy: "IfNotPresent"
+vscode_standard_image_pull_policy: "Always"
 
 # SSH configuration
 vscode_standard_ssh_port: 2222

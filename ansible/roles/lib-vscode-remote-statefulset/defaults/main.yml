@@ -9,7 +9,7 @@
 # - vscode_ssh_authorized_keys: List of SSH public keys
 
 # Optional variables with defaults:
-vscode_image_pull_policy: "IfNotPresent"
+vscode_image_pull_policy: "Always"
 vscode_ssh_port: 2222
 vscode_service_type: "LoadBalancer"
 #vscode_service_load_balancer_ip: ""
