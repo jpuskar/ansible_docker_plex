@@ -33,11 +33,31 @@
             --namespace {{ cert_manager_namespace }} \
             --values "{{ temp_dir }}/cert-manager-values.yaml"
 
-- name: wait for cert-manager to be ready
+- name: wait for cert-manager controller to be ready
   shell:
     cmd: |-
       kubectl wait --for=condition=ready pod \
-        -l app.kubernetes.io/name=cert-manager \
+        -l app.kubernetes.io/component=controller \
+        -n {{ cert_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=300s
+  when: cert_manager_deploy_ca | bool
+
+- name: wait for cert-manager webhook to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/component=webhook \
+        -n {{ cert_manager_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=300s
+  when: cert_manager_deploy_ca | bool
+
+- name: wait for cert-manager cainjector to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/component=cainjector \
         -n {{ cert_manager_namespace }} \
         --kubeconfig {{ kubeconfig_path }} \
         --timeout=300s
