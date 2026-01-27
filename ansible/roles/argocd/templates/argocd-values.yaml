@@ -201,7 +201,5 @@ configs:
         - ""
         kinds:
         - Secret
-        clusters:
-        - "*"
         namespaces:
         - cilium-secrets
