@@ -1,0 +1,30 @@
+---
+# VS Code Remote StatefulSet Library Role
+# This is a library role - all variables must be provided by the calling role
+
+# Required variables (must be set by caller):
+# - vscode_instance_name: Unique name for this instance
+# - vscode_namespace: Kubernetes namespace
+# - vscode_image: Container image to use
+# - vscode_ssh_authorized_keys: List of SSH public keys
+
+# Optional variables with defaults:
+vscode_image_pull_policy: "IfNotPresent"
+vscode_ssh_port: 2222
+vscode_service_type: "LoadBalancer"
+#vscode_service_load_balancer_ip: ""
+vscode_service_annotations: {}
+vscode_storage_class: "openebs-rawfile"
+vscode_storage_size: "50Gi"  # Workspace volume size
+vscode_home_size: "20Gi"  # Home directory volume size (includes .vscode-server, venvs, etc.)
+vscode_node_selector: {}
+vscode_tolerations: []
+vscode_env_vars: []
+
+vscode_resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"

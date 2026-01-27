@@ -1,0 +1,129 @@
+---
+# Example playbook for deploying VS Code remote containers
+#
+# Prerequisites:
+#   Build custom images for different development stacks:
+#     docker build -t ghcr.io/your-org/vscode-remote:python -f Dockerfile.python .
+#     docker build -t ghcr.io/your-org/vscode-remote:golang -f Dockerfile.golang .
+#   Or edit the base Dockerfile to include your packages and build with tags.
+#
+# Usage:
+#   ansible-playbook example-playbook.yml
+#
+# This example deploys three VS Code instances with different images
+
+- name: Deploy VS Code Remote Containers
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Global configuration (shared by all instances)
+    output_dir_path: "./manifests/vscode"
+    temp_dir_path: "/tmp/ansible-vscode"
+
+    # Your container registry
+    my_registry: "ghcr.io/your-org"
+
+    # Common SSH keys (can be overridden per instance)
+    common_ssh_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey1 user@desktop"
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey2 user@laptop"
+
+  tasks:
+    - name: Create output directory
+      file:
+        path: "{{ output_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create temp directory
+      file:
+        path: "{{ temp_dir_path }}"
+        state: directory
+        mode: '0755'
+
+    # Deploy first instance - Python/Data Science environment
+    - name: Deploy VS Code instance for Data Science
+      include_role:
+        name: argocd-apps-vscode-remote-standard
+      vars:
+        vscode_instance_name: "vscode-datascience"
+        vscode_namespace: "vscode-datascience"
+        vscode_image: "{{ my_registry }}/vscode-remote:python"
+        vscode_service_load_balancer_ip: "192.168.1.100"
+        vscode_ssh_authorized_keys: "{{ common_ssh_keys }}"
+        vscode_storage_size: "100Gi"
+        vscode_env_vars:
+          - name: PYTHON_VERSION
+            value: "3.12"
+          - name: JUPYTER_ENABLE
+            value: "true"
+        vscode_resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "8"
+            memory: "16Gi"
+
+    # Deploy second instance - Go/Cloud Native development
+    - name: Deploy VS Code instance for Go Development
+      include_role:
+        name: argocd-apps-vscode-remote-standard
+      vars:
+        vscode_instance_name: "vscode-golang"
+        vscode_namespace: "vscode-golang"
+        vscode_image: "{{ my_registry }}/vscode-remote:golang"
+        vscode_service_load_balancer_ip: "192.168.1.101"
+        vscode_ssh_authorized_keys: "{{ common_ssh_keys }}"
+        vscode_storage_size: "50Gi"
+        vscode_env_vars:
+          - name: GOPATH
+            value: "/workspace/go"
+          - name: GO111MODULE
+            value: "on"
+        vscode_resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "6"
+            memory: "12Gi"
+
+    # Deploy third instance - Minimal/General purpose
+    - name: Deploy VS Code instance for General Development
+      include_role:
+        name: argocd-apps-vscode-remote-standard
+      vars:
+        vscode_instance_name: "vscode-general"
+        vscode_namespace: "vscode-general"
+        vscode_image: "{{ my_registry }}/vscode-remote:latest"
+        vscode_service_load_balancer_ip: "192.168.1.102"
+        vscode_ssh_authorized_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKey3 user@home"
+        vscode_storage_size: "30Gi"
+        vscode_node_selector:
+          kubernetes.io/hostname: "specific-node"
+        vscode_resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "VS Code Remote Containers deployed successfully!"
+          - ""
+          - "Manifests generated in: {{ output_dir_path }}"
+          - ""
+          - "Instances:"
+          - "  1. Data Science: ssh -p 2222 vscode@192.168.1.100"
+          - "  2. Go Development: ssh -p 2222 vscode@192.168.1.101"
+          - "  3. General: ssh -p 2222 vscode@192.168.1.102"
+          - ""
+          - "To apply:"
+          - "  kubectl apply -f {{ output_dir_path }}/"

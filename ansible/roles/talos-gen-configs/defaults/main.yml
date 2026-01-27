@@ -20,7 +20,21 @@ talos_images_info:
         - siderolabs/nonfree-kmod-nvidia-lts
         - siderolabs/nvidia-container-toolkit-lts
         - siderolabs/util-linux-tools
-#
+
+  - name: "v1.12.1-secureboot-arm-free-kmod-nvidia-lts"
+    image: "factory.talos.dev/metal-installer-secureboot/bb6def2f39f4c6a1ab14fec603fd2874d4b474fb6d5d4c32fda337a1ef255f0b:v1.12.1"
+    tags:
+      arch: arm64
+      secureboot: true
+      version: "v1.12.1"
+      extensions:
+        - siderolabs/binfmt-misc
+        - siderolabs/glibc
+        - siderolabs/nfsrahead
+        - siderolabs/nvidia-container-toolkit-lts
+        - siderolabs/nvidia-open-gpu-kernel-modules-lts
+        - siderolabs/util-linux-tools
+
 #  - name: "v1.12.0-secureboot-arm-nvidia-free-lts"
 #    image: "factory.talos.dev/metal-installer-secureboot/fe41f8de7f8c663c82fe098e5b0b105d69cd2284dcd6b815c8863c1bf9c354ec:v1.12.1"
 #    tags:

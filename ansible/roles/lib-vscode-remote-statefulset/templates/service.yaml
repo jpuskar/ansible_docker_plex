@@ -1,0 +1,28 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ vscode_instance_name }}
+  namespace: {{ vscode_namespace }}
+  labels:
+    app.kubernetes.io/name: vscode-remote
+    app.kubernetes.io/instance: {{ vscode_instance_name }}
+{% if vscode_service_annotations %}
+  annotations:
+{% for key, value in vscode_service_annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ vscode_service_type }}
+{% if vscode_service_load_balancer_ip and vscode_service_type == "LoadBalancer" %}
+  loadBalancerIP: {{ vscode_service_load_balancer_ip }}
+{% endif %}
+  ports:
+    - name: ssh
+      port: {{ vscode_ssh_port }}
+      targetPort: ssh
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: vscode-remote
+    app.kubernetes.io/instance: {{ vscode_instance_name }}

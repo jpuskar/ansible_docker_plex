@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ vscode_namespace }}
+  labels:
+    app.kubernetes.io/name: vscode-remote
+    app.kubernetes.io/instance: {{ vscode_instance_name }}

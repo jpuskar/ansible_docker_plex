@@ -1,0 +1,40 @@
+---
+# VS Code Remote Standard Configuration
+
+# Instance configuration (override for multiple deployments)
+vscode_instance_name: "vscode-dev"
+vscode_namespace: "vscode-remote"
+
+# Container image configuration
+vscode_image: "ghcr.io/your-org/vscode-remote:latest"
+vscode_image_pull_policy: "IfNotPresent"
+
+# SSH configuration
+vscode_ssh_port: 2222
+
+# Service configuration
+vscode_service_type: "LoadBalancer"
+vscode_service_annotations: {}
+
+# Storage configuration
+vscode_storage_class: "openebs-rawfile"
+vscode_storage_size: "50Gi"  # Workspace volume
+vscode_home_size: "20Gi"  # Home directory volume (venvs, .vscode-server, configs, etc.)
+
+# Resource limits
+vscode_resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+# Node selector
+vscode_node_selector: {}
+
+# Tolerations
+vscode_tolerations: []
+
+# Environment variables
+vscode_env_vars: []
