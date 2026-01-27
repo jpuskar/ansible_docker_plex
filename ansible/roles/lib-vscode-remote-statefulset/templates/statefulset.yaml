@@ -112,7 +112,7 @@ spec:
         - name: ssh-keys
           secret:
             secretName: {{ vscode_instance_name }}-ssh-keys
-            defaultMode: "0644"
+            defaultMode: 644
   volumeClaimTemplates:
   - metadata:
       name: workspace
