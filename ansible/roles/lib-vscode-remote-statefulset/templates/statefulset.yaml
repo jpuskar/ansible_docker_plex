@@ -114,27 +114,31 @@ spec:
             secretName: {{ vscode_instance_name }}-ssh-keys
             defaultMode: 0644
   volumeClaimTemplates:
-  - metadata:
-      name: workspace
-      labels:
-        app.kubernetes.io/name: vscode-remote
-        app.kubernetes.io/instance: {{ vscode_instance_name }}
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      storageClassName: {{ vscode_storage_class }}
-      resources:
-        requests:
-          storage: {{ vscode_storage_size }}
-  - metadata:
-      name: home
-      labels:
-        app.kubernetes.io/name: vscode-remote
-        app.kubernetes.io/instance: {{ vscode_instance_name }}
-    spec:
-      accessModes:
-        - ReadWriteOnce
-      storageClassName: {{ vscode_storage_class }}
-      resources:
-        requests:
-          storage: {{ vscode_home_size }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: workspace
+        labels:
+          app.kubernetes.io/name: vscode-remote
+          app.kubernetes.io/instance: {{ vscode_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ vscode_storage_class }}
+        resources:
+          requests:
+            storage: {{ vscode_storage_size }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: home
+        labels:
+          app.kubernetes.io/name: vscode-remote
+          app.kubernetes.io/instance: {{ vscode_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ vscode_storage_class }}
+        resources:
+          requests:
+            storage: {{ vscode_home_size }}
