@@ -18,3 +18,8 @@ machine:
 {% endif %}
     # Node identifier
     node.kubernetes.io/instance-name: {{ node_name }}
+{% if hostvars[node_name].talos_image_requirements.arch is defined and hostvars[node_name].talos_image_requirements.arch == 'arm64' %}
+  nodeTaints:
+    # Prevent x86 workloads from running on ARM64 nodes
+    - kubernetes.io/arch=arm64:NoSchedule
+{% endif %}

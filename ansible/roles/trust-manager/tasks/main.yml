@@ -36,8 +36,7 @@
 - name: wait for trust-manager to be ready
   shell:
     cmd: |-
-      kubectl wait --for=condition=ready pod \
-        -l app.kubernetes.io/name=trust-manager \
+      kubectl wait --for=condition=Available deployment/trust-manager \
         -n {{ trust_manager_namespace }} \
         --kubeconfig {{ kubeconfig_path }} \
         --timeout=300s
