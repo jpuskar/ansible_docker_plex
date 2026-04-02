@@ -1,0 +1,16 @@
+---
+- name: install deltarpm
+  yum:
+    name: deltarpm
+    state: latest
+
+- name: update
+  yum:
+    name: '*'
+    state: latest
+  when: run_yum_update | default(false)
+
+- name: install common tools and other deps
+  yum:
+    pkg: "{{ base_packages_centos }}"
+    state: present
