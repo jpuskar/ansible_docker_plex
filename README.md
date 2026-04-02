@@ -1,10 +1,3 @@
-
-
-
-Final Outcome:
-- nfs NAS
-
-
 ```bash
 vagrant up
 vagrant ssh
@@ -18,4 +11,12 @@ pip install ansible
 # add keys
 #vi ~/.ssh/id_rsa
 #vi ~/.ssh/id_rsa.pub
+```
+
+```bash
+ansible-galaxy collection install community.general
+```
+
+```bash
+ansible-playbook playbooks/naskiller.yml
 ```

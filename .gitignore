@@ -11,6 +11,8 @@ gen
 
 .vagrant/
 vault_pass
+venv38/
+venv/
 
 tmp/
 /tmp/
