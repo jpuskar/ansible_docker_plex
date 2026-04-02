@@ -1,0 +1,4 @@
+---
+- name: Install liquidctl
+  ansible.builtin.pip:
+    name: liquidctl

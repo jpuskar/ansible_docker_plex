@@ -1,0 +1,11 @@
+---
+- name: install packages
+  package:
+    pkg:
+      - cryptsetup
+      - pciutils
+      - autofs
+      - nfs-kernel-server
+      - nfs-common
+    state: present
+  become: yes

@@ -1,0 +1,5 @@
+# Drive Bays
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="6d43f8c0-f300-4ea1-ba6a-d71017bfecca", SYMLINK+="bay0drive2", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bay0drive2.key luksOpen $env{DEVNAME} bay0drive2_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="00b18473-799e-409c-bf7b-601d0eca3694", SYMLINK+="bay1drive1", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bay1drive1.key luksOpen $env{DEVNAME} bay1drive1_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="dde5c00c-2da0-485a-a439-d1422bcd678e", SYMLINK+="bay1drive2", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bay1drive2.key luksOpen $env{DEVNAME} bay1drive2_crypt"
+KERNEL=="sd?1", ENV{ID_FS_UUID}=="e4c2a172-31b8-4807-aaa8-c2572fdc800d", SYMLINK+="bay2drive2", RUN+="/usr/sbin/cryptsetup --key-file /etc/.keys/bay2drive2.key luksOpen $env{DEVNAME} bay2drive2_crypt"
