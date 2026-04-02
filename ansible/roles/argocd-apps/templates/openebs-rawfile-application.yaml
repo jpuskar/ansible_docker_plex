@@ -1,0 +1,58 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openebs-rawfile
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Multi-source: Helm chart from Helm repo, values and namespace from Git
+  sources:
+    # Helm chart source
+    - repoURL: https://openebs.github.io/rawfile-localpv
+      chart: rawfile-localpv
+      targetRevision: 0.12.2
+      helm:
+        valueFiles:
+          - $values/argocd-apps/openebs-rawfile/values.yaml
+
+    # Git repo source for values (referenced by $values)
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      ref: values
+
+    # Git repo source for namespace manifest
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: argocd-apps/openebs-rawfile
+      directory:
+        include: 'namespace.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openebs-rawfile
+
+  # Ignore differences in randomly generated secret
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: openebs-rawfile-rawfile-localpv-secrets
+      jsonPointers:
+        - /data/internal-signature
+
+  syncPolicy:
+    # Manual sync only - no automated deployment
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+    syncOptions: []
+      # Namespace created separately with privileged pod security labels
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

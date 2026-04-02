@@ -1,0 +1,126 @@
+---
+- name: Configure Harbor registry for custom images
+  hosts: localhost
+  gather_facts: no
+  vars:
+    cluster_name: k8s2
+
+  tasks:
+    - name: Include cluster vars
+      include_vars: "../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+
+    - name: Get Harbor admin password from Kubernetes secret
+      shell:
+        cmd: |
+          kubectl get secret harbor-admin-secret -n harbor \
+            -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d
+      register: harbor_admin_password_result
+      changed_when: false
+      no_log: true
+
+    - name: Set Harbor admin password fact
+      set_fact:
+        harbor_admin_password: "{{ harbor_admin_password_result.stdout }}"
+      no_log: true
+
+    - name: Check if Harbor project exists
+      uri:
+        url: "{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
+        method: GET
+        user: admin
+        password: "{{ harbor_admin_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        status_code: [200]
+      register: harbor_project_check
+
+    - name: Create Harbor project for custom images
+      uri:
+        url: "{{ harbor_external_url }}/api/v2.0/projects"
+        method: POST
+        user: admin
+        password: "{{ harbor_admin_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        body_format: json
+        body:
+          project_name: "{{ harbor_project_name }}"
+          public: "{{ harbor_project_public | default(false) }}"
+          metadata:
+            auto_scan: "true"
+            severity: "{{ harbor_project_severity | default('low') }}"
+            reuse_sys_cve_allowlist: "true"
+        status_code: [201, 409]
+      when: harbor_project_check.json | length == 0
+
+    - name: Check if Harbor robot account exists
+      uri:
+        url: "{{ harbor_external_url }}/api/v2.0/robots?q=name={{ harbor_robot_name }}"
+        method: GET
+        user: admin
+        password: "{{ harbor_admin_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        status_code: [200]
+      register: harbor_robot_check
+
+    - name: Create Harbor robot account for Talos
+      uri:
+        url: "{{ harbor_external_url }}/api/v2.0/robots"
+        method: POST
+        user: admin
+        password: "{{ harbor_admin_password }}"
+        force_basic_auth: yes
+        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        body_format: json
+        body:
+          name: "{{ harbor_robot_name }}"
+          description: "Robot account for Talos image pulls"
+          duration: -1
+          level: "system"
+          disable: false
+          permissions:
+            - kind: "project"
+              namespace: "{{ harbor_project_name }}"
+              access:
+                - resource: "repository"
+                  action: "pull"
+                - resource: "repository"
+                  action: "push"
+        status_code: [201]
+      register: harbor_robot_create
+      when: harbor_robot_check.json | length == 0
+      no_log: true
+
+    - name: Create Kubernetes secret with robot credentials
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: harbor-robot-{{ harbor_robot_name }}
+            namespace: harbor
+          type: Opaque
+          stringData:
+            username: "{{ harbor_robot_create.json.name }}"
+            password: "{{ harbor_robot_create.json.secret }}"
+            registry-url: "{{ harbor_external_url }}"
+      when: harbor_robot_create is changed
+      no_log: true
+
+    - name: Display completion info
+      debug:
+        msg: |-
+          Harbor project '{{ harbor_project_name }}' created successfully!
+          Robot account created and stored in K8s secret: harbor-robot-{{ harbor_robot_name }}
+
+          Docker login command:
+          kubectl get secret harbor-robot-{{ harbor_robot_name }} -n harbor -o jsonpath='{.data.password}' | base64 -d | \
+            docker login {{ harbor_external_url }} -u $(kubectl get secret harbor-robot-{{ harbor_robot_name }} -n harbor -o jsonpath='{.data.username}' | base64 -d) --password-stdin
+
+          Next steps for Talos integration:
+          1. Set talos_harbor_registry_enabled: true in ansible/inventory/group_vars/cluster/{{ cluster_name }}.yml
+          2. Re-run: ansible-playbook ansible/playbooks/generate-k8s2-talos-config.yml
+          3. Apply updated configs to all nodes: talosctl apply-config --nodes <node-ip> --file <config-file>
+      when: harbor_robot_create is changed

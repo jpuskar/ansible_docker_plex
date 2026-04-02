@@ -1,0 +1,20 @@
+---
+- name: include helm_chart tasks
+  include_tasks: helm_chart.yml
+
+- name: render other templates
+  template:
+    src: cilium-loadbalancer-ip-pool.yaml
+    dest: "{{ temp_dir }}/{{ cluster_name }}__{{ item }}"
+    backup: yes
+  loop:
+    - cilium-loadbalancer-ip-pool.yaml
+
+- name: kubectl apply
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ item }}
+  loop:
+    - "{{ temp_dir }}/{{ cluster_name }}__cilium-loadbalancer-ip-pool.yaml"

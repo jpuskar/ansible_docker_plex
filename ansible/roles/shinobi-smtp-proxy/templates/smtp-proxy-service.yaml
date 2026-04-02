@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp-proxy
+  namespace: shinobi
+spec:
+  selector:
+    app: smtp-proxy
+  ports:
+    - name: smtp
+      port: 2525
+      targetPort: 2525
+      protocol: TCP
+  type: ClusterIP

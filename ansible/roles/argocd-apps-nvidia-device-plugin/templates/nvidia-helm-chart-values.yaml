@@ -1,0 +1,49 @@
+---
+# NVIDIA Device Plugin Helm values
+
+image:
+  tag: "v0.18.1"
+
+#config:
+#  map:
+#    default: |-
+#      version: v1
+#      sharing:
+#        mps:
+#          resources:
+#            - name: nvidia.com/gpu
+#              replicas: 10
+
+# Runtime class for NVIDIA GPU workloads
+runtimeClassName: nvidia
+
+# Node selector to only deploy on nodes with NVIDIA GPUs
+nodeSelector:
+{{ nvidia_node_selector | to_nice_yaml | indent(2, first=True) }}
+
+# Tolerations for scheduling
+tolerations:
+{{ nvidia_tolerations | to_nice_yaml | indent(2, first=True) }}
+
+# Resource limits for the plugin daemonset
+resources:
+{{ nvidia_resources | to_nice_yaml | indent(2, first=True) }}
+
+# gpu-feature-discovery
+gfd:
+  enabled: true
+
+# node-feature-discovery
+nfd:
+  nameOverride: node-feature-discovery
+  enableNodeFeatureApi: true
+
+# GPUDirect Storage
+gdsEnabled: true
+
+## MPS (Multi-Process Service) for GPU sharing when MIG is not available
+#{% if nvidia_mps_enabled %}
+#mps:
+#  root: {{ nvidia_mps_root | to_json }}
+#  enableHostPID: {{ nvidia_mps_enable_host_pid | to_json }}
+#{% endif %}

@@ -1,0 +1,30 @@
+---
+# Percona PostgreSQL Operator Helm values
+
+# Watch all namespaces for PostgresCluster resources
+watchAllNamespaces: true
+
+# Operator replica count
+replicaCount: 1
+
+# Allow scheduling on control plane nodes
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# Resource limits for operator
+resources:
+  limits:
+    cpu: 200m
+    memory: 500Mi
+  requests:
+    cpu: 100m
+    memory: 20Mi
+
+# Logging configuration
+logLevel: "INFO"
+logStructured: false
+
+# Telemetry (set to true to disable)
+disableTelemetry: false

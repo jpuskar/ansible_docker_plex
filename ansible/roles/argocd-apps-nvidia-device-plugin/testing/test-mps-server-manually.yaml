@@ -1,0 +1,102 @@
+---
+# Manually test if MPS server can start in the daemon pod environment
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-mps-server-manual
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+  hostPID: true
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: test
+    image: nvcr.io/nvidia/k8s-device-plugin:v0.18.0
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== Environment ==="
+        env | grep -i nvidia || echo "No NVIDIA env vars"
+        env | grep -i cuda || echo "No CUDA env vars"
+        env | grep -i ld || echo "No LD env vars"
+        echo ""
+
+        echo "=== Check GPU devices ==="
+        ls -la /dev/nvidia* || echo "No nvidia devices"
+        echo ""
+
+        echo "=== Check nvidia-smi ==="
+        nvidia-smi || echo "nvidia-smi failed"
+        echo ""
+
+        echo "=== Check MPS binaries ==="
+        which nvidia-cuda-mps-control || echo "mps-control not in PATH"
+        which nvidia-cuda-mps-server || echo "mps-server not in PATH"
+        echo ""
+
+        echo "=== Try to run MPS server directly ==="
+        nvidia-cuda-mps-server --help 2>&1 || echo "Server binary failed"
+        echo ""
+
+        echo "=== Check library dependencies ==="
+        ldd $(which nvidia-cuda-mps-server 2>/dev/null) 2>&1 || echo "Cannot check dependencies"
+        echo ""
+
+        echo "=== Try starting control daemon manually ==="
+        export CUDA_MPS_PIPE_DIRECTORY=/tmp/test-mps
+        mkdir -p $CUDA_MPS_PIPE_DIRECTORY
+        timeout 5 nvidia-cuda-mps-control -d 2>&1 || echo "Manual start failed or timed out"
+        echo ""
+
+        echo "=== Check if control daemon created files ==="
+        ls -la /tmp/test-mps/ || echo "No files created"
+
+    env:
+      - name: NVIDIA_MIG_MONITOR_DEVICES
+        value: all
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: all
+      - name: NVIDIA_DRIVER_CAPABILITIES
+        value: compute,utility
+
+    securityContext:
+      privileged: true
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+      - name: mps-shm
+        mountPath: /dev/shm
+      - name: passwd
+        mountPath: /etc/passwd
+        subPath: passwd
+        readOnly: true
+      - name: passwd
+        mountPath: /etc/group
+        subPath: group
+        readOnly: true
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory
+    - name: mps-shm
+      hostPath:
+        path: /run/nvidia/mps/shm
+        type: Directory
+    - name: passwd
+      configMap:
+        name: minimal-passwd

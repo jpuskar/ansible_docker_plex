@@ -1,0 +1,41 @@
+---
+# NVIDIA GPU Operator ArgoCD Application Role Defaults
+
+# NVIDIA GPU Operator Helm chart configuration
+gpu_operator_chart_name: "gpu-operator"
+gpu_operator_chart_version: "v25.10.1"
+gpu_operator_namespace: "gpu-operator"
+
+# Node selector to only deploy on nodes with NVIDIA GPUs
+gpu_operator_node_selector:
+  nvidia.com/gpu.present: "true"
+
+# Driver configuration
+gpu_operator_driver:
+  enabled: false  # Talos provides drivers via extensions
+
+# Toolkit configuration
+gpu_operator_toolkit:
+  enabled: false  # Talos provides toolkit via extensions
+
+# Device plugin configuration
+gpu_operator_device_plugin:
+  enabled: true
+  version: "v0.17.0"
+
+# MPS configuration
+gpu_operator_mps:
+  enabled: true
+  root: "/run/nvidia/mps"
+
+# GFD (GPU Feature Discovery) configuration
+gpu_operator_gfd:
+  enabled: true
+
+# DCGM (Datacenter GPU Manager) configuration
+gpu_operator_dcgm:
+  enabled: true
+
+# DCGM Exporter for Prometheus metrics
+gpu_operator_dcgm_exporter:
+  enabled: true

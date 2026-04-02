@@ -1,0 +1,37 @@
+---
+- name: Template out Postgres values to temp dir
+  template:
+    src: postgres-values.yaml
+    dest: "{{ temp_dir_path }}/postgres-values.yaml"
+
+- name: Add Percona Postgres Helm repository
+  shell:
+    cmd: |-
+      helm repo add percona {{ harbor_postgres_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm percona repository
+  shell:
+    cmd: |-
+      helm repo update percona
+  changed_when: false
+
+- name: Generate Postgres manifests using helm template
+  shell: |
+    helm template {{ harbor_postgres_cluster_name }} percona/{{ harbor_postgres_chart_name }} \
+      --version {{ harbor_postgres_chart_version }} \
+      --namespace {{ harbor_namespace }} \
+      --values {{ temp_dir_path }}/postgres-values.yaml \
+      --include-crds
+  register: postgres_helm_template_command
+
+- name: Write output manifests for Postgres helm template
+  copy:
+    content: "{{ postgres_helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/harbor-postgres-manifests.yaml"
+
+- name: Template out Postgres TLS certificate for Harbor
+  template:
+    src: postgres-tls-certificate.yaml
+    dest: "{{ output_dir_path }}/postgres-tls-certificate.yaml"

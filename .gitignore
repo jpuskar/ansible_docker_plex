@@ -11,3 +11,12 @@ gen
 
 .vagrant/
 vault_pass
+venv38/
+venv/
+
+tmp/
+/tmp/
+
+__pycache__/
+
+.key

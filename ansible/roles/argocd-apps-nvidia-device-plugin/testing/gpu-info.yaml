@@ -1,0 +1,59 @@
+---
+# Detailed GPU information test
+# Shows full nvidia-smi output with all details
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-gpu-info
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: gpu-info
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo "=== GPU Information ==="
+        echo ""
+        nvidia-smi -L
+        echo ""
+        echo "=== Detailed GPU Status ==="
+        nvidia-smi
+        echo ""
+        echo "=== Running Processes ==="
+        nvidia-smi pmon -c 1
+        echo ""
+        echo "=== MPS Environment Variables ==="
+        echo "CUDA_MPS_PIPE_DIRECTORY: $CUDA_MPS_PIPE_DIRECTORY"
+        echo "CUDA_MPS_LOG_DIRECTORY: $CUDA_MPS_LOG_DIRECTORY"
+        echo ""
+        echo "=== MPS Directory Contents ==="
+        ls -la /mps/ 2>/dev/null || echo "MPS directory not accessible"
+        echo ""
+        echo "=== MPS Server Processes (from container view) ==="
+        ps aux | grep nvidia-cuda-mps || echo "MPS server not visible from container"
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: false
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

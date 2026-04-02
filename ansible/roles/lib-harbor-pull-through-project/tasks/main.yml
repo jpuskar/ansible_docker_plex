@@ -1,0 +1,103 @@
+---
+- name: Get Harbor admin password from Kubernetes secret if not provided
+  shell:
+    cmd: |
+      kubectl get secret harbor-admin-secret -n harbor \
+        -o jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d
+  register: harbor_admin_password_result
+  changed_when: false
+  no_log: true
+  when: harbor_admin_password is not defined
+
+- name: Set Harbor admin password fact
+  set_fact:
+    harbor_admin_password: "{{ harbor_admin_password_result.stdout }}"
+  no_log: true
+  when: harbor_admin_password is not defined
+
+- name: Create registry endpoints for pull-through proxies
+  uri:
+    url: "{{ harbor_external_url }}/api/v2.0/registries"
+    method: POST
+    user: admin
+    password: "{{ harbor_admin_password }}"
+    force_basic_auth: yes
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      name: "{{ item.endpoint_name }}"
+      type: "{{ item.type | default('docker-hub' if 'docker' in item.name else 'docker-registry') }}"
+      url: "{{ item.endpoint_url }}"
+      description: "Pull-through proxy endpoint for {{ item.display_name }}"
+      insecure: "{{ not item.verify_remote_cert }}"
+      credential:
+        access_key: "{{ item.username | default('') }}"
+        access_secret: "{{ item.password | default('') }}"
+        type: "{{ 'basic' if item.username is defined else 'none' }}"
+    status_code: [201, 409]
+  loop: "{{ harbor_pull_through_registries }}"
+  loop_control:
+    label: "{{ item.endpoint_name }}"
+  register: registry_endpoints
+  no_log: true
+
+- name: Get registry endpoint IDs
+  uri:
+    url: "{{ harbor_external_url }}/api/v2.0/registries?name={{ item.endpoint_name | urlencode }}"
+    method: GET
+    user: admin
+    password: "{{ harbor_admin_password }}"
+    force_basic_auth: yes
+    validate_certs: "{{ harbor_validate_certs }}"
+    status_code: [200]
+  loop: "{{ harbor_pull_through_registries }}"
+  loop_control:
+    label: "{{ item.endpoint_name }}"
+  register: registry_endpoint_info
+
+- name: Create pull-through cache projects
+  uri:
+    url: "{{ harbor_external_url }}/api/v2.0/projects"
+    method: POST
+    user: admin
+    password: "{{ harbor_admin_password }}"
+    force_basic_auth: yes
+    validate_certs: "{{ harbor_validate_certs }}"
+    body_format: json
+    body:
+      project_name: "{{ item.item.name }}"
+      registry_id: "{{ item.json[0].id }}"
+      metadata:
+        public: "true"
+        auto_scan: "true"
+        severity: "low"
+        reuse_sys_cve_allowlist: "true"
+      storage_limit: -1
+    status_code: [201, 409]
+  loop: "{{ registry_endpoint_info.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.json | length > 0
+
+- name: Display pull-through cache information
+  debug:
+    msg: |
+      Harbor pull-through cache projects created successfully!
+
+      Available proxy cache projects:
+      {% for registry in harbor_pull_through_registries %}
+      - {{ registry.name }}: {{ harbor_external_url }}/{{ registry.name }}
+        Upstream: {{ registry.endpoint_url }}
+      {% endfor %}
+
+      Example usage:
+      Original: nginx:latest
+      Proxied:  {{ harbor_external_url }}/dockerhub/library/nginx:latest
+
+      Original: ghcr.io/owner/repo:tag
+      Proxied:  {{ harbor_external_url }}/ghcr/owner/repo:tag
+
+      Original: quay.io/owner/repo:tag
+      Proxied:  {{ harbor_external_url }}/quay/owner/repo:tag
+
+      Note: The first pull will cache the image in Harbor, subsequent pulls use the cache.

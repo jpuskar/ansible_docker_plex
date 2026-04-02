@@ -1,0 +1,45 @@
+---
+# Harbor ArgoCD Application Role Defaults
+
+# Domain configuration (will be encrypted in vars.yml)
+#harbor_domain: "MY_DOMAIN"
+
+# Harbor Helm chart configuration
+harbor_chart_repo: "https://helm.goharbor.io"
+harbor_chart_name: "harbor"
+harbor_chart_version: "1.18.1"
+harbor_namespace: "harbor"
+
+# PostgreSQL configuration
+harbor_postgres_chart_repo: "https://percona.github.io/percona-helm-charts/"
+harbor_postgres_chart_name: "pg-db"
+harbor_postgres_chart_version: "2.8.2"
+harbor_postgres_cluster_name: "harbor-postgres"
+harbor_postgres_storage_class: "openebs-rawfile"
+harbor_postgres_storage_size: "20Gi"
+harbor_postgres_replicas: 2
+harbor_postgres_version: 17
+harbor_postgres_user: "harbor"
+harbor_postgres_database: "registry"
+
+# Redis configuration
+harbor_redis_storage_class: "openebs-rawfile"
+harbor_redis_storage_size: "5Gi"
+harbor_redis_image: "quay.io/opstree/redis:v7.0.12"
+
+# Harbor persistence
+harbor_registry_storage_class: "harbor-nfs-registry"
+harbor_registry_storage_size: "100Gi"
+harbor_jobservice_storage_class: "openebs-rawfile"
+harbor_jobservice_storage_size: "5Gi"
+harbor_trivy_storage_class: "openebs-rawfile"
+harbor_trivy_storage_size: "10Gi"
+
+# Node selector for TPM-encrypted nodes
+harbor_node_selector_tpm: "true"
+
+# Tolerations for control plane nodes
+harbor_tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule

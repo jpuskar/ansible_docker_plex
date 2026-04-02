@@ -1,0 +1,16 @@
+---
+# Minimal /etc/passwd for MPS to work on Talos
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minimal-passwd
+  namespace: {{ nvidia_namespace }}
+data:
+  passwd: |
+    root:x:0:0:root:/root:/bin/sh
+    user:x:1001:1001:user:/home/user:/bin/sh
+    nobody:x:65534:65534:nobody:/:/bin/false
+  group: |
+    root:x:0:
+    user:x:1001:
+    nobody:x:65534:

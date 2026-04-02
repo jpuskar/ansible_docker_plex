@@ -1,0 +1,12 @@
+---
+# trust-manager Helm values
+replicaCount: {{ trust_manager_replicas }}
+
+app:
+  # trust domain for trust bundles
+  trust:
+    namespace: {{ trust_manager_namespace }}
+
+# CRDs are installed separately or with cert-manager
+crds:
+  enabled: true

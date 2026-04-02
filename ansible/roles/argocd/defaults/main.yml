@@ -1,0 +1,64 @@
+---
+# ArgoCD Helm chart configuration
+argocd_version: "9.2.3"  # Chart version
+argocd_app_version: "v3.2.3"  # ArgoCD application version
+argocd_namespace: "argocd"
+argocd_repo_url: "https://argoproj.github.io/argo-helm"
+argocd_chart_name: "argo/argo-cd"
+
+# Installation options
+argocd_create_namespace: true
+
+# Server configuration
+argocd_server_replicas: 1
+argocd_server_ingress_enabled: false
+argocd_server_ingress_host: "argocd.example.com"
+argocd_server_insecure: false  # Set to true to disable TLS
+
+# Controller configuration
+argocd_controller_replicas: 1
+
+# Repo server configuration
+argocd_repo_server_replicas: 1
+
+# Redis configuration
+argocd_redis_enabled: true
+
+# Dex (SSO) configuration
+argocd_dex_enabled: false
+
+# ApplicationSet controller
+argocd_applicationset_enabled: true
+argocd_applicationset_replicas: 1
+
+# Notifications controller
+argocd_notifications_enabled: false
+
+# High availability mode
+argocd_ha_enabled: true
+
+# Admin password configuration
+# If not set, a random password will be generated
+# argocd_admin_password: ""
+
+# Metrics and monitoring
+argocd_metrics_enabled: false
+
+# SOPS integration
+argocd_sops_enabled: false
+
+# Custom repo-server image with SOPS support
+argocd_sops_image_registry: "docker.io/jpuskar"
+argocd_sops_image_name: "argocd-sops-sidecar"
+argocd_sops_image_tag: "latest"
+# Age private key for SOPS decryption (store in vault)
+# Generate with: age-keygen -o age.key
+# argocd_sops_age_key: "AGE-SECRET-KEY-1..."
+
+# Ansible plugin integration
+argocd_ansible_enabled: true
+argocd_ansible_image_registry: "docker.io/jpuskar"
+argocd_ansible_image_name: "argocd-ansible-cmp"
+argocd_ansible_image_tag: "latest"
+# Ansible vault password (read from file via env var)
+# argocd_ansible_vault_password: ""

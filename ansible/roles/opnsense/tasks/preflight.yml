@@ -1,0 +1,31 @@
+---
+
+- name: Read API credentials from file
+  ansible.builtin.slurp:
+    src: /home/john/opn.key
+  register: _api_creds_raw
+
+- name: Parse API credentials
+  ansible.builtin.set_fact:
+    _api_key: "{{ (_api_creds_raw.content | b64decode).split('\n') | select('match', '^key=') | first | regex_replace('^key=', '') }}"
+    _api_secret: "{{ (_api_creds_raw.content | b64decode).split('\n') | select('match', '^secret=') | first | regex_replace('^secret=', '') }}"
+
+- name: Download OPNsense config backup
+  ansible.builtin.uri:
+    url: "https://{{ firewall_ip }}/api/core/backup/download/this"
+    method: GET
+    url_username: "{{ _api_key }}"
+    url_password: "{{ _api_secret }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: _opnsense_backup_response
+
+- name: include preflight/check_wan tasks
+  include_tasks: preflight/check_wan.yml
+
+- name: include preflight/check_physical_interfaces_present tasks
+  include_tasks: preflight/check_physical_interfaces_present.yml
+
+- name: include preflight/check_system tasks
+  include_tasks: preflight/check_system.yml

@@ -1,0 +1,16 @@
+---
+# exports
+- name: include packages tasks
+  include_tasks: packages.yml
+
+- name: include users tasks
+  include_tasks: users.yml
+
+- name: include ufw tasks
+  include_tasks: ufw.yml
+
+- name: include udev_rules tasks
+  include_tasks: udev_rules.yml
+
+- name: include exports tasks
+  include_tasks: exports.yml

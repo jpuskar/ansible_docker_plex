@@ -1,0 +1,144 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ vscode_instance_name }}
+  namespace: {{ vscode_namespace }}
+  labels:
+    app.kubernetes.io/name: vscode-remote
+    app.kubernetes.io/instance: {{ vscode_instance_name }}
+spec:
+  serviceName: {{ vscode_instance_name }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vscode-remote
+      app.kubernetes.io/instance: {{ vscode_instance_name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vscode-remote
+        app.kubernetes.io/instance: {{ vscode_instance_name }}
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.present
+                    operator: In
+                    values:
+                      - "true"
+{% if vscode_node_selector %}
+      nodeSelector:
+{% for key, value in vscode_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if vscode_tolerations %}
+      tolerations:
+{{ vscode_tolerations | to_nice_yaml(indent=2) | indent(6, first=True) }}
+{% endif %}
+      initContainers:
+      - name: init-home
+        image: {{ vscode_image }}
+        imagePullPolicy: {{ vscode_image_pull_policy }}
+        command:
+          - /bin/bash
+          - -c
+          - |
+            set -e
+            # Check if home directory is already initialized
+            if [ ! -f /home/vscode/.initialized ]; then
+              echo "Initializing home directory..."
+              # Copy skeleton files if they exist
+              if [ -d /etc/skel ]; then
+                cp -r /etc/skel/. /home/vscode/ || true
+              fi
+              # Create common directories
+              mkdir -p /home/vscode/.local/bin
+              mkdir -p /home/vscode/.cache
+              mkdir -p /home/vscode/.config
+              mkdir -p /home/vscode/.ssh
+              mkdir -p /home/vscode/.ssh/sshd
+              # Set correct ownership
+              chown -R 1000:1000 /home/vscode
+              # Mark as initialized
+              touch /home/vscode/.initialized
+              echo "Home directory initialized"
+            else
+              echo "Home directory already initialized, skipping"
+            fi
+        volumeMounts:
+          - name: home
+            mountPath: /home/vscode
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+      containers:
+      - name: vscode-server
+        image: {{ vscode_image }}
+        imagePullPolicy: {{ vscode_image_pull_policy }}
+        ports:
+          - name: ssh
+            containerPort: {{ vscode_ssh_port }}
+            protocol: TCP
+        env:
+          - name: SSH_PORT
+            value: "{{ vscode_ssh_port }}"
+{% for env_var in vscode_env_vars %}
+          - name: {{ env_var.name }}
+            value: "{{ env_var.value }}"
+{% endfor %}
+        resources:
+{{ vscode_resources | to_nice_yaml(indent=2) | indent(10, first=True) }}
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+          - name: home
+            mountPath: /home/vscode
+          - name: ssh-keys
+            mountPath: /tmp/ssh-keys
+            readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+              - ALL
+      volumes:
+        - name: ssh-keys
+          secret:
+            secretName: {{ vscode_instance_name }}-ssh-keys
+            defaultMode: 0644
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: workspace
+        labels:
+          app.kubernetes.io/name: vscode-remote
+          app.kubernetes.io/instance: {{ vscode_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ vscode_storage_class }}
+        resources:
+          requests:
+            storage: {{ vscode_storage_size }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: home
+        labels:
+          app.kubernetes.io/name: vscode-remote
+          app.kubernetes.io/instance: {{ vscode_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: {{ vscode_storage_class }}
+        resources:
+          requests:
+            storage: {{ vscode_home_size }}

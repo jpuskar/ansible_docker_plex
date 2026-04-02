@@ -1,0 +1,168 @@
+---
+- name: Parse hostname from config
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/hostname
+    content: text
+  register: _hostname
+
+- name: Parse domain from config
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/domain
+    content: text
+  register: _domain
+
+- name: Assert hostname matches
+  ansible.builtin.assert:
+    that:
+      - _hostname.matches | length == 1
+      - _hostname.matches[0].hostname == opnsense_hostname
+    fail_msg: "Hostname mismatch: expected {{ opnsense_hostname }}, got {{ _hostname.matches[0].hostname }}"
+
+- name: Assert domain matches
+  ansible.builtin.assert:
+    that:
+      - _domain.matches | length == 1
+      - _domain.matches[0].domain == opnsense_domain
+    fail_msg: "Domain mismatch: expected {{ opnsense_domain }}, got {{ _domain.matches[0].domain }}"
+
+- name: Parse SSH interfaces
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/ssh/interfaces
+    content: text
+  register: _ssh_interfaces
+
+- name: Assert SSH listens on LAN only
+  ansible.builtin.assert:
+    that:
+      - _ssh_interfaces.matches | length == 1
+      - _ssh_interfaces.matches[0].interfaces == 'lan'
+    fail_msg: "SSH not listening on LAN only: {{ _ssh_interfaces.matches[0].interfaces }}"
+
+- name: Parse webgui interfaces
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/webgui/interfaces
+    content: text
+  register: _webgui_interfaces
+
+- name: Assert webgui listens on LAN only
+  ansible.builtin.assert:
+    that:
+      - _webgui_interfaces.matches | length == 1
+      - _webgui_interfaces.matches[0].interfaces == 'lan'
+    fail_msg: "WebGUI not listening on LAN only: {{ _webgui_interfaces.matches[0].interfaces }}"
+
+- name: Parse timezone
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/timezone
+    content: text
+  register: _timezone
+
+- name: Assert timezone
+  ansible.builtin.assert:
+    that:
+      - _timezone.matches | length == 1
+      - _timezone.matches[0].timezone == opnsense_timezone
+    fail_msg: "Timezone mismatch: expected {{ opnsense_timezone }}, got {{ _timezone.matches[0].timezone }}"
+
+- name: Parse NAT reflection setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disablenatreflection
+    content: text
+  register: _disablenatreflection
+
+- name: Assert NAT reflection is disabled
+  ansible.builtin.assert:
+    that:
+      - _disablenatreflection.matches | length == 1
+      - _disablenatreflection.matches[0].disablenatreflection == 'yes'
+    fail_msg: "NAT reflection not disabled: {{ _disablenatreflection.matches[0].disablenatreflection }}"
+
+- name: Parse virtual terminal setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/usevirtualterminal
+    content: text
+  register: _usevirtualterminal
+
+- name: Assert virtual terminal is enabled
+  ansible.builtin.assert:
+    that:
+      - _usevirtualterminal.matches | length == 1
+      - _usevirtualterminal.matches[0].usevirtualterminal == '1'
+    fail_msg: "Virtual terminal not enabled: {{ _usevirtualterminal.matches[0].usevirtualterminal }}"
+
+- name: Parse console menu setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disableconsolemenu
+    content: text
+  register: _disableconsolemenu
+
+- name: Assert console menu is disabled
+  ansible.builtin.assert:
+    that:
+      - _disableconsolemenu.matches | length == 1
+      - _disableconsolemenu.matches[0].disableconsolemenu == '1'
+    fail_msg: "Console menu not disabled: {{ _disableconsolemenu.matches[0].disableconsolemenu }}"
+
+- name: Parse VLAN hardware filter setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disablevlanhwfilter
+    content: text
+  register: _disablevlanhwfilter
+
+- name: Assert VLAN hardware filter is disabled
+  ansible.builtin.assert:
+    that:
+      - _disablevlanhwfilter.matches | length == 1
+      - _disablevlanhwfilter.matches[0].disablevlanhwfilter == '1'
+    fail_msg: "VLAN hardware filter not disabled: {{ _disablevlanhwfilter.matches[0].disablevlanhwfilter }}"
+
+- name: Parse checksum offloading setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disablechecksumoffloading
+    content: text
+  register: _disablechecksumoffloading
+
+- name: Assert checksum offloading is disabled
+  ansible.builtin.assert:
+    that:
+      - _disablechecksumoffloading.matches | length == 1
+      - _disablechecksumoffloading.matches[0].disablechecksumoffloading == '1'
+    fail_msg: "Checksum offloading not disabled: {{ _disablechecksumoffloading.matches[0].disablechecksumoffloading }}"
+
+- name: Parse segmentation offloading setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disablesegmentationoffloading
+    content: text
+  register: _disablesegmentationoffloading
+
+- name: Assert segmentation offloading is disabled
+  ansible.builtin.assert:
+    that:
+      - _disablesegmentationoffloading.matches | length == 1
+      - _disablesegmentationoffloading.matches[0].disablesegmentationoffloading == '1'
+    fail_msg: "Segmentation offloading not disabled: {{ _disablesegmentationoffloading.matches[0].disablesegmentationoffloading }}"
+
+- name: Parse large receive offloading setting
+  community.general.xml:
+    xmlstring: "{{ _opnsense_backup_response.content }}"
+    xpath: /opnsense/system/disablelargereceiveoffloading
+    content: text
+  register: _disablelargereceiveoffloading
+
+- name: Assert large receive offloading is disabled
+  ansible.builtin.assert:
+    that:
+      - _disablelargereceiveoffloading.matches | length == 1
+      - _disablelargereceiveoffloading.matches[0].disablelargereceiveoffloading == '1'
+    fail_msg: "Large receive offloading not disabled: {{ _disablelargereceiveoffloading.matches[0].disablelargereceiveoffloading }}"

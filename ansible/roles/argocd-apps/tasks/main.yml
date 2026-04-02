@@ -1,0 +1,32 @@
+---
+- name: Template ArgoCD Application manifests to temp dir
+  template:
+    src: "{{ item }}"
+    dest: "{{ temp_dir }}/{{ item }}"
+  loop:
+    - openebs-rawfile-application.yaml
+    - openebs-rawfile-storageclass-application.yaml
+    - percona-postgres-operator-application.yaml
+    - redis-operator-application.yaml
+    - external-secrets-operator-application.yaml
+    - harbor-application.yaml
+    - nvidia-device-plugin-application.yaml
+    - nvidia-gpu-operator-application.yaml
+    - vscode-remote-standard-application.yaml
+
+- name: Apply ArgoCD Application manifests
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ temp_dir }}/{{ item }}
+  loop:
+    - openebs-rawfile-application.yaml
+    - openebs-rawfile-storageclass-application.yaml
+    - percona-postgres-operator-application.yaml
+    - redis-operator-application.yaml
+    - external-secrets-operator-application.yaml
+    - harbor-application.yaml
+    - nvidia-device-plugin-application.yaml
+    - nvidia-gpu-operator-application.yaml
+    - vscode-remote-standard-application.yaml

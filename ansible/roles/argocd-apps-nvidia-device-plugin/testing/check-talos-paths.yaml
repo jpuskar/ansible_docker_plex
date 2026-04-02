@@ -1,0 +1,59 @@
+---
+# Check if /run/nvidia/mps is writable on Talos host
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: check-talos-paths
+  namespace: nvidia-device-plugin
+spec:
+  hostPID: true
+  hostNetwork: true
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: check
+    image: alpine:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "=== Checking Talos filesystem ==="
+        echo ""
+        echo "Root filesystem:"
+        mount | grep "/ "
+        echo ""
+        echo "/run mount:"
+        mount | grep "/run"
+        echo ""
+        echo "Check if /run/nvidia exists:"
+        ls -la /host/run/ | grep nvidia || echo "No nvidia directory"
+        echo ""
+        echo "Check /run/nvidia/mps if it exists:"
+        ls -laR /host/run/nvidia/ 2>/dev/null || echo "Cannot access /run/nvidia"
+        echo ""
+        echo "Try to create a test file in /run:"
+        touch /host/run/test-write 2>&1 && echo "✓ /run is writable" || echo "✗ /run is NOT writable"
+        rm /host/run/test-write 2>/dev/null
+        echo ""
+        echo "Check /var paths:"
+        ls -la /host/var/ | head -20
+        echo ""
+        echo "Talos writable paths (typically /var, /tmp):"
+        df -h | grep -E '/var|/tmp|/run'
+
+    securityContext:
+      privileged: true
+
+    volumeMounts:
+      - name: host-root
+        mountPath: /host
+        readOnly: false
+
+  volumes:
+    - name: host-root
+      hostPath:
+        path: /
+        type: Directory

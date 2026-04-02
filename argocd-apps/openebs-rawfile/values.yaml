@@ -1,0 +1,23 @@
+---
+# OpenEBS Rawfile CSI Helm values for ArgoCD deployment
+
+# Disable default StorageClass - we manage it via Git
+storageClasses: []
+
+# Node plugin configuration (runs as DaemonSet on all nodes)
+node:
+  # Data directory path on the node
+  dataDirPath: /var/openebs/rawfile
+
+  # Allow scheduling on control plane nodes
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Controller configuration
+controller:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

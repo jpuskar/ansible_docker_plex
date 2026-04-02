@@ -1,0 +1,9 @@
+---
+# External Secrets Operator Helm values
+
+# Install CRDs
+installCRDs: true
+
+# Enable secret store refresh interval
+processClusterExternalSecret: true
+processClusterStore: true

@@ -1,0 +1,46 @@
+---
+# NVIDIA GPU Operator Helm Values for Talos Linux
+# Drivers and toolkit are provided by Talos extensions
+
+nfd:
+  enabled: false
+
+hostPaths:
+  rootFS: "/host"
+  driverInstallDir: "/run/nvidia/driver"
+
+# Disable driver container (Talos provides drivers via extensions)
+driver:
+  enabled: false
+
+# Disable toolkit container (Talos provides nvidia-container-toolkit via extensions)
+toolkit:
+  enabled: false
+
+migManager:
+  enabled: false
+
+vfioManager:
+  enabled: false
+
+sandboxDevicePlugin:
+  enabled: false
+
+# Enable device plugin
+devicePlugin:
+  enabled: {{ gpu_operator_device_plugin.enabled | lower }}
+  version: {{ gpu_operator_device_plugin.version }}
+  nodeSelector:
+{% for key, value in gpu_operator_node_selector.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+
+# Node selector for all components
+nodeSelector:
+{% for key, value in gpu_operator_node_selector.items() %}
+  {{ key }}: "{{ value }}"
+{% endfor %}
+
+# Talos compatibility
+operator:
+  defaultRuntime: containerd

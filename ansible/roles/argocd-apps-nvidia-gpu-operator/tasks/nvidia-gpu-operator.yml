@@ -1,0 +1,37 @@
+---
+- name: Template out NVIDIA GPU Operator Helm values to temp dir
+  template:
+    src: gpu-operator-helm-values.yaml
+    dest: "{{ temp_dir_path }}/gpu-operator-values.yaml"
+
+- name: Add NVIDIA GPU Operator Helm repository
+  shell:
+    cmd: |-
+      helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm nvidia repositories
+  shell:
+    cmd: |-
+      helm repo update nvidia
+  changed_when: false
+
+- name: Generate NVIDIA GPU Operator manifests using helm template
+  shell:
+    executable: /usr/bin/bash
+    cmd: |-
+      set -euo pipefail
+      helm template gpu-operator nvidia/gpu-operator \
+        --version {{ gpu_operator_chart_version }} \
+        --namespace {{ gpu_operator_namespace }} \
+        --values {{ temp_dir_path }}/gpu-operator-values.yaml \
+        --include-crds | \
+      yq eval '.' - | \
+      sed '1s/^/---\n/' | sed '/^---$/!b;n;/^---$/d'
+  register: helm_template_output
+
+- name: Write output manifests for helm template
+  copy:
+    content: "{{ helm_template_output.stdout }}"
+    dest: "{{ output_dir_path }}/gpu-operator-helm-manifests.yaml"

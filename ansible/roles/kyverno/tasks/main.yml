@@ -1,0 +1,58 @@
+---
+- name: render kyverno helm chart values file
+  template:
+    src: kyverno-values.yaml
+    dest: "{{ temp_dir }}/kyverno-values.yaml"
+    backup: yes
+
+- name: add kyverno helm repo
+  shell:
+    cmd: helm repo add kyverno {{ kyverno_repo_url }}
+
+- name: update kyverno helm repo
+  shell:
+    cmd: helm repo update kyverno
+
+- name: create kyverno namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ kyverno_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+  when: kyverno_create_namespace | bool
+
+- name: install kyverno via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        kyverno \
+          {{ kyverno_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ kyverno_version }} \
+            --namespace {{ kyverno_namespace }} \
+            --values "{{ temp_dir }}/kyverno-values.yaml"
+
+- name: wait for kyverno admission controller to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app.kubernetes.io/component=admission-controller \
+        -n {{ kyverno_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=60s
+  retries: 10
+  delay: 10
+  register: result
+  until: result.rc == 0
+
+- name: render ingress domain replacement policy
+  template:
+    src: ingress-domain-policy.yaml
+    dest: "{{ temp_dir }}/kyverno-ingress-domain-policy.yaml"
+  when: kyverno_domain_replacement_enabled and kyverno_domain_actual != ''
+
+- name: apply ingress domain replacement policy
+  shell:
+    cmd: kubectl apply -f "{{ temp_dir }}/kyverno-ingress-domain-policy.yaml" --kubeconfig {{ kubeconfig_path }}
+  when: kyverno_domain_replacement_enabled and kyverno_domain_actual != ''

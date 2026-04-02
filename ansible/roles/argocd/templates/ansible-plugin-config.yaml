@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-ansible-plugin-config
+  namespace: {{ argocd_namespace }}
+data:
+  plugin.yaml: |-
+    {{ lookup('template', 'ansible-plugin-config-contents.yaml') | indent(4) }}

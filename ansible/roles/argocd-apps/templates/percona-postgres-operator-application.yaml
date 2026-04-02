@@ -1,0 +1,47 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: percona-postgres-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Multi-source: Helm chart from Helm repo, values and namespace from Git
+  sources:
+    # Helm chart source
+    - repoURL: https://percona.github.io/percona-helm-charts/
+      chart: pg-operator
+      targetRevision: 2.8.2
+      helm:
+        valueFiles:
+          - $values/argocd-apps/percona-postgres/operator-values.yaml
+
+    # Git repo source for values
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      ref: values
+
+    # Git repo source for namespace
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: argocd-apps/percona-postgres
+      directory:
+        include: 'namespace.yaml'
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: percona-postgres
+
+  syncPolicy:
+    # Manual sync only
+    syncOptions:
+      - ServerSideApply=true  # Ensures CRDs are installed before other resources
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

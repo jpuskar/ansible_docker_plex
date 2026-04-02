@@ -1,0 +1,45 @@
+---
+# VS Code Remote Standard Configuration
+
+# Instance configuration (override for multiple deployments)
+vscode_standard_instance_name: "vscode-dev"
+vscode_standard_namespace: "vscode-remote"
+
+# Container image configuration
+vscode_standard_image: "docker.io/jpuskar/vscode-remote:latest"
+vscode_standard_image_pull_policy: "Always"
+
+# SSH configuration
+vscode_standard_ssh_port: 2222
+vscode_standard_ssh_authorized_keys: []  # REQUIRED: List of SSH public keys
+
+# Service configuration
+vscode_standard_service_type: "LoadBalancer"
+vscode_standard_service_annotations: {}
+
+# Storage configuration
+vscode_standard_storage_class: "openebs-rawfile"
+vscode_standard_storage_size: "50Gi"  # Workspace volume
+vscode_standard_home_size: "20Gi"  # Home directory volume (venvs, .vscode-server, configs, etc.)
+
+# Resource limits
+vscode_standard_resources:
+  requests:
+    cpu: "1"
+    memory: "2Gi"
+  limits:
+    cpu: "4"
+    memory: "8Gi"
+
+# Node selector
+vscode_standard_node_selector: {}
+
+# Tolerations
+vscode_standard_tolerations:
+  - key: "kubernetes.io.arch"
+    operator: Equal
+    value: "arm64"
+    effect: NoSchedule
+
+# Environment variables
+vscode_standard_env_vars: []

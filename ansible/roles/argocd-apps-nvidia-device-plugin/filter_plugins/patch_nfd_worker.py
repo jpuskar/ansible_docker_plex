@@ -1,0 +1,95 @@
+"""
+Filter plugin to patch NVIDIA Device Plugin helm output
+Adds nodeSelector to the NFD worker daemonset
+"""
+
+import yaml
+import json
+
+
+def patch_nfd_worker_nodeSelector(helm_output, node_selector):
+    """
+    Process helm template output and add nodeSelector to NFD worker daemonset.
+
+    Args:
+        helm_output: String output from helm template command (normalized by yq)
+        node_selector: Dict of nodeSelector labels to add
+
+    Returns:
+        String with modified YAML
+    """
+    # Convert node_selector to plain dict to avoid Ansible type issues
+    # Use JSON round-trip to ensure we have plain Python types
+    node_selector_plain = json.loads(json.dumps(node_selector))
+
+    # Parse the YAML documents (should be normalized by yq already)
+    documents = list(yaml.safe_load_all(helm_output))
+
+    # Find and patch the NFD worker daemonset and MPS control daemon
+    for doc in documents:
+        # Patch NFD worker with nodeSelector
+        if (doc and
+            doc.get('kind') == 'DaemonSet' and
+            doc.get('metadata', {}).get('name', '').endswith('node-feature-discovery-worker')):
+
+            # Add nodeSelector to spec.template.spec
+            if 'spec' in doc and 'template' in doc['spec'] and 'spec' in doc['spec']['template']:
+                template_spec = doc['spec']['template']['spec']
+                if 'nodeSelector' not in template_spec:
+                    template_spec['nodeSelector'] = {}
+                template_spec['nodeSelector'].update(node_selector_plain)
+
+        # Patch MPS control daemon with passwd/group mounts for Talos
+        if (doc and
+            doc.get('kind') == 'DaemonSet' and
+            doc.get('metadata', {}).get('name', '').endswith('mps-control-daemon')):
+
+            if 'spec' in doc and 'template' in doc['spec'] and 'spec' in doc['spec']['template']:
+                template_spec = doc['spec']['template']['spec']
+
+                # Add ConfigMap volume
+                if 'volumes' not in template_spec:
+                    template_spec['volumes'] = []
+                template_spec['volumes'].append({
+                    'name': 'etc-passwd',
+                    'configMap': {
+                        'name': 'minimal-passwd'
+                    }
+                })
+
+                # Add volume mounts to all containers
+                if 'containers' in template_spec:
+                    for container in template_spec['containers']:
+                        if 'volumeMounts' not in container:
+                            container['volumeMounts'] = []
+                        container['volumeMounts'].extend([
+                            {
+                                'name': 'etc-passwd',
+                                'mountPath': '/etc/passwd',
+                                'subPath': 'passwd',
+                                'readOnly': True
+                            },
+                            {
+                                'name': 'etc-passwd',
+                                'mountPath': '/etc/group',
+                                'subPath': 'group',
+                                'readOnly': True
+                            }
+                        ])
+
+    # Convert back to YAML string
+    output_parts = []
+    for doc in documents:
+        if doc:  # Skip None/empty documents
+            output_parts.append(yaml.dump(doc, default_flow_style=False, sort_keys=False))
+    out_docs_str = '---\n' + '---\n'.join(output_parts)
+    return out_docs_str
+
+
+class FilterModule(object):
+    """Ansible filter module for patching NFD worker"""
+
+    def filters(self):
+        return {
+            'patch_nfd_worker_nodeSelector': patch_nfd_worker_nodeSelector
+        }

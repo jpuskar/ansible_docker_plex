@@ -1,0 +1,108 @@
+---
+# Test pod to verify CDI device injection is working
+# This will show us what devices and mounts are actually being added by CDI
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-cdi-injection
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: inspector
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command: ["/bin/bash", "-c"]
+    args:
+      - |
+        echo "========================================="
+        echo "CDI Device Injection Test"
+        echo "========================================="
+        echo ""
+
+        echo "1. Environment variables (CDI might set these):"
+        env | grep -i nvidia || echo "No NVIDIA env vars"
+        env | grep -i cuda || echo "No CUDA env vars"
+        echo ""
+
+        echo "2. Device nodes:"
+        ls -la /dev/nvidia* 2>/dev/null || echo "No /dev/nvidia* devices found"
+        echo ""
+
+        echo "3. Check for NVIDIA libraries in standard paths:"
+        ldconfig -p | grep -i nvidia | head -20 || echo "No NVIDIA libraries in ldcache"
+        echo ""
+
+        echo "4. Check LD_LIBRARY_PATH:"
+        echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-NOT SET}"
+        echo ""
+
+        echo "5. Try to find NVIDIA libraries anywhere:"
+        find /usr -name "libcuda.so*" 2>/dev/null | head -5 || echo "No libcuda.so found in /usr"
+        find /lib* -name "libcuda.so*" 2>/dev/null | head -5 || echo "No libcuda.so found in /lib*"
+        echo ""
+
+        echo "6. Test nvidia-smi (should work if CDI is injecting devices+libs):"
+        nvidia-smi -L 2>&1 || echo "nvidia-smi failed - CDI might not be injecting libraries"
+        echo ""
+
+        echo "7. Test basic CUDA runtime (the real test):"
+        cat > /tmp/test.c << 'EOF'
+#include <cuda_runtime.h>
+#include <stdio.h>
+
+int main() {
+    int deviceCount = 0;
+    cudaError_t err = cudaGetDeviceCount(&deviceCount);
+
+    if (err != cudaSuccess) {
+        printf("CUDA Error: %s (code: %d)\n", cudaGetErrorString(err), err);
+        printf("This likely means CDI is NOT injecting libraries correctly\n");
+        return 1;
+    }
+
+    printf("SUCCESS: Found %d CUDA device(s)\n", deviceCount);
+
+    for (int i = 0; i < deviceCount; i++) {
+        struct cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, i);
+        printf("  Device %d: %s\n", i, prop.name);
+    }
+
+    return 0;
+}
+EOF
+
+        # Try to compile and run if nvcc available
+        if command -v nvcc &> /dev/null; then
+          echo "Compiling CUDA test..."
+          nvcc /tmp/test.c -o /tmp/test && /tmp/test
+        else
+          echo "nvcc not available - trying python instead:"
+          python3 -c "import ctypes; ctypes.CDLL('libcuda.so.1'); print('SUCCESS: libcuda.so.1 loaded')" 2>&1 || echo "FAILED: Could not load libcuda.so.1"
+        fi
+        echo ""
+
+        echo "8. Check what's actually mounted into this container:"
+        mount | grep -i nvidia || echo "No nvidia mounts visible"
+        echo ""
+
+        echo "========================================="
+        echo "Diagnosis:"
+        echo "========================================="
+        echo "If nvidia-smi works: CDI is injecting devices correctly"
+        echo "If CUDA runtime fails: CDI is NOT injecting libraries"
+        echo "  -> Check containerd config has CDI enabled"
+        echo "  -> Verify containerd restarted after config change"
+        echo "  -> Check CDI spec at /var/cdi/dynamic/nvidia.yaml"
+        echo ""
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1

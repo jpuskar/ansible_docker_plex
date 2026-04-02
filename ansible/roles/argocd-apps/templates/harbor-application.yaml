@@ -1,0 +1,55 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "harbor"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+
+  # Ignore Harbor checksum annotations that change on every Helm render
+  # These annotations trigger pod restarts but don't represent actual changes
+  ignoreDifferences:
+    - group: "apps"
+      kind: "Deployment"
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1configmap
+        - /spec/template/metadata/annotations/checksum~1secret
+        - /spec/template/metadata/annotations/checksum~1secret-core
+        - /spec/template/metadata/annotations/checksum~1secret-jobservice
+        - /spec/template/metadata/annotations/checksum~1tls
+    - group: "apps"
+      kind: "StatefulSet"
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1configmap
+        - /spec/template/metadata/annotations/checksum~1secret
+        - /spec/template/metadata/annotations/checksum~1tls
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

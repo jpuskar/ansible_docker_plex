@@ -1,0 +1,37 @@
+---
+# Quick GPU test - runs nvidia-smi and exits immediately
+# Use this to verify basic GPU access
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-quick-test
+  namespace: nvidia-device-plugin
+spec:
+  runtimeClassName: nvidia
+  restartPolicy: Never
+
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+
+  containers:
+  - name: cuda-test
+    image: nvcr.io/nvidia/cuda:12.4.1-base-ubuntu22.04
+    command: ["nvidia-smi"]
+
+    volumeMounts:
+      - name: mps-root
+        mountPath: /mps
+        readOnly: false
+
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+      requests:
+        nvidia.com/gpu: 1
+
+  volumes:
+    - name: mps-root
+      hostPath:
+        path: /run/nvidia/mps
+        type: Directory

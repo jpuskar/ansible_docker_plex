@@ -1,0 +1,17 @@
+---
+# Harbor Registry Configuration
+
+# Project name for custom images
+harbor_project_name: "library"
+
+# Make project public (false requires authentication to pull)
+harbor_project_public: false
+
+# Vulnerability scan severity threshold
+harbor_project_severity: "low"
+
+# Robot account name for Talos pulls
+harbor_robot_name: "talos-puller"
+
+# Validate TLS certificates (set to true if using valid certs)
+harbor_validate_certs: false

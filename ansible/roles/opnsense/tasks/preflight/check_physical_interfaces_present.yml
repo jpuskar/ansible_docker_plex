@@ -1,0 +1,29 @@
+---
+  - name: Define required physical interfaces
+    ansible.builtin.set_fact:
+      required_interfaces:
+        - ix0
+        - ix1
+        - em1
+
+  - name: Query available interfaces
+    oxlorg.opnsense.raw:
+      url: 'interfaces/overview/interfacesInfo'
+    register: interfaces_info
+
+  - name: Extract available device names
+    ansible.builtin.set_fact:
+      available_devices: "{{ interfaces_info.response.rows | map(attribute='device') | list }}"
+
+  - name: Find missing interfaces
+    ansible.builtin.set_fact:
+      missing_interfaces: "{{ required_interfaces | difference(available_devices) }}"
+
+  - name: Assert all required interfaces present
+    ansible.builtin.assert:
+      that:
+        - missing_interfaces | length == 0
+      fail_msg: |
+        Missing required interfaces: {{ missing_interfaces }}
+        Available devices: {{ available_devices }}
+      success_msg: "All required interfaces present: {{ required_interfaces }}"

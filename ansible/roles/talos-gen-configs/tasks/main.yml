@@ -1,0 +1,141 @@
+---
+# TODO: aescbcEncryptionSecret
+
+- name: set workingdir to repo-location/tmp/talos/cluster-name
+  set_fact:
+    talos_working_dir: "{{ repo_dir }}/tmp/talos/{{ talos_cluster_name }}"
+
+- debug:
+    var: talos_working_dir
+
+- name: create working directory
+  file:
+    path: "{{ talos_working_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: assert that secrets file exists
+  assert:
+    that:
+      - (talos_working_dir + '/' + talos_cluster_name + '-secrets.yaml') is file
+    fail_msg: |-
+      The secrets file needs generated with:
+      talosctl gen secrets -o {{ talos_cluster_name }}-secrets.yaml
+
+- name: template out common patches to working-dir
+  template:
+    src: "{{ item }}"
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ item }}"
+    backup: true
+  loop:
+    - prep-for-cilium.yaml
+    - allowSchedulingOnControlPlanes.yaml
+    - rotate-server-certificates.yaml
+    - kubelet-serving-cert-approver.yaml
+
+- name: Get Harbor robot credentials from Kubernetes secret
+  shell:
+    cmd: |
+      kubectl get secret harbor-robot-{{ harbor_robot_name }} -n harbor -o json
+  register: harbor_robot_secret_json
+  when: talos_harbor_registry_enabled
+  changed_when: false
+
+- name: Parse Harbor robot credentials
+  set_fact:
+    talos_harbor_registry_url: "{{ (harbor_robot_secret_json.stdout | from_json).data['registry-url'] | b64decode }}"
+    talos_harbor_robot_username: "{{ (harbor_robot_secret_json.stdout | from_json).data.username | b64decode }}"
+    talos_harbor_robot_password: "{{ (harbor_robot_secret_json.stdout | from_json).data.password | b64decode }}"
+    talos_harbor_insecure_skip_verify: "{{ not (harbor_validate_certs | default(false)) }}"
+  when: talos_harbor_registry_enabled
+  no_log: true
+
+- name: template out harbor registry config patch
+  template:
+    src: harbor-registry.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-harbor-registry.yaml"
+    backup: true
+  when: talos_harbor_registry_enabled
+
+- name: get all hosts in cluster group
+  set_fact:
+    cluster_hosts: "{{ groups[talos_cluster_name] }}"
+
+- name: template out per-node hostname config patches
+  template:
+    src: hostname.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+
+- name: template out per-node label config patches
+  template:
+    src: node-labels.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-labels.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+
+- name: template out per-node LUKS config patches
+  template:
+    src: luks-config.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+  when: hostvars[node_name].talos_enable_luks
+  vars:
+    # Load host-specific vars for each node
+    talos_use_tpm: "{{ hostvars[node_name].talos_use_tpm }}"
+
+- name: template out per-node NVIDIA config patches
+  template:
+    src: nvidia.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-nvidia.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+  when: hostvars[node_name].talos_enable_nvidia | default(false)
+
+# NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
+# Images are selected based on requirements defined in host_vars or defaults
+- name: run talosctl gen config for each node
+  shell:
+    cmd: |-
+      talosctl gen config \
+        {{ talos_cluster_name }} \
+        https://{{ talos_control_plane_ip }}:6443 \
+        --install-disk /dev/{{ hostvars[node_name].talos_install_disk | default(talos_install_disk) }} \
+        --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
+        --additional-sans "{{ talos_additional_sans | join(',') }}" \
+        --install-image={{ selected_image }} \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-labels.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-rotate-server-certificates.yaml \
+        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
+        {% if hostvars[node_name].talos_enable_luks %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
+        {% endif %}{% if hostvars[node_name].talos_enable_nvidia | default(false) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-nvidia.yaml \
+        {% endif %}{% if talos_harbor_registry_enabled %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-harbor-registry.yaml \
+        {% endif %} --output-types controlplane \
+        --output controlplane-{{ node_name }}.yaml \
+        --force
+    chdir: "{{ talos_working_dir }}"
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+  vars:
+    # Get image requirements for this host (or use defaults)
+    node_requirements: "{{ hostvars[node_name].talos_image_requirements | default(talos_image_requirements) }}"
+    # Select the first matching image from the registry
+    selected_image: "{{ talos_images_info | select_talos_image(node_requirements) }}"
+  register: talosctl_gen_config_output
+
+- debug:
+    var: talosctl_gen_config_output

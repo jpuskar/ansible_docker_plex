@@ -1,0 +1,6 @@
+---
+collections:
+#  - name: puzzle.opnsense
+#    version: ">=1.0.0"
+  - name: oxlorg.opnsense
+    version: ">=25.7.8"

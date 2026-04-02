@@ -1,0 +1,21 @@
+---
+- name: Include lib-vscode-remote-statefulset library role
+  include_role:
+    name: lib-vscode-remote-statefulset
+  vars:
+    vscode_instance_name: "{{ vscode_standard_instance_name }}"
+    vscode_namespace: "{{ vscode_standard_namespace }}"
+    vscode_image: "{{ vscode_standard_image }}"
+    vscode_image_pull_policy: "{{ vscode_standard_image_pull_policy }}"
+    vscode_ssh_port: "{{ vscode_standard_ssh_port }}"
+    vscode_ssh_authorized_keys: "{{ vscode_standard_ssh_authorized_keys }}"
+    vscode_service_type: "{{ vscode_standard_service_type }}"
+    vscode_service_load_balancer_ip: "{{ vscode_standard_service_load_balancer_ip }}"
+    vscode_service_annotations: "{{ vscode_standard_service_annotations }}"
+    vscode_storage_class: "{{ vscode_standard_storage_class }}"
+    vscode_storage_size: "{{ vscode_standard_storage_size }}"
+    vscode_home_size: "{{ vscode_standard_home_size }}"
+    vscode_resources: "{{ vscode_standard_resources }}"
+    vscode_node_selector: "{{ vscode_standard_node_selector }}"
+    vscode_tolerations: "{{ vscode_standard_tolerations }}"
+    vscode_env_vars: "{{ vscode_standard_env_vars }}"
