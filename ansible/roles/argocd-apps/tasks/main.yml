@@ -16,6 +16,8 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - loki-application.yaml
+    - alloy-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -39,6 +41,8 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - loki-application.yaml
+    - alloy-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

@@ -1,0 +1,108 @@
+# Loki Helm values — Simple Scalable mode for homelab on Talos
+# Deploys: write (distributor+ingester), read (querier+frontend), backend (compactor)
+
+# --- Deployment mode ---
+deploymentMode: SimpleScalable
+
+# --- Loki config ---
+loki:
+  auth_enabled: false
+
+  # Filesystem storage — no object store needed
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  storage:
+    type: filesystem
+
+  # Retention
+  compactor:
+    retention_enabled: true
+  limits_config:
+    retention_period: {{ loki_retention_period }}
+
+  # Ingestion limits suitable for homelab
+  ingester:
+    chunk_idle_period: 30m
+    chunk_retain_period: 1m
+    max_transfer_retries: 0
+
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki
+
+# --- Write path (distributor + ingester) ---
+write:
+  replicas: 1
+  persistence:
+    size: {{ loki_storage_size }}
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# --- Read path (querier + query-frontend) ---
+read:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# --- Backend (compactor + index-gateway) ---
+backend:
+  replicas: 1
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# --- Disable components we don't need ---
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# Disable chunk cache / results cache (in-memory only for homelab)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Disable minio sub-chart (using filesystem)
+minio:
+  enabled: false
+
+# Disable self-monitoring and test
+monitoring:
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false
+
+# Single replica doesn't need memberlist gossip
+singleBinary:
+  replicas: 0

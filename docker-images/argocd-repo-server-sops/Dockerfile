@@ -1,6 +1,6 @@
  # ArgoCD Repo Server with SOPS support
 # Based on official ArgoCD repo-server image
-ARG ARGOCD_VERSION=v3.2.3
+ARG ARGOCD_VERSION=v3.3.6
 
 FROM quay.io/argoproj/argocd:${ARGOCD_VERSION}
 

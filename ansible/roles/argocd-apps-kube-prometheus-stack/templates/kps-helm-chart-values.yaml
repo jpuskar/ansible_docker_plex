@@ -49,10 +49,38 @@ grafana:
     existingSecret: grafana-admin-credentials
     userKey: admin-user
     passwordKey: admin-password
+  # Loki datasource for log queries
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.loki.svc:80
+      jsonData:
+        maxLines: 1000
 
 # --- Exporters ---
 nodeExporter:
   enabled: true
+  operatingSystems:
+    linux:
+      enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+  extraArgs:
+    - --no-collector.systemd
+    - --no-collector.btrfs
 
 kubeStateMetrics:
   enabled: true

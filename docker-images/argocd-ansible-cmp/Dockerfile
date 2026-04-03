@@ -1,9 +1,9 @@
 FROM ubuntu:22.04
 
-# Tool versions (matching ArgoCD v3.2.3)
-ENV HELM_VERSION=3.18.4 \
+# Tool versions (matching ArgoCD v3.3.6)
+ENV HELM_VERSION=3.19.4 \
     KUBECTL_VERSION=1.34.1 \
-    KUSTOMIZE_VERSION=5.7.1 \
+    KUSTOMIZE_VERSION=5.8.1 \
     YQ_VERSION=4.47.1
 
 # Install dependencies
