@@ -1,0 +1,20 @@
+---
+# openebs-rawfile ArgoCD Application Role Defaults
+
+# openebs-rawfile Helm chart configuration
+openebs_rawfile_chart_repo: "https://openebs.github.io/rawfile-localpv"
+openebs_rawfile_chart_name: "rawfile-csi"
+openebs_rawfile_chart_version: "0.12.2"
+openebs_rawfile_namespace: "openebs-rawfile"
+
+# Storage path on nodes
+openebs_rawfile_storage_path: "/var/openebs/rawfile"
+
+# Node selector - only deploy on nodes with TPM encryption
+openebs_rawfile_node_selector:
+  encryption.talos.dev/tpm: "true"
+
+# StorageClass configuration
+openebs_rawfile_storageclass_name: "openebs-rawfile"
+openebs_rawfile_storageclass_is_default: false
+openebs_rawfile_filesystem: "ext4"

@@ -9,27 +9,16 @@ metadata:
 spec:
   project: default
 
-  # Multi-source: Helm chart from Helm repo, values and namespace from Git
   sources:
-    # Helm chart source
-    - repoURL: https://openebs.github.io/rawfile-localpv
-      chart: rawfile-localpv
-      targetRevision: 0.12.2
-      helm:
-        valueFiles:
-          - $values/argocd-apps/openebs-rawfile/values.yaml
-
-    # Git repo source for values (referenced by $values)
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
       targetRevision: {{ argocd_apps_revision_overrides['openebs-rawfile'] | default(argocd_apps_git_revision) }}
-      ref: values
-
-    # Git repo source for namespace manifest
-    - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: {{ argocd_apps_revision_overrides['openebs-rawfile'] | default(argocd_apps_git_revision) }}
-      path: argocd-apps/openebs-rawfile
-      directory:
-        include: 'namespace.yaml'
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "openebs-rawfile"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
 
   destination:
     server: https://kubernetes.default.svc
@@ -44,12 +33,9 @@ spec:
         - /data/internal-signature
 
   syncPolicy:
-    # Manual sync only - no automated deployment
-    # automated:
-    #   prune: true
-    #   selfHeal: true
-    syncOptions: []
-      # Namespace created separately with privileged pod security labels
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
     retry:
       limit: 5
       backoff:

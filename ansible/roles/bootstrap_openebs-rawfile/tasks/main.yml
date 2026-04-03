@@ -1,4 +1,20 @@
 ---
+- name: check if ArgoCD manages openebs-rawfile
+  shell:
+    cmd: |-
+      kubectl get daemonset rawfile-csi-node -n {{ openebs_rawfile_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
+  register: argocd_check_openebs_rawfile
+  failed_when: >-
+    argocd_check_openebs_rawfile.rc != 0 and
+    'NotFound' not in argocd_check_openebs_rawfile.stderr
+  changed_when: false
+
+- name: skip openebs-rawfile bootstrap (managed by ArgoCD)
+  meta: end_role
+  when: argocd_check_openebs_rawfile.stdout | default('') | length > 0
+
 - name: render rawfile helm chart values file
   template:
     src: rawfile-values.yaml

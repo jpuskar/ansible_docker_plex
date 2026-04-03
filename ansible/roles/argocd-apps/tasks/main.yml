@@ -9,7 +9,6 @@
     - cert-manager-application.yaml
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
-    - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
@@ -34,7 +33,6 @@
     - cert-manager-application.yaml
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
-    - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml

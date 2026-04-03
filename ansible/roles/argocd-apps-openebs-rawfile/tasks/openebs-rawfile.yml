@@ -1,0 +1,33 @@
+---
+- name: Template out openebs-rawfile Helm values to temp dir
+  template:
+    src: openebs-rawfile-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/openebs-rawfile-values.yaml"
+
+- name: Add openebs-rawfile Helm repository
+  shell:
+    cmd: |-
+      helm repo add openebs-rawfile {{ openebs_rawfile_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm openebs-rawfile repositories
+  shell:
+    cmd: |-
+      helm repo update openebs-rawfile
+  changed_when: false
+
+- name: Generate openebs-rawfile manifests using helm template
+  shell:
+    cmd: |-
+      helm template rawfile-csi openebs-rawfile/{{ openebs_rawfile_chart_name }} \
+        --version {{ openebs_rawfile_chart_version }} \
+        --namespace {{ openebs_rawfile_namespace }} \
+        --values {{ temp_dir_path }}/openebs-rawfile-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/openebs-rawfile-helm-manifests.yaml"
