@@ -11,7 +11,7 @@ spec:
 
   source:
     repoURL: https://github.com/jpuskar/ansible_docker_plex
-    targetRevision: zfs-disk-replace
+    targetRevision: argocd-bootstrapping
     path: argocd-apps/openebs-rawfile
     directory:
       include: 'storageclass.yaml'

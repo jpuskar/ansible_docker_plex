@@ -21,12 +21,12 @@ spec:
 
     # Git repo source for values
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: zfs-disk-replace
+      targetRevision: argocd-bootstrapping
       ref: values
 
     # Git repo source for namespace
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: zfs-disk-replace
+      targetRevision: argocd-bootstrapping
       path: argocd-apps/redis-operator
       directory:
         include: 'namespace.yaml'
