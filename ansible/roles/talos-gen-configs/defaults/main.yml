@@ -127,10 +127,6 @@ talos_images_info:
       extensions:
         - intel-ucode
 
-# talosctl version to download and cache locally
-# Should match the Talos version running on the cluster
-talosctl_version: "v1.12.0"
-
 # Default image requirements (can be overridden per-host in host_vars)
 talos_image_requirements:
   secureboot: true
