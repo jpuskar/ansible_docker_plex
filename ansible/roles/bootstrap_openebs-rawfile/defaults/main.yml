@@ -1,9 +1,9 @@
 ---
 # OpenEBS Rawfile CSI configuration
-openebs_rawfile_version: "0.9.0"
+openebs_rawfile_version: "0.13.1"
 openebs_rawfile_namespace: "openebs-rawfile"
 openebs_rawfile_repo_url: "https://openebs.github.io/rawfile-localpv"
-openebs_rawfile_chart_name: "openebs-rawfile/rawfile-csi"
+openebs_rawfile_chart_name: "openebs-rawfile/rawfile-localpv"
 
 # Storage path on nodes
 openebs_rawfile_storage_path: "/var/openebs/rawfile"

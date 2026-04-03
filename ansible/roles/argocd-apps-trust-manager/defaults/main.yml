@@ -4,7 +4,7 @@
 # trust-manager Helm chart configuration
 trust_manager_chart_repo: "https://charts.jetstack.io"
 trust_manager_chart_name: "trust-manager"
-trust_manager_chart_version: "v0.20.3"
+trust_manager_chart_version: "v0.22.0"
 trust_manager_namespace: "cert-manager"
 
 # Installation options
