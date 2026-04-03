@@ -1,0 +1,35 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: zfs-disk-replace
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "cilium"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

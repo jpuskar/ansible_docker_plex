@@ -4,6 +4,9 @@
     src: "{{ item }}"
     dest: "{{ temp_dir }}/{{ item }}"
   loop:
+    - cilium-application.yaml
+    - cert-manager-application.yaml
+    - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
     - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
@@ -21,6 +24,9 @@
         --kubeconfig {{ kubeconfig_path }} \
         -f {{ temp_dir }}/{{ item }}
   loop:
+    - cilium-application.yaml
+    - cert-manager-application.yaml
+    - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
     - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml

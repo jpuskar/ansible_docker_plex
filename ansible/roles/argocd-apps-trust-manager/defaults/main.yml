@@ -1,0 +1,21 @@
+---
+# trust-manager ArgoCD Application Role Defaults
+
+# trust-manager Helm chart configuration
+trust_manager_chart_repo: "https://charts.jetstack.io"
+trust_manager_chart_name: "trust-manager"
+trust_manager_chart_version: "v0.20.3"
+trust_manager_namespace: "cert-manager"
+
+# Installation options
+trust_manager_replicas: 1
+
+# Bundle configuration for distributing CA certificates
+trust_manager_deploy_bundle: true
+trust_manager_bundle_name: "ca-bundle"
+trust_manager_bundle_configmap_name: "ca-certificates"
+trust_manager_bundle_configmap_key: "ca-bundle.crt"
+
+# CA certificate to include in bundle (from cert-manager)
+trust_manager_ca_secret_name: "root-ca-secret"
+trust_manager_ca_secret_key: "ca.crt"
