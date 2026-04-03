@@ -14,6 +14,7 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - kube-prometheus-stack-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -35,6 +36,7 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - kube-prometheus-stack-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
