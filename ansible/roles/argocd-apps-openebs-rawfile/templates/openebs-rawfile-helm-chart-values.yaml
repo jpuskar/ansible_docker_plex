@@ -3,6 +3,10 @@
 # Disable default StorageClass - we manage it via Git
 storageClasses: []
 
+# Use pre-existing secret managed by kubernetes-secret-generator
+auth:
+  secretName: "rawfile-localpv-secrets"
+
 # Node plugin configuration
 node:
   # Data directory path on the node

@@ -4,6 +4,11 @@
     src: namespace.yaml
     dest: "{{ output_dir_path }}/namespace.yaml"
 
+- name: Template out rawfile auth StringSecret
+  template:
+    src: rawfile-auth-stringsecret.yaml
+    dest: "{{ output_dir_path }}/rawfile-auth-stringsecret.yaml"
+
 - name: Include openebs-rawfile tasks
   include_tasks: openebs-rawfile.yml
 
