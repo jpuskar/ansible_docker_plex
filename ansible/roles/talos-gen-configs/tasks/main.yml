@@ -14,6 +14,36 @@
     state: directory
     mode: '0755'
 
+- name: set talosctl platform vars
+  set_fact:
+    talosctl_os: "{{ ansible_system | lower }}"
+    talosctl_arch: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+
+- name: set talosctl download URL and cache path
+  set_fact:
+    talosctl_bin: "{{ repo_dir }}/tmp/talosctl-{{ talosctl_version }}-{{ talosctl_os }}-{{ talosctl_arch }}"
+    talosctl_url: "https://github.com/siderolabs/talos/releases/download/{{ talosctl_version }}/talosctl-{{ talosctl_os }}-{{ talosctl_arch }}"
+
+- name: check if talosctl is already cached
+  stat:
+    path: "{{ talosctl_bin }}"
+  register: talosctl_stat
+
+- name: download talosctl {{ talosctl_version }}
+  get_url:
+    url: "{{ talosctl_url }}"
+    dest: "{{ talosctl_bin }}"
+    mode: '0755'
+  when: not talosctl_stat.stat.exists
+
+- name: verify talosctl version
+  command: "{{ talosctl_bin }} version --client --short"
+  register: talosctl_version_check
+  changed_when: false
+
+- debug:
+    msg: "Using talosctl: {{ talosctl_bin }} ({{ talosctl_version_check.stdout }})"
+
 - name: assert that secrets file exists
   assert:
     that:
@@ -107,7 +137,7 @@
 - name: run talosctl gen config for each node
   shell:
     cmd: |-
-      talosctl gen config \
+      {{ talosctl_bin }} gen config \
         {{ talos_cluster_name }} \
         https://{{ talos_control_plane_ip }}:6443 \
         --install-disk /dev/{{ hostvars[node_name].talos_install_disk | default(talos_install_disk) }} \
