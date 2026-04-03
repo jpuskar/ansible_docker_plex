@@ -8,6 +8,7 @@ argocd_chart_name: "argo/argo-cd"
 
 # Installation options
 argocd_create_namespace: true
+argocd_force_install: false  # Set to true to force helm upgrade even if already running
 
 # Server configuration
 argocd_server_replicas: 1
