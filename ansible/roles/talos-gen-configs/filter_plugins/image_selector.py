@@ -3,6 +3,19 @@ Custom Ansible filter for selecting Talos images based on requirements
 """
 
 
+def _to_bool(value):
+    """Normalize a value to a Python bool.
+
+    Ansible/Jinja2 can pass booleans as strings ('true', 'True', 'yes', etc.)
+    depending on how variables flow through templates.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', 'yes', '1')
+    return bool(value)
+
+
 def select_talos_image(images_info, requirements):
     """
     Select the first image from images_info that matches all requirements.
@@ -18,9 +31,9 @@ def select_talos_image(images_info, requirements):
         tags = image.get('tags', {})
         match = True
 
-        # Check secureboot requirement
+        # Check secureboot requirement (compare as bools to handle str/bool mismatch)
         if 'secureboot' in requirements:
-            if tags.get('secureboot') != requirements['secureboot']:
+            if _to_bool(tags.get('secureboot')) != _to_bool(requirements['secureboot']):
                 match = False
                 continue
 
