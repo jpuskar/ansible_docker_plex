@@ -89,6 +89,8 @@ prometheus-node-exporter:
     - --no-collector.mdadm
     - --no-collector.ipvs
     - --no-collector.entropy
+    - --no-collector.tapestats
+    - --no-collector.zfs
 
 kubeStateMetrics:
   enabled: true
@@ -125,8 +127,6 @@ kubeScheduler:
     port: 10259
     targetPort: 10259
   serviceMonitor:
-    https: true
-    insecureSkipVerify: true
     https: true
     insecureSkipVerify: true
 
