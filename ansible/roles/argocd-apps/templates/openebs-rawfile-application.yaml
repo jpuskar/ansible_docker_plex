@@ -28,7 +28,7 @@ spec:
   ignoreDifferences:
     - group: ""
       kind: Secret
-      name: openebs-rawfile-rawfile-localpv-secrets
+      name: rawfile-localpv-secrets
       jsonPointers:
         - /data/internal-signature
 
