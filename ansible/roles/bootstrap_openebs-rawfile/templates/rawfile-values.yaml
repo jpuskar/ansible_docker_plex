@@ -1,10 +1,12 @@
 # OpenEBS Rawfile CSI Helm values
 
+# Disable default StorageClass - we manage it separately
+storageClasses: []
+
 # Node plugin configuration
 node:
-  # Storage path on the node
-  storage:
-    path: {{ openebs_rawfile_storage_path }}
+  # Data directory path on the node
+  dataDirPath: {{ openebs_rawfile_storage_path }}
 
   # Node selector - only run on TPM-encrypted nodes
   nodeSelector:
