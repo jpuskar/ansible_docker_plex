@@ -1,4 +1,20 @@
 ---
+- name: check if ArgoCD manages cert-manager
+  shell:
+    cmd: |-
+      kubectl get deployment cert-manager -n cert-manager \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o jsonpath='{.metadata.labels.argocd\.argoproj\.io/instance}'
+  register: argocd_check_cert_manager
+  failed_when: >-
+    argocd_check_cert_manager.rc != 0 and
+    'NotFound' not in argocd_check_cert_manager.stderr
+  changed_when: false
+
+- name: skip cert-manager bootstrap (managed by ArgoCD)
+  meta: end_role
+  when: argocd_check_cert_manager.stdout | default('') | length > 0
+
 - name: render cert-manager helm chart values file
   template:
     src: cert-manager-values.yaml
@@ -17,8 +33,12 @@
   shell:
     cmd: |-
       kubectl create namespace {{ cert_manager_namespace }} \
-        --kubeconfig {{ kubeconfig_path }} \
-        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+        --kubeconfig {{ kubeconfig_path }}
+  register: create_ns_cert_manager
+  failed_when: >-
+    create_ns_cert_manager.rc != 0 and
+    'AlreadyExists' not in create_ns_cert_manager.stderr
+  changed_when: create_ns_cert_manager.rc == 0
   when: cert_manager_create_namespace | bool
 
 - name: install cert-manager via helm

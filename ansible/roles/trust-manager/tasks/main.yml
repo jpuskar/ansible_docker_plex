@@ -1,4 +1,20 @@
 ---
+- name: check if ArgoCD manages trust-manager
+  shell:
+    cmd: |-
+      kubectl get deployment trust-manager -n cert-manager \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o jsonpath='{.metadata.labels.argocd\.argoproj\.io/instance}'
+  register: argocd_check_trust_manager
+  failed_when: >-
+    argocd_check_trust_manager.rc != 0 and
+    'NotFound' not in argocd_check_trust_manager.stderr
+  changed_when: false
+
+- name: skip trust-manager bootstrap (managed by ArgoCD)
+  meta: end_role
+  when: argocd_check_trust_manager.stdout | default('') | length > 0
+
 - name: render trust-manager helm chart values file
   template:
     src: trust-manager-values.yaml
@@ -17,8 +33,12 @@
   shell:
     cmd: |-
       kubectl create namespace {{ trust_manager_namespace }} \
-        --kubeconfig {{ kubeconfig_path }} \
-        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+        --kubeconfig {{ kubeconfig_path }}
+  register: create_ns_trust_manager
+  failed_when: >-
+    create_ns_trust_manager.rc != 0 and
+    'AlreadyExists' not in create_ns_trust_manager.stderr
+  changed_when: create_ns_trust_manager.rc == 0
   when: trust_manager_create_namespace | bool
 
 - name: install trust-manager via helm
