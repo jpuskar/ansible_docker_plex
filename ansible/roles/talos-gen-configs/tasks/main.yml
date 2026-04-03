@@ -59,7 +59,7 @@
 
 - name: get all hosts in cluster group
   set_fact:
-    cluster_hosts: "{{ groups[talos_cluster_name] }}"
+    cluster_hosts: "{{ groups[talos_cluster_name + '_nodes'] }}"
 
 - name: determine talosctl version from cluster nodes
   set_fact:
