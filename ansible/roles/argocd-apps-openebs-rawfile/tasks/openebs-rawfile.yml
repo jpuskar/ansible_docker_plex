@@ -20,7 +20,7 @@
 - name: Generate openebs-rawfile manifests using helm template
   shell:
     cmd: |-
-      helm template rawfile-csi openebs-rawfile/{{ openebs_rawfile_chart_name }} \
+      helm template rawfile-localpv openebs-rawfile/{{ openebs_rawfile_chart_name }} \
         --version {{ openebs_rawfile_chart_version }} \
         --namespace {{ openebs_rawfile_namespace }} \
         --values {{ temp_dir_path }}/openebs-rawfile-values.yaml \
