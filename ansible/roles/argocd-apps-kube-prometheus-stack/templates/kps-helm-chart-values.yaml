@@ -82,6 +82,13 @@ prometheus-node-exporter:
   extraArgs:
     - --no-collector.systemd
     - --no-collector.btrfs
+    - --no-collector.fibrechannel
+    - --no-collector.infiniband
+    - --no-collector.bcache
+    - --no-collector.bonding
+    - --no-collector.mdadm
+    - --no-collector.ipvs
+    - --no-collector.entropy
 
 kubeStateMetrics:
   enabled: true
