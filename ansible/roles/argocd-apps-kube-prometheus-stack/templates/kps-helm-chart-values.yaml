@@ -42,8 +42,11 @@ grafana:
   persistence:
     enabled: true
     size: 2Gi
-  # Default admin — change post-deploy or use external-secrets
-  adminPassword: prom-operator
+  # Admin password from kubernetes-secret-generator StringSecret
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
 
 # --- Exporters ---
 nodeExporter:

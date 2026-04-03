@@ -2,21 +2,21 @@
 # Gateway API CRDs must be installed before enabling Cilium Gateway API support
 # Ref: https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/
 
-- name: check if ArgoCD manages gateway-api CRDs
+- name: check if gateway-api CRDs already exist
   shell:
     cmd: |-
       kubectl get crd gateways.gateway.networking.k8s.io \
         --kubeconfig {{ kubeconfig_path }} \
-        -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
-  register: argocd_check_gateway_api
+        -o name
+  register: gateway_api_crd_check
   failed_when: >-
-    argocd_check_gateway_api.rc != 0 and
-    'NotFound' not in argocd_check_gateway_api.stderr
+    gateway_api_crd_check.rc != 0 and
+    'NotFound' not in gateway_api_crd_check.stderr
   changed_when: false
 
-- name: skip gateway-api bootstrap (managed by ArgoCD)
+- name: skip gateway-api bootstrap (CRDs already present)
   meta: end_role
-  when: argocd_check_gateway_api.stdout | default('') | length > 0
+  when: gateway_api_crd_check.rc == 0
 
 - name: set gateway_api_version if not defined
   set_fact:

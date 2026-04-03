@@ -14,6 +14,7 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
@@ -36,6 +37,7 @@
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
+    - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
