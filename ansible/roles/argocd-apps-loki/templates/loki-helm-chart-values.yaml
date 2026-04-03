@@ -1,8 +1,7 @@
-# Loki Helm values — Simple Scalable mode for homelab on Talos
-# Deploys: write (distributor+ingester), read (querier+frontend), backend (compactor)
+# Loki Helm values — SingleBinary mode for homelab on Talos
 
 # --- Deployment mode ---
-deploymentMode: SimpleScalable
+deploymentMode: SingleBinary
 
 # --- Loki config ---
 loki:
@@ -38,8 +37,8 @@ loki:
     replication_factor: 1
     path_prefix: /var/loki
 
-# --- Write path (distributor + ingester) ---
-write:
+# --- Single Binary (all components in one pod) ---
+singleBinary:
   replicas: 1
   persistence:
     size: {{ loki_storage_size }}
@@ -48,31 +47,17 @@ write:
       cpu: 50m
       memory: 256Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
 
-# --- Read path (querier + query-frontend) ---
+# --- Disable scalable targets (not used in SingleBinary) ---
+write:
+  replicas: 0
 read:
-  replicas: 1
-  resources:
-    requests:
-      cpu: 50m
-      memory: 256Mi
-    limits:
-      memory: 512Mi
-
-# --- Backend (compactor + index-gateway) ---
+  replicas: 0
 backend:
-  replicas: 1
-  persistence:
-    size: 10Gi
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
+  replicas: 0
 
-# --- Disable components we don't need ---
+# --- Gateway ---
 gateway:
   enabled: true
   replicas: 1
@@ -102,7 +87,3 @@ monitoring:
 
 test:
   enabled: false
-
-# Single replica doesn't need memberlist gossip
-singleBinary:
-  replicas: 0
