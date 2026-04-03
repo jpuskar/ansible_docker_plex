@@ -16,6 +16,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
+          storageClassName: openebs-rawfile
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -41,6 +42,7 @@ grafana:
       memory: 256Mi
   persistence:
     enabled: true
+    storageClassName: openebs-rawfile
     size: 2Gi
   # Admin password from kubernetes-secret-generator StringSecret
   admin:
