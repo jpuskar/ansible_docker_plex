@@ -140,7 +140,7 @@
         https://{{ talos_control_plane_ip }}:6443 \
         --install-disk /dev/{{ hostvars[node_name].talos_install_disk | default(talos_install_disk) }} \
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
-        --additional-sans "{{ talos_additional_sans | join(',') }}" \
+        --additional-sans "{{ ([talos_control_plane_ip] + talos_additional_sans) | unique | join(',') }}" \
         --install-image={{ selected_image }} \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
