@@ -7,7 +7,7 @@
     cmd: |-
       kubectl get crd gateways.gateway.networking.k8s.io \
         --kubeconfig {{ kubeconfig_path }} \
-        -o jsonpath='{.metadata.labels.argocd\.argoproj\.io/instance}'
+        -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
   register: argocd_check_gateway_api
   failed_when: >-
     argocd_check_gateway_api.rc != 0 and

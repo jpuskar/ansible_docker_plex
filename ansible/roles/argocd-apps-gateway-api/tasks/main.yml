@@ -1,0 +1,5 @@
+---
+- name: Download Gateway API CRD manifest
+  get_url:
+    url: "{{ gateway_api_base_url }}/{{ gateway_api_version }}/{{ gateway_api_channel }}-install.yaml"
+    dest: "{{ output_dir_path }}/gateway-api-crds.yaml"

@@ -21,12 +21,12 @@ spec:
 
     # Git repo source for values (referenced by $values)
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: argocd-bootstrapping
+      targetRevision: {{ argocd_apps_revision_overrides['openebs-rawfile'] | default(argocd_apps_git_revision) }}
       ref: values
 
     # Git repo source for namespace manifest
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: argocd-bootstrapping
+      targetRevision: {{ argocd_apps_revision_overrides['openebs-rawfile'] | default(argocd_apps_git_revision) }}
       path: argocd-apps/openebs-rawfile
       directory:
         include: 'namespace.yaml'

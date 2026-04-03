@@ -4,6 +4,7 @@
     src: "{{ item }}"
     dest: "{{ temp_dir }}/{{ item }}"
   loop:
+    - gateway-api-application.yaml
     - cilium-application.yaml
     - cert-manager-application.yaml
     - trust-manager-application.yaml
@@ -24,6 +25,7 @@
         --kubeconfig {{ kubeconfig_path }} \
         -f {{ temp_dir }}/{{ item }}
   loop:
+    - gateway-api-application.yaml
     - cilium-application.yaml
     - cert-manager-application.yaml
     - trust-manager-application.yaml

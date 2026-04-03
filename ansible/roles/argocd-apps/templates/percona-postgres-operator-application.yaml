@@ -21,12 +21,12 @@ spec:
 
     # Git repo source for values
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: argocd-bootstrapping
+      targetRevision: {{ argocd_apps_revision_overrides['percona-postgres-operator'] | default(argocd_apps_git_revision) }}
       ref: values
 
     # Git repo source for namespace
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: argocd-bootstrapping
+      targetRevision: {{ argocd_apps_revision_overrides['percona-postgres-operator'] | default(argocd_apps_git_revision) }}
       path: argocd-apps/percona-postgres
       directory:
         include: 'namespace.yaml'

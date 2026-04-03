@@ -11,7 +11,7 @@ spec:
 
   sources:
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: argocd-bootstrapping
+      targetRevision: {{ argocd_apps_revision_overrides['nvidia-gpu-operator'] | default(argocd_apps_git_revision) }}
       path: "./ansible/"
       plugin:
         env:

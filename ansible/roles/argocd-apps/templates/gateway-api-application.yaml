@@ -2,7 +2,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: external-secrets-operator
+  name: gateway-api
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -11,23 +11,21 @@ spec:
 
   sources:
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: {{ argocd_apps_revision_overrides['external-secrets-operator'] | default(argocd_apps_git_revision) }}
+      targetRevision: {{ argocd_apps_revision_overrides['gateway-api'] | default(argocd_apps_git_revision) }}
       path: "./ansible/"
       plugin:
         env:
           - name: APP_NAME
-            value: "external-secrets-operator"
+            value: "gateway-api"
           - name: CLUSTER_NAME
             value: "{{ cluster_name }}"
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: external-secrets
 
   syncPolicy:
     syncOptions:
       - ServerSideApply=true
-      - CreateNamespace=true
     retry:
       limit: 5
       backoff:

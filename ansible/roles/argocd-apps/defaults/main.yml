@@ -1,0 +1,12 @@
+---
+# Default git revision for all ArgoCD Application git sources.
+# Override in inventory group_vars/cluster/<cluster>.yml to switch branches.
+argocd_apps_git_revision: main
+
+# Per-app git revision overrides.
+# Keys are app names matching the Application template names.
+# Example:
+#   argocd_apps_revision_overrides:
+#     cilium: fix-ingress-bug
+#     harbor: feature-branch
+argocd_apps_revision_overrides: {}
