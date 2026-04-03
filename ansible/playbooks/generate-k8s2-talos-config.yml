@@ -1,6 +1,6 @@
 ---
 # ansible-playbook generate-k8s2-talos-config.yml -e talos_luks_passphrase="asdf"
-- hosts: k8s2
+- hosts: k8s2_nodes
   connection: local
   vars:
     cluster_name: k8s2
