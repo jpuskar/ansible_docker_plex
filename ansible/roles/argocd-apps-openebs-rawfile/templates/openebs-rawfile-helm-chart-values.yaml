@@ -12,6 +12,9 @@ node:
   # Data directory path on the node
   dataDirPath: {{ openebs_rawfile_storage_path }}
 
+  # Pin metadata directory explicitly so a release rename can't break it
+  metadataDirPath: /var/local/openebs/rawfile/rawfile-localpv/meta
+
   # Node selector - only run on TPM-encrypted nodes
   nodeSelector:
 {% for key, value in openebs_rawfile_node_selector.items() %}
