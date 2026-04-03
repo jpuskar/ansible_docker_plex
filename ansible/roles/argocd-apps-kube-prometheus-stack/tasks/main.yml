@@ -4,6 +4,11 @@
     src: namespace.yaml
     dest: "{{ output_dir_path }}/namespace.yaml"
 
+- name: Template out node-exporter namespace manifest
+  template:
+    src: namespace-node-exporter.yaml
+    dest: "{{ output_dir_path }}/namespace-node-exporter.yaml"
+
 - name: Template out Grafana admin StringSecret
   template:
     src: grafana-admin-stringsecret.yaml

@@ -72,6 +72,7 @@ nodeExporter:
       memory: 128Mi
 
 prometheus-node-exporter:
+  namespaceOverride: node-exporter
   resources:
     requests:
       cpu: 10m
