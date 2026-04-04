@@ -6,6 +6,10 @@
     cluster_name: k8s2
 
   tasks:
+    - name: set repo_dir for subdirectory playbook
+      set_fact:
+        repo_dir: "{{ (playbook_dir ~ '/../../..') | realpath }}"
+
     - name: include tasks/1_set_vars.yml
       include_tasks: "{{ playbook_dir }}/../../tasks/1_set_vars.yml"
 
