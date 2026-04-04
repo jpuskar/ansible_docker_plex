@@ -14,10 +14,10 @@
     src: registry-nfs-pv.yaml
     dest: "{{ output_dir_path }}/registry-nfs-pv.yaml"
 
-- name: Template out Harbor admin password generator
+- name: Template out Harbor admin StringSecret
   template:
-    src: harbor-admin-password-generator.yaml
-    dest: "{{ output_dir_path }}/harbor-admin-password-generator.yaml"
+    src: harbor-admin-stringsecret.yaml
+    dest: "{{ output_dir_path }}/harbor-admin-stringsecret.yaml"
 
 - name: Include redis tasks
   include_tasks: redis.yml
