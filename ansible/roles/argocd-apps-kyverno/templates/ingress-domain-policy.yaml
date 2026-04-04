@@ -54,4 +54,8 @@ spec:
             patchesJson6902: |-
               - path: /data/{{ element }}
                 op: replace
-                value: "{{ regex_replace_all('[% kyverno_domain_placeholder %]', '{{ request.object.data.\"{{ element }}\" }}', '[% kyverno_domain_actual %]') }}"
+                value: {{ regex_replace_all('[% kyverno_domain_placeholder %]', element_value, '[% kyverno_domain_actual %]') }}
+            context:
+              - name: element_value
+                variable:
+                  jmesPath: 'request.object.data."{{ element }}"'
