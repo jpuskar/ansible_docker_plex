@@ -195,11 +195,7 @@ configs:
         - BackgroundScanReport
         - ClusterBackgroundScanReport
         - UpdateRequest
-      ### CUSTOM: Cilium secret sync namespace
-      ### Cilium syncs ingress TLS secrets to this namespace for its datapath
-      - apiGroups:
-        - ""
-        kinds:
-        - Secret
-        namespaces:
-        - cilium-secrets
+      ### NOTE: Cilium secret sync namespace (cilium-secrets) was previously
+      ### excluded here, but resource.exclusions does not support namespace
+      ### filtering — only apiGroups, kinds, and clusters. The namespaces
+      ### field was silently ignored, causing ALL Secrets to be excluded.
