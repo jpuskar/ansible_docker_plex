@@ -171,8 +171,10 @@ class BaselineManager:
             for camera_id, ip in self.cameras.items():
                 try:
                     await self._update_baseline(camera_id, ip)
+                except (httpx.TimeoutException, httpx.ConnectError):
+                    log.debug("Baseline update skipped for %s (timeout)", camera_id)
                 except Exception:
-                    log.exception("Baseline update failed for %s", camera_id)
+                    log.warning("Baseline update failed for %s", camera_id, exc_info=True)
             await asyncio.sleep(self.baseline_interval)
 
     async def _update_baseline(self, camera_id, ip):
