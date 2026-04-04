@@ -25,7 +25,7 @@
 
     - name: Check if Harbor project exists
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
+        url: "https://{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
         method: GET
         user: admin
         password: "{{ harbor_admin_password }}"
@@ -36,7 +36,7 @@
 
     - name: Create Harbor project for custom images
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/projects"
+        url: "https://{{ harbor_external_url }}/api/v2.0/projects"
         method: POST
         user: admin
         password: "{{ harbor_admin_password }}"
@@ -55,7 +55,7 @@
 
     - name: Check if Harbor robot account exists
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/robots?q=name={{ harbor_robot_name }}"
+        url: "https://{{ harbor_external_url }}/api/v2.0/robots?q=name={{ harbor_robot_name }}"
         method: GET
         user: admin
         password: "{{ harbor_admin_password }}"
@@ -66,7 +66,7 @@
 
     - name: Create Harbor robot account for Talos
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/robots"
+        url: "https://{{ harbor_external_url }}/api/v2.0/robots"
         method: POST
         user: admin
         password: "{{ harbor_admin_password }}"

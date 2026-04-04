@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: harbor-registry-nfs
+spec:
+  capacity:
+    storage: {{ harbor_registry_nfs_size }}
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: harbor-nfs-registry
+  nfs:
+    server: {{ harbor_registry_nfs_server }}
+    path: {{ harbor_registry_nfs_path }}
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - noatime

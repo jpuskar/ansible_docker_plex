@@ -27,6 +27,17 @@ harbor_redis_storage_class: "openebs-rawfile"
 harbor_redis_storage_size: "5Gi"
 harbor_redis_image: "quay.io/opstree/redis:v7.0.12"
 
+# Harbor NFS storage for registry
+harbor_registry_nfs_server: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33393961316364346230333331346530346634336130646133383866363663376237343532353564
+  3965363332646237643065383064316430303835343039300a633432633465336331363136626335
+  62663533656631646163636230313032386662646666303332333462356535353639663434613632
+  6666366362316533390a653935316162326437653536636461323662366137663765303666666162
+  3961
+harbor_registry_nfs_path: /tank0/k8s2-harbor
+harbor_registry_nfs_size: 100Gi
+
 # Harbor persistence
 harbor_registry_storage_class: "harbor-nfs-registry"
 harbor_registry_storage_size: "100Gi"

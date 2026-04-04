@@ -17,7 +17,7 @@
 
 - name: Create registry endpoints for pull-through proxies
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/registries"
+    url: "https://{{ harbor_external_url }}/api/v2.0/registries"
     method: POST
     user: admin
     password: "{{ harbor_admin_password }}"
@@ -43,7 +43,7 @@
 
 - name: Get registry endpoint IDs
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/registries?name={{ item.endpoint_name | urlencode }}"
+    url: "https://{{ harbor_external_url }}/api/v2.0/registries?name={{ item.endpoint_name | urlencode }}"
     method: GET
     user: admin
     password: "{{ harbor_admin_password }}"
@@ -57,7 +57,7 @@
 
 - name: Create pull-through cache projects
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/projects"
+    url: "https://{{ harbor_external_url }}/api/v2.0/projects"
     method: POST
     user: admin
     password: "{{ harbor_admin_password }}"
