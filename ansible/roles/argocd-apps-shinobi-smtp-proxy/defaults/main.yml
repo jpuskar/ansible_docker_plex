@@ -1,0 +1,17 @@
+---
+# shinobi-smtp-proxy ArgoCD Application Role Defaults
+
+# Namespace
+shinobi_smtp_proxy_namespace: "shinobi"
+
+# Container image
+shinobi_smtp_proxy_image: "shinobi-smtp-proxy:latest"
+
+# SMTP port
+shinobi_smtp_proxy_port: 2525
+
+# Resource requests/limits
+shinobi_smtp_proxy_resources_requests_memory: "512Mi"
+shinobi_smtp_proxy_resources_requests_cpu: "250m"
+shinobi_smtp_proxy_resources_limits_memory: "2Gi"
+shinobi_smtp_proxy_resources_limits_cpu: "1000m"

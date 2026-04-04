@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  vars:
+    cluster_name: k8s2
+  tasks:
+    - name: include tasks/1_set_vars_for_argocd_app_playbook.yml
+      include_tasks: ../tasks/1_set_vars_for_argocd_app_playbook.yml
+
+    - name: include tasks/2_clear_existing_output_dir.yml
+      include_tasks: ../tasks/2_clear_existing_output_dir.yml
+
+    - name: include shinobi-smtp-proxy role
+      include_role:
+        name: argocd-apps-shinobi-smtp-proxy
