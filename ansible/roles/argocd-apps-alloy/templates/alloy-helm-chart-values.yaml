@@ -1,3 +1,4 @@
+---
 # Grafana Alloy Helm values — Talos Linux optimized
 # DaemonSet mode for pod log collection, pushing to Loki.
 #
@@ -73,24 +74,14 @@ alloy:
       }
 
       // ============================================================
-      // Process: detect log format and parse
+      // Process: parse CRI log format (Talos always uses containerd/CRI)
       // ============================================================
       loki.process "pod_logs" {
-        // Detect CRI or Docker log format
-        stage.match {
-          selector = "{tmp_container_runtime=~\"containerd|cri-o\"}"
-          // CRI format: <timestamp> <stream> <flags> <log>
-          stage.cri {}
-        }
-
-        stage.match {
-          selector = "{tmp_container_runtime=\"docker\"}"
-          stage.docker {}
-        }
+        stage.cri {}
 
         // Label cleanup
         stage.label_drop {
-          values = ["filename", "tmp_container_runtime"]
+          values = ["filename"]
         }
 
         forward_to = [loki.write.default.receiver]
