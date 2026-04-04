@@ -90,7 +90,7 @@
 
     - name: Check if Harbor robot account exists
       uri:
-        url: "https://{{ harbor_external_url }}/api/v2.0/robots?q=name={{ harbor_robot_name }}"
+        url: "https://{{ harbor_external_url }}/api/v2.0/robots?q=name%3D{{ harbor_robot_name }}"
         method: GET
         user: admin
         password: "{{ harbor_admin_password }}"
