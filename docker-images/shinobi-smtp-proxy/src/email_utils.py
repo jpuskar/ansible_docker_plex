@@ -38,14 +38,31 @@ def decode_subject(raw_subject, fallback_subject):
 
 
 def extract_images(message):
-    """Return list of raw image bytes from a message's MIME parts."""
+    """Return list of raw image bytes from a message's MIME parts.
+    Also checks application/octet-stream parts for image magic bytes."""
     images = []
     for part in message.walk():
-        if part.get_content_type().startswith('image/'):
-            data = part.get_payload(decode=True)
-            if data:
-                images.append(data)
+        ct = part.get_content_type()
+        data = part.get_payload(decode=True)
+        if not data:
+            continue
+        if ct.startswith('image/'):
+            images.append(data)
+        elif ct == 'application/octet-stream' and _looks_like_image(data):
+            images.append(data)
     return images
+
+
+def _looks_like_image(data):
+    """Check if raw bytes start with known image magic bytes."""
+    if len(data) < 4:
+        return False
+    # JPEG, PNG, GIF, BMP, WEBP
+    return (data[:2] == b'\xff\xd8'          # JPEG
+            or data[:8] == b'\x89PNG\r\n\x1a\n'  # PNG
+            or data[:4] == b'GIF8'           # GIF
+            or data[:2] == b'BM'             # BMP
+            or data[8:12] == b'WEBP')        # WEBP
 
 
 def create_forwarded_message(original, mail_from, rcpt_tos, subject):
