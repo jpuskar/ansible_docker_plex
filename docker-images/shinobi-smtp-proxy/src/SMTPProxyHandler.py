@@ -17,8 +17,10 @@ class SMTPProxyHandler:
     and forwards survivors to the real Shinobi SMTP endpoint."""
 
     def __init__(self, forward_host, forward_port, fallback_subject,
-                 filter_keywords, ai_detection_enabled=True, confidence_threshold=0.25):
+                 filter_keywords, ai_detection_enabled=True, confidence_threshold=0.25,
+                 debug_mime=False):
         self.fallback_subject = fallback_subject
+        self.debug_mime = debug_mime
 
         detector = None
         if ai_detection_enabled:
@@ -48,6 +50,15 @@ class SMTPProxyHandler:
             password = getattr(session, 'password', None)
 
             message = email.message_from_bytes(envelope.content)
+
+            if self.debug_mime:
+                if message.is_multipart():
+                    parts = [(p.get_content_type(), len(p.get_payload(decode=True) or b''))
+                             for p in message.walk() if p.get_content_maintype() != 'multipart']
+                    log.info("MIME parts: %s", parts)
+                else:
+                    log.info("Not multipart: %s (size %d)", message.get_content_type(), len(envelope.content))
+
             original_subject = message.get('Subject', self.fallback_subject)
             subject = decode_subject(original_subject, self.fallback_subject)
 

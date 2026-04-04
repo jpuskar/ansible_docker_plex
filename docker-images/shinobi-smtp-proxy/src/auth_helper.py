@@ -35,7 +35,7 @@ def authenticator(server, session, envelope, mechanism, auth_data):
         username, password = _extract_login_password(auth_data)
         session.username = username
         session.password = password
-        log.info("AUTH %s succeeded for %s", mechanism, username)
+        log.debug("AUTH %s succeeded for %s", mechanism, username)
         return AuthResult(success=True)
 
     except Exception:

@@ -33,6 +33,7 @@ async def main():
         filter_keywords=config.get('filter_keywords', []),
         ai_detection_enabled=config.get('ai_detection_enabled', True),
         confidence_threshold=config.get('confidence_threshold', 0.25),
+        debug_mime=config.get('debug_mime', False),
     )
 
     controller = Controller(
