@@ -40,8 +40,19 @@
 
 - name: set repo_dir fact
   set_fact:
-    repo_dir: "{{ (playbook_dir ~ '/../..') | realpath }}"
+    repo_dir: "{{ (playbook_dir ~ '/../../..') | realpath }}"
 
+- name: check for repo root marker
+  stat:
+    path: "{{ repo_dir }}/ansible.cfg"
+  register: _repo_root_check
+
+- name: assert repo_dir resolved to repo root
+  assert:
+    that: _repo_root_check.stat.exists
+    fail_msg: >-
+      repo_dir '{{ repo_dir }}' does not look like the repo root
+      (ansible.cfg not found). Check playbook_dir relative path calculation.
 
 - name: create temp_dir_path
   tempfile:

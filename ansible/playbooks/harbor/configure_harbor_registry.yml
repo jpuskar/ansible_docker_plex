@@ -6,8 +6,8 @@
     cluster_name: k8s2
 
   tasks:
-    - name: Include cluster vars
-      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+    - name: include tasks/1_set_vars.yml
+      include_tasks: "{{ playbook_dir }}/../../tasks/1_set_vars.yml"
 
     - name: Get Harbor admin password from Kubernetes secret
       shell:
@@ -26,9 +26,8 @@
     - name: Extract Harbor CA certificate from root-ca-secret
       shell:
         cmd: |
-          mkdir -p {{ playbook_dir }}/../../../tmp
           kubectl get secret root-ca-secret -n cert-manager \
-            -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ playbook_dir }}/../../../tmp/harbor-ca.crt
+            -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
       changed_when: false
 
     - name: Check if Harbor project exists
@@ -39,7 +38,7 @@
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
         validate_certs: true
-        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         status_code: [200]
       register: harbor_project_check
 
@@ -51,7 +50,7 @@
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
         validate_certs: true
-        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         body_format: json
         body:
           project_name: "{{ harbor_project_name }}"
@@ -71,7 +70,7 @@
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
         validate_certs: true
-        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         status_code: [200]
       register: harbor_robot_check
 
@@ -83,7 +82,7 @@
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
         validate_certs: true
-        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         body_format: json
         body:
           name: "{{ harbor_robot_name }}"

@@ -6,11 +6,11 @@
     cluster_name: k8s2
 
   tasks:
-    - name: Include cluster vars
-      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+    - name: include tasks/1_set_vars.yml
+      include_tasks: "{{ playbook_dir }}/../../tasks/1_set_vars.yml"
 
     - name: Include harbor registry vars
-      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/harbor_registry.yml"
+      include_vars: "{{ repo_dir }}/ansible/inventory/group_vars/cluster/harbor_registry.yml"
 
     - name: Configure pull-through cache projects
       include_role:
