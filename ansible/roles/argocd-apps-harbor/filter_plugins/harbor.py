@@ -23,6 +23,9 @@ def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None):
     if fs_group is None:
         fs_group = run_as_user
 
+    # Helm output can contain stray tabs which are invalid in YAML
+    helm_output = helm_output.replace('\t', '  ')
+
     documents = list(yaml.safe_load_all(helm_output))
 
     for doc in documents:
