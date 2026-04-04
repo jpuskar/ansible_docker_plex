@@ -8,6 +8,9 @@
     - name: include tasks/1_set_vars.yml
       include_tasks: ../tasks/1_set_vars.yml
 
+    - name: Include harbor registry vars
+      include_vars: "{{ repo_dir }}/ansible/inventory/group_vars/cluster/harbor_registry.yml"
+
     - name: Get LUKS password file path from environment variable
       set_fact:
         luks_password_file_path: "{{ lookup('env', 'LUKS_PASSWORD_PATH') }}"
