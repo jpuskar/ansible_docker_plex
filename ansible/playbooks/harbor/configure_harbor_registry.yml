@@ -13,6 +13,9 @@
     - name: include tasks/1_set_vars.yml
       include_tasks: "{{ playbook_dir }}/../../tasks/1_set_vars.yml"
 
+    - name: Include harbor registry vars
+      include_vars: "{{ repo_dir }}/ansible/inventory/group_vars/cluster/harbor_registry.yml"
+
     - name: Get Harbor admin password from Kubernetes secret
       shell:
         cmd: |
