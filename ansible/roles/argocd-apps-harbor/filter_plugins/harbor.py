@@ -7,26 +7,25 @@ import yaml
 import json
 
 
-def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None, components=None):
+def harbor_patch_pod_security(helm_output, run_as_group, components=None):
     """
-    Patch podSecurityContext (runAsUser, fsGroup) on specific Harbor components.
+    Patch securityContext on specific Harbor components to set the container GID.
+
+    NFS ignores fsGroup - the process must actually run with the correct GID.
+    This patches runAsGroup in both pod and container securityContexts.
 
     Args:
         helm_output: String output from helm template
-        run_as_user: UID to set for runAsUser and fsGroup
-        fs_group: GID to set for fsGroup (defaults to run_as_user)
+        run_as_group: GID to set for runAsGroup
         components: List of component names to patch (defaults to ['harbor-registry'])
 
     Returns:
         Patched YAML string
     """
-    if fs_group is None:
-        fs_group = run_as_user
     if components is None:
         components = ['harbor-registry']
 
-    run_as_user = int(run_as_user)
-    fs_group = int(fs_group)
+    run_as_group = int(run_as_group)
 
     # Helm output can contain stray tabs which are invalid in YAML
     helm_output = helm_output.replace('\t', '  ')
@@ -45,16 +44,23 @@ def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None, component
         if name not in components:
             continue
 
-        spec = (doc.get('spec', {})
-                   .get('template', {})
-                   .get('spec', {}))
+        pod_spec = (doc.get('spec', {})
+                       .get('template', {})
+                       .get('spec', {}))
 
-        sc = spec.get('securityContext')
-        if sc is None:
-            continue
+        # Patch pod-level securityContext
+        pod_sc = pod_spec.get('securityContext')
+        if pod_sc is not None:
+            pod_sc['runAsGroup'] = run_as_group
+            pod_sc['fsGroup'] = run_as_group
 
-        if 'fsGroup' in sc:
-            sc['fsGroup'] = fs_group
+        # Patch each container's securityContext
+        for container in pod_spec.get('containers', []):
+            csc = container.get('securityContext')
+            if csc is None:
+                container['securityContext'] = {'runAsGroup': run_as_group}
+            else:
+                csc['runAsGroup'] = run_as_group
 
     output_parts = []
     for doc in documents:
