@@ -158,52 +158,20 @@ class SMTPProxyHandler:
     def _extract_credentials(self, session: Any) -> Tuple[Optional[str], Optional[str]]:
         """Extract username and password from SMTP session
 
+        Credentials are set on the session by authenticator_callback in auth_helper.py
+        as session.username and session.password.
+
         Args:
             session: SMTP session instance
 
         Returns:
             Tuple of (username, password), both may be None
         """
-        logger.info("=== SESSION DEBUG ===")
-        logger.info(f"Session ID: {id(session)}")
+        username = getattr(session, 'username', None)
+        password = getattr(session, 'password', None)
 
-        username: Optional[str] = None
-        password: Optional[str] = None
-
-        # Debug log session attributes
-        if hasattr(session, 'login_data'):
-            logger.info(f"Session login_data type: {type(session.login_data)}")
-        if hasattr(session, 'auth_data'):
-            logger.info(f"Session auth_data: {'*' * 8 if session.auth_data else 'None'}")
-        if hasattr(session, '_login_data'):
-            logger.info(f"Session _login_data: {session._login_data}")
-        if hasattr(session, 'username'):
-            logger.info(f"Session username: {session.username}")
-        if hasattr(session, 'password'):
-            logger.info(f"Session password: {'*' * 8 if session.password else 'None'}")
-        if hasattr(session, 'authenticated'):
-            logger.info(f"Session authenticated: {session.authenticated}")
-
-        # Try to extract credentials from auth_data
-        if hasattr(session, 'auth_data') and session.auth_data:
-            auth_data = session.auth_data
-            logger.info(f"Trying to extract from auth_data: {auth_data}")
-            if isinstance(auth_data, dict):
-                username = auth_data.get('username')
-                password = auth_data.get('password')
-                logger.info(
-                    f"Extracted - Username: {username}, Password: {'*' * 8 if password else 'None'}"
-                )
-
-        # Fallback to session attributes
-        if not username:
-            username = getattr(session, 'username', None)
-        if not password:
-            password = getattr(session, 'password', None)
-
-        logger.info(
-            f"Final credentials - Username: {username}, Password: {'*' * 8 if password else 'None'}"
+        logger.debug(
+            f"Extracted credentials - Username: {username}, Password: {'*' * 8 if password else 'None'}"
         )
-        logger.info("=== SESSION DEBUG END ===")
 
         return username, password

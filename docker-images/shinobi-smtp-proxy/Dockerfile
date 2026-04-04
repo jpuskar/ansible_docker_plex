@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install tini for proper init and signal handling
 # System dependencies for Pillow (image processing), OpenCV (YOLO), and tini

@@ -65,7 +65,7 @@ class ObjectDetector:
             img = Image.open(io.BytesIO(image_data))
 
             # Run YOLO detection (runs in thread pool to avoid blocking)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
                 None,
                 lambda: self.model.predict(

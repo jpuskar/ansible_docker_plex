@@ -17,6 +17,7 @@
     - kube-prometheus-stack-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
+    - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
@@ -42,6 +43,7 @@
     - kube-prometheus-stack-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
+    - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml

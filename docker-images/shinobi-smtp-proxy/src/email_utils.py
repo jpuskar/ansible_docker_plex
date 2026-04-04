@@ -126,9 +126,13 @@ def create_forwarded_message(
         for part in original_message.walk():
             content_type = part.get_content_type()
             if content_type == 'text/plain':
-                new_message.attach(MIMEText(part.get_payload(decode=False), 'plain'))
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or 'utf-8'
+                new_message.attach(MIMEText(payload.decode(charset, errors='replace'), 'plain', charset))
             elif content_type == 'text/html':
-                new_message.attach(MIMEText(part.get_payload(decode=False), 'html'))
+                payload = part.get_payload(decode=True)
+                charset = part.get_content_charset() or 'utf-8'
+                new_message.attach(MIMEText(payload.decode(charset, errors='replace'), 'html', charset))
             elif content_type.startswith('image/'):
                 # Attach image
                 img_data = part.get_payload(decode=True)

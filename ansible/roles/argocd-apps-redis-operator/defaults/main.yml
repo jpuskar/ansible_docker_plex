@@ -4,7 +4,7 @@
 # OT Redis Operator Helm chart configuration
 redis_operator_chart_repo: "https://ot-container-kit.github.io/helm-charts/"
 redis_operator_chart_name: "redis-operator"
-redis_operator_chart_version: "0.18.0"
+redis_operator_chart_version: "0.24.0"
 redis_operator_namespace: "redis-operator"
 
 # Operator configuration
@@ -21,8 +21,8 @@ redis_operator_tolerations:
 # Resource limits for operator
 redis_operator_resources:
   limits:
-    cpu: 200m
-    memory: 256Mi
+    cpu: 500m
+    memory: 500Mi
   requests:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 500m
+    memory: 500Mi

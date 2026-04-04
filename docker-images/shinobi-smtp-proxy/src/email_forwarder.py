@@ -1,3 +1,4 @@
+import asyncio
 import email
 import logging
 import smtplib
@@ -20,6 +21,31 @@ class EmailForwarder:
         self.forward_host = forward_host
         self.forward_port = forward_port
 
+    def _forward_sync(
+        self,
+        mail_from: str,
+        rcpt_tos: List[str],
+        message_data: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+    ) -> None:
+        """Synchronous SMTP forwarding (called via run_in_executor)"""
+        logger.info(f"Connecting to {self.forward_host}:{self.forward_port}")
+        with smtplib.SMTP(self.forward_host, self.forward_port) as smtp:
+            if username and password:
+                logger.info(f"Authenticating with username: ({username})")
+                smtp.login(username, password)
+            else:
+                logger.info("No authentication provided, proceeding without auth")
+
+            smtp.send_message(
+                email.message_from_string(message_data),
+                from_addr=mail_from,
+                to_addrs=rcpt_tos
+            )
+
+        logger.info(f"Successfully forwarded email to {self.forward_host}:{self.forward_port}")
+
     async def forward(
         self,
         mail_from: str,
@@ -41,23 +67,16 @@ class EmailForwarder:
             Exception: If forwarding fails
         """
         try:
-            logger.info(f"Connecting to {self.forward_host}:{self.forward_port}")
-            with smtplib.SMTP(self.forward_host, self.forward_port) as smtp:
-                # Use authentication if provided
-                if username and password:
-                    logger.info(f"Authenticating with username: ({username})")
-                    smtp.login(username, password)
-                else:
-                    logger.info("No authentication provided, proceeding without auth")
-
-                smtp.send_message(
-                    email.message_from_string(message_data),
-                    from_addr=mail_from,
-                    to_addrs=rcpt_tos
-                )
-
-            logger.info(f"Successfully forwarded email to {self.forward_host}:{self.forward_port}")
-
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None,
+                self._forward_sync,
+                mail_from,
+                rcpt_tos,
+                message_data,
+                username,
+                password,
+            )
         except Exception as e:
             logger.error(f"Failed to forward email: {e}")
             raise
