@@ -7,21 +7,23 @@ import yaml
 import json
 
 
-def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None):
+def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None, components=None):
     """
-    Patch podSecurityContext (runAsUser, fsGroup) on all Harbor Deployments
-    and StatefulSets rendered by helm template.
+    Patch podSecurityContext (runAsUser, fsGroup) on specific Harbor components.
 
     Args:
         helm_output: String output from helm template
         run_as_user: UID to set for runAsUser and fsGroup
         fs_group: GID to set for fsGroup (defaults to run_as_user)
+        components: List of component names to patch (defaults to ['harbor-registry'])
 
     Returns:
         Patched YAML string
     """
     if fs_group is None:
         fs_group = run_as_user
+    if components is None:
+        components = ['harbor-registry']
 
     run_as_user = int(run_as_user)
     fs_group = int(fs_group)
@@ -39,6 +41,10 @@ def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None):
         if kind not in ('Deployment', 'StatefulSet'):
             continue
 
+        name = doc.get('metadata', {}).get('name', '')
+        if name not in components:
+            continue
+
         spec = (doc.get('spec', {})
                    .get('template', {})
                    .get('spec', {}))
@@ -47,8 +53,6 @@ def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None):
         if sc is None:
             continue
 
-        if 'runAsUser' in sc:
-            sc['runAsUser'] = run_as_user
         if 'fsGroup' in sc:
             sc['fsGroup'] = fs_group
 
