@@ -41,6 +41,7 @@ harbor_registry_nfs_size: 100Gi
 # Harbor persistence
 harbor_registry_storage_class: "harbor-nfs-registry"
 harbor_registry_storage_size: "100Gi"
+harbor_registry_run_as_user: 2020
 harbor_jobservice_storage_class: "openebs-rawfile"
 harbor_jobservice_storage_size: "5Gi"
 harbor_trivy_storage_class: "openebs-rawfile"
