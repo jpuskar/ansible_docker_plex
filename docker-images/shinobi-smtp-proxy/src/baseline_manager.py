@@ -31,6 +31,15 @@ class CameraBuffer:
         cutoff = time.monotonic() - seconds
         return [data for ts, data in self.frames if ts >= cutoff]
 
+    def evict_stale(self, max_age):
+        """Remove frames older than max_age seconds."""
+        cutoff = time.monotonic() - max_age
+        while self.frames and self.frames[0][0] < cutoff:
+            self.frames.popleft()
+
+    def total(self):
+        return len(self.frames)
+
 
 class BaselineManager:
     """Continuously snapshots cameras, maintains rolling buffers and periodic baselines.
@@ -73,6 +82,7 @@ class BaselineManager:
         # Per-camera snapshot counters (reset each metrics interval)
         self._snap_ok = {cam_id: 0 for cam_id in cameras}
         self._snap_fail = {cam_id: 0 for cam_id in cameras}
+        self._snap_bytes = {cam_id: 0 for cam_id in cameras}
         self._metrics_interval = 10
 
         # Per-camera exponential backoff on timeout (cap 10s)
@@ -84,8 +94,8 @@ class BaselineManager:
         self._snapshot_task = asyncio.create_task(self._snapshot_loop())
         self._baseline_task = asyncio.create_task(self._baseline_loop())
         self._metrics_task = asyncio.create_task(self._metrics_loop())
-        log.info("Camera manager started: %d cameras, %ds snapshots, %ds baseline",
-                 len(self.cameras), self.snapshot_interval, self.baseline_interval)
+        log.info("Camera manager started: %d cameras, %ds snapshots, %ds baseline, path=%s",
+                 len(self.cameras), self.snapshot_interval, self.baseline_interval, SNAPSHOT_PATH)
 
     async def stop(self):
         for task in (self._snapshot_task, self._baseline_task, self._metrics_task):
@@ -107,6 +117,9 @@ class BaselineManager:
 
     async def _snapshot_all(self):
         now = time.monotonic()
+        # Evict stale frames from backed-off cameras so we don't hold old data
+        for cam_id in self.cameras:
+            self.buffers[cam_id].evict_stale(self.buffer_seconds)
         tasks = [self._grab_snapshot(cam_id, ip)
                  for cam_id, ip in self.cameras.items()
                  if now >= self._next_poll[cam_id]]
@@ -124,6 +137,7 @@ class BaselineManager:
             resp.raise_for_status()
             self.buffers[camera_id].add(resp.content)
             self._snap_ok[camera_id] += 1
+            self._snap_bytes[camera_id] += len(resp.content)
             # Success — reset backoff if we were backed off
             if self._backoff[camera_id] > 0:
                 log.info("%s recovered (was backed off %ds)", camera_id, self._backoff[camera_id])
@@ -151,6 +165,11 @@ class BaselineManager:
                        if n > 0 and self._snap_ok[c] > 0]
 
             parts = [f"{len(ok_cams)}/{len(self.cameras)} ok"]
+            if ok_cams:
+                total_bytes = sum(self._snap_bytes[c] for c in ok_cams)
+                total_snaps = sum(self._snap_ok[c] for c in ok_cams)
+                avg_kb = (total_bytes / total_snaps / 1024) if total_snaps else 0
+                parts.append(f"avg {avg_kb:.0f}KB/frame")
             if fail_cams:
                 parts.append(f"down: {', '.join(sorted(fail_cams))}")
             if partial:
@@ -161,6 +180,7 @@ class BaselineManager:
             for cam_id in self.cameras:
                 self._snap_ok[cam_id] = 0
                 self._snap_fail[cam_id] = 0
+                self._snap_bytes[cam_id] = 0
 
     # -- Baseline loop: run YOLO periodically on quiet frames --
 
@@ -180,20 +200,23 @@ class BaselineManager:
     async def _update_baseline(self, camera_id, ip):
         # Use the most recent buffered frame if available, else grab one
         buf = self.buffers.get(camera_id)
-        frames = buf.get_recent(seconds=2) if buf else []
-        if frames:
-            jpeg = frames[-1]
+        recent = buf.get_recent(seconds=2) if buf else []
+        total = buf.total() if buf else 0
+        if recent:
+            jpeg = recent[-1]
+            source = "previous frame"
         else:
             url = f'http://{ip}{SNAPSHOT_PATH}'
             client = self._clients[camera_id]
             resp = await client.get(url)
             resp.raise_for_status()
             jpeg = resp.content
+            source = "live fetch"
 
         detections = await self.detector.get_detections(jpeg)
         self.baselines[camera_id] = detections
-        if detections:
-            log.debug("Baseline for %s: %s", camera_id, detections)
+        log.debug("Baseline for %s: chose %s of %d available frames, %d detections",
+                  camera_id, source, total, len(detections))
 
     # -- Event analysis: check buffered frames in batches, middle-out --
 
