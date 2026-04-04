@@ -64,9 +64,12 @@ def create_forwarded_message(original, mail_from, rcpt_tos, subject):
             ct = part.get_content_type()
             if ct in ('text/plain', 'text/html'):
                 payload = part.get_payload(decode=True)
+                if payload is None:
+                    continue
                 charset = part.get_content_charset() or 'utf-8'
                 subtype = 'html' if ct == 'text/html' else 'plain'
-                msg.attach(MIMEText(payload.decode(charset, errors='replace'), subtype, charset))
+                text = payload.decode(charset, errors='replace')
+                msg.attach(MIMEText(text, subtype, 'utf-8'))
             elif ct.startswith('image/'):
                 data = part.get_payload(decode=True)
                 if data:

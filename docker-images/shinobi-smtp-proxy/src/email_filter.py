@@ -21,10 +21,11 @@ class EmailFilter:
                 log.info("Filtered by keyword '%s' (subject: %s)", kw, subject)
                 return True, f"keyword: {kw}"
 
-        # AI image check
+        # No images = nothing worth forwarding
         images = extract_images(message)
         if not images:
-            return False, "no images, passed"
+            log.info("Filtered: no images attached (subject: %s)", subject)
+            return True, "no images"
 
         if self.object_detector is None:
             return False, "no detector, passed"
