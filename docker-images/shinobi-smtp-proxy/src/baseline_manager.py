@@ -7,6 +7,11 @@ import httpx
 
 log = logging.getLogger('smtp-proxy')
 
+# Digest auth always does 401→retry on new connections; these cameras close
+# connections after each response, so every poll shows 401+200.  Noise.
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+
 SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi?channel=1'
 
 
@@ -58,15 +63,22 @@ class BaselineManager:
         # digest auth nonces, avoiding a 401 challenge on every request.
         self._clients = {}
         for cam_id, ip in cameras.items():
+            transport = httpx.AsyncHTTPTransport(retries=1)
             self._clients[cam_id] = httpx.AsyncClient(
                 auth=httpx.DigestAuth(username, password),
-                timeout=5,
+                timeout=1,
+                transport=transport,
             )
 
         # Per-camera snapshot counters (reset each metrics interval)
         self._snap_ok = {cam_id: 0 for cam_id in cameras}
         self._snap_fail = {cam_id: 0 for cam_id in cameras}
         self._metrics_interval = 10
+
+        # Per-camera exponential backoff on timeout (cap 10s)
+        self._backoff = {cam_id: 0 for cam_id in cameras}      # current backoff seconds
+        self._next_poll = {cam_id: 0.0 for cam_id in cameras}  # monotonic time
+        self._BACKOFF_CAP = 10
 
     async def start(self):
         self._snapshot_task = asyncio.create_task(self._snapshot_loop())
@@ -94,8 +106,10 @@ class BaselineManager:
             await asyncio.sleep(self.snapshot_interval)
 
     async def _snapshot_all(self):
+        now = time.monotonic()
         tasks = [self._grab_snapshot(cam_id, ip)
-                 for cam_id, ip in self.cameras.items()]
+                 for cam_id, ip in self.cameras.items()
+                 if now >= self._next_poll[cam_id]]
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _grab_snapshot(self, camera_id, ip):
@@ -103,9 +117,24 @@ class BaselineManager:
             url = f'http://{ip}{SNAPSHOT_PATH}'
             client = self._clients[camera_id]
             resp = await client.get(url)
+            if resp.status_code == 401:
+                log.warning("Auth failed (real 401) for %s — check credentials", camera_id)
+                self._snap_fail[camera_id] += 1
+                return
             resp.raise_for_status()
             self.buffers[camera_id].add(resp.content)
             self._snap_ok[camera_id] += 1
+            # Success — reset backoff if we were backed off
+            if self._backoff[camera_id] > 0:
+                log.info("%s recovered (was backed off %ds)", camera_id, self._backoff[camera_id])
+                self._backoff[camera_id] = 0
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            self._snap_fail[camera_id] += 1
+            prev = self._backoff[camera_id]
+            self._backoff[camera_id] = min(max(prev * 2, 1), self._BACKOFF_CAP)
+            self._next_poll[camera_id] = time.monotonic() + self._backoff[camera_id]
+            log.info("%s timeout, backoff %ds (was %ds): %s",
+                     camera_id, self._backoff[camera_id], prev, type(exc).__name__)
         except Exception:
             self._snap_fail[camera_id] += 1
             log.debug("Snapshot failed for %s", camera_id, exc_info=True)
