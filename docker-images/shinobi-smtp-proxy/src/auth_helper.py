@@ -53,32 +53,42 @@ def authenticator_callback(server, session, envelope, mechanism, auth_data):
                 return AuthResult(success=False, message="Login processing error")
 
         elif mechanism == 'PLAIN':
-            # For PLAIN, auth_data should be decoded
+            # In newer aiosmtpd, auth_data is a LoginPassword namedtuple
             try:
-                if isinstance(auth_data, str):
-                    # Decode base64 if needed
-                    try:
-                        decoded = base64.b64decode(auth_data).decode('utf-8')
-                    except:
-                        decoded = auth_data
-                else:
-                    decoded = str(auth_data)
+                if hasattr(auth_data, 'login') and hasattr(auth_data, 'password'):
+                    username = auth_data.login
+                    password = auth_data.password
 
-                parts = decoded.split('\x00')
-                logger.info(f"PLAIN auth parts: {len(parts)}")
+                    if isinstance(username, bytes):
+                        username = username.decode('utf-8')
+                    if isinstance(password, bytes):
+                        password = password.decode('utf-8')
 
-                if len(parts) >= 3:
-                    username = parts[1]
-                    password = parts[2]
-
-                    # Store credentials in session
                     session.username = username
                     session.password = password
 
                     logger.info(f"PLAIN auth - Username: {username}, Password: {'*' * 8}")
                     return AuthResult(success=True)
+                elif isinstance(auth_data, str):
+                    # Legacy fallback: raw PLAIN string
+                    try:
+                        decoded = base64.b64decode(auth_data).decode('utf-8')
+                    except Exception:
+                        decoded = auth_data
+
+                    parts = decoded.split('\x00')
+                    if len(parts) >= 3:
+                        username = parts[1]
+                        password = parts[2]
+                        session.username = username
+                        session.password = password
+                        logger.info(f"PLAIN auth (legacy) - Username: {username}, Password: {'*' * 8}")
+                        return AuthResult(success=True)
+                    else:
+                        logger.error(f"PLAIN auth failed - insufficient parts")
+                        return AuthResult(success=False, message="Invalid PLAIN format")
                 else:
-                    logger.error(f"PLAIN auth failed - insufficient parts: {parts}")
+                    logger.error(f"PLAIN auth failed - unexpected auth_data type: {type(auth_data)}")
                     return AuthResult(success=False, message="Invalid PLAIN format")
 
             except Exception as plain_err:

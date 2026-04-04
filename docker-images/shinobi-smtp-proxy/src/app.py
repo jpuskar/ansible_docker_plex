@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 # consistently (fixes aiosmtpd's smtp.py:372 UserWarning going to raw stderr)
 logging.captureWarnings(True)
 
+# Suppress the repetitive aiosmtpd TLS warning — it fires on every new connection
+import warnings
+warnings.filterwarnings('once', message='Requiring AUTH while not requiring TLS')
+
 
 async def main():
     handler = SMTPProxyHandler(
