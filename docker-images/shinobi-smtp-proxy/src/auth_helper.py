@@ -1,8 +1,7 @@
 import base64
 import logging
 
-from aiosmtpd.controller import Controller
-from aiosmtpd.smtp import SMTP as AuthResult
+from aiosmtpd.smtp import AuthResult
 
 
 logger = logging.getLogger(__name__)
