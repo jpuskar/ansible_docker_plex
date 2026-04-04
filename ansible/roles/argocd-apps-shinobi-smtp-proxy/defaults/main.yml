@@ -5,7 +5,7 @@
 shinobi_smtp_proxy_namespace: "shinobi"
 
 # Container image
-shinobi_smtp_proxy_image: "shinobi-smtp-proxy:latest"
+shinobi_smtp_proxy_image: "harbor.spaceskippy.net/library/shinobi-smtp-proxy:latest"
 
 # SMTP port
 shinobi_smtp_proxy_port: 2525
