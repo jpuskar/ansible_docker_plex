@@ -1,3 +1,4 @@
+#jinja2:variable_start_string:'[%', variable_end_string:'%]'
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -7,7 +8,7 @@ metadata:
     policies.kyverno.io/category: Other
     policies.kyverno.io/severity: medium
     policies.kyverno.io/description: >-
-      Replaces {{ kyverno_domain_placeholder }} with {{ kyverno_domain_actual }} in all Ingress host fields.
+      Replaces [% kyverno_domain_placeholder %] with [% kyverno_domain_actual %] in all Ingress host fields.
 spec:
   background: false
   rules:
@@ -21,9 +22,9 @@ spec:
         foreach:
           - list: "request.object.spec.rules"
             patchesJson6902: |-
-              - path: /spec/rules/{% raw %}{{ elementIndex }}{% endraw %}/host
+              - path: /spec/rules/{{ elementIndex }}/host
                 op: replace
-                value: "{% raw %}{{ regex_replace_all('{% endraw %}{{ kyverno_domain_placeholder }}{% raw %}', '{{ element.host }}', '{% endraw %}{{ kyverno_domain_actual }}{% raw %}') }}{% endraw %}"
+                value: "{{ regex_replace_all('[% kyverno_domain_placeholder %]', '{{ element.host }}', '[% kyverno_domain_actual %]') }}"
     - name: replace-domain-in-tls
       match:
         any:
@@ -36,9 +37,9 @@ spec:
             foreach:
               - list: "element.hosts"
                 patchesJson6902: |-
-                  - path: /spec/tls/{% raw %}{{ elementIndex0 }}{% endraw %}/hosts/{% raw %}{{ elementIndex1 }}{% endraw %}
+                  - path: /spec/tls/{{ elementIndex0 }}/hosts/{{ elementIndex1 }}
                     op: replace
-                    value: "{% raw %}{{ regex_replace_all('{% endraw %}{{ kyverno_domain_placeholder }}{% raw %}', '{{ element }}', '{% endraw %}{{ kyverno_domain_actual }}{% raw %}') }}{% endraw %}"
+                    value: "{{ regex_replace_all('[% kyverno_domain_placeholder %]', '{{ element }}', '[% kyverno_domain_actual %]') }}"
     - name: replace-domain-in-configmaps
       match:
         any:
@@ -51,6 +52,6 @@ spec:
         foreach:
           - list: "request.object.data | keys(@)"
             patchesJson6902: |-
-              - path: /data/{% raw %}{{ element }}{% endraw %}
+              - path: /data/{{ element }}
                 op: replace
-                value: "{% raw %}{{ regex_replace_all('{% endraw %}{{ kyverno_domain_placeholder }}{% raw %}', '{{ request.object.data.\"{{ element }}\" }}', '{% endraw %}{{ kyverno_domain_actual }}{% raw %}') }}{% endraw %}"
+                value: "{{ regex_replace_all('[% kyverno_domain_placeholder %]', '{{ request.object.data.\"{{ element }}\" }}', '[% kyverno_domain_actual %]') }}"
