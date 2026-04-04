@@ -7,7 +7,7 @@
 # Harbor Helm chart configuration
 harbor_chart_repo: "https://helm.goharbor.io"
 harbor_chart_name: "harbor"
-harbor_chart_version: "1.18.1"
+harbor_chart_version: "1.18.3"
 harbor_namespace: "harbor"
 
 # PostgreSQL configuration

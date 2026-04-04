@@ -90,7 +90,7 @@
 
     - name: Create Harbor robot account for Talos
       uri:
-        url: "https://{{ harbor_external_url }}/api/v2.0/robots"
+        url: "https://{{ harbor_external_url }}/api/v2.0/projects/{{ harbor_project_name }}/robots"
         method: POST
         user: admin
         password: "{{ harbor_admin_password }}"
@@ -102,7 +102,7 @@
           name: "{{ harbor_robot_name }}"
           description: "Robot account for Talos image pulls"
           duration: -1
-          level: "system"
+          level: "project"
           disable: false
           permissions:
             - kind: "project"
