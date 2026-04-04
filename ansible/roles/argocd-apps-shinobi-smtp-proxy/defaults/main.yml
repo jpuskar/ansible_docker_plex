@@ -5,7 +5,7 @@
 shinobi_smtp_proxy_namespace: "shinobi"
 
 # Container image
-shinobi_smtp_proxy_image: "harbor.spaceskippy.net/library/shinobi-smtp-proxy:latest"
+shinobi_smtp_proxy_image: "{{ harbor_external_url }}/library/shinobi-smtp-proxy:latest"
 
 # SMTP port
 shinobi_smtp_proxy_port: 2525
@@ -17,4 +17,10 @@ shinobi_smtp_proxy_resources_limits_memory: "2Gi"
 shinobi_smtp_proxy_resources_limits_cpu: "1000m"
 
 # LoadBalancer IP (Cilium LB-IPAM) — shinobi-smtp-proxy.spaceskippy.net
-shinobi_smtp_proxy_loadbalancer_ip: "CHANGEME_VAULT_ENCRYPT"
+shinobi_smtp_proxy_loadbalancer_ip: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  63633130326433393962623062623431383435366333306335643364623666333231623936316563
+  6132336530396638363632393762633036336436373165660a333732363935316162616631663463
+  32333030633934316162373736373035353066393532376333643833653565306430363361336631
+  6233633134313762380a643966323464303866323737633461356432653136373933336164656237
+  3663
