@@ -37,6 +37,25 @@
             -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
       changed_when: false
 
+    - name: Verify CA certificate was extracted
+      stat:
+        path: "{{ temp_dir }}/harbor-ca.crt"
+      register: ca_cert_stat
+
+    - name: Read CA certificate content
+      slurp:
+        src: "{{ temp_dir }}/harbor-ca.crt"
+      register: ca_cert_content
+      when: ca_cert_stat.stat.exists
+
+    - name: Assert CA certificate is valid
+      assert:
+        that:
+          - ca_cert_stat.stat.exists
+          - ca_cert_stat.stat.size > 0
+          - "(ca_cert_content.content | b64decode) is search('BEGIN CERTIFICATE')"
+        fail_msg: "CA cert at {{ temp_dir }}/harbor-ca.crt is missing or invalid (exists: {{ ca_cert_stat.stat.exists }}, size: {{ ca_cert_stat.stat.size | default(0) }})"
+
     - name: Check if Harbor project exists
       uri:
         url: "https://{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
