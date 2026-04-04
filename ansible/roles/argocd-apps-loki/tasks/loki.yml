@@ -29,5 +29,5 @@
 
 - name: write output manifests for helm template
   copy:
-    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map) if harbor_proxy_images_enabled | default(false) else helm_template_command.stdout }}"
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
     dest: "{{ output_dir_path }}/loki-helm-manifests.yaml"

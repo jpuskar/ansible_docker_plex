@@ -6,7 +6,7 @@ so that pulls go through the Harbor pull-through proxy instead of hitting
 upstream registries directly.
 
 Usage in a task:
-  content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map) }}"
+  content: "{{ helm_output | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
 """
 
 import re
@@ -16,6 +16,17 @@ import yaml
 # Registries that are implied when an image has no explicit registry prefix.
 # "nginx:latest" really means "docker.io/library/nginx:latest".
 _DEFAULT_REGISTRY = "docker.io"
+
+
+# SafeLoader subclass that handles YAML merge keys and value tags
+# that appear in Helm output (e.g. kube-prometheus-stack recording rules).
+class _SafeLoaderWithValueTag(yaml.SafeLoader):
+    pass
+
+_SafeLoaderWithValueTag.add_constructor(
+    'tag:yaml.org,2002:value',
+    lambda loader, node: loader.construct_scalar(node),
+)
 
 
 def _parse_image(image_ref):
@@ -73,7 +84,7 @@ def _rewrite_image(image_ref, registry_map):
     return target + "/" + path + tag_or_digest
 
 
-def harbor_rewrite_images(helm_output, registry_map):
+def harbor_rewrite_images(helm_output, registry_map, enabled=True):
     """
     Rewrite all container image references in rendered Kubernetes YAML.
 
@@ -85,17 +96,19 @@ def harbor_rewrite_images(helm_output, registry_map):
         helm_output: String — rendered multi-document YAML from helm template
         registry_map: Dict — maps upstream registry to Harbor proxy URL
                       e.g. {"docker.io": "harbor.example.com/dockerhub", ...}
+        enabled: Bool — when False, returns helm_output unchanged (avoids
+                 YAML parsing entirely so the filter is safe to call always)
 
     Returns:
         Rewritten YAML string
     """
-    if not registry_map:
+    if not enabled or not registry_map:
         return helm_output
 
     # Helm output may contain stray tabs
     helm_output = helm_output.replace('\t', '  ')
 
-    documents = list(yaml.safe_load_all(helm_output))
+    documents = list(yaml.load_all(helm_output, Loader=_SafeLoaderWithValueTag))
 
     for doc in documents:
         if not doc:
