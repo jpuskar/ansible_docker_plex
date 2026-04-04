@@ -1,0 +1,32 @@
+---
+# GoDaddy DDNS ArgoCD Application Role Defaults
+
+# Namespace
+godaddy_ddns_namespace: "godaddy-ddns"
+
+# Container image
+godaddy_ddns_image: "jpuskar/godaddy-ddns:latest"
+
+# GoDaddy DDNS configuration — vault-encrypt these values
+# The config file format expected by the image is:
+#   <domain>
+#   --key
+#   <godaddy_api_key>
+#   --secret
+#   <godaddy_api_secret>
+godaddy_ddns_domain: "CHANGEME_VAULT_ENCRYPT"
+godaddy_ddns_api_key: "CHANGEME_VAULT_ENCRYPT"
+godaddy_ddns_api_secret: "CHANGEME_VAULT_ENCRYPT"
+
+# Resource requests/limits — extremely lightweight workload
+godaddy_ddns_resources_requests_cpu: "10m"
+godaddy_ddns_resources_requests_memory: "32Mi"
+godaddy_ddns_resources_limits_cpu: "50m"
+godaddy_ddns_resources_limits_memory: "64Mi"
+
+# CronJob schedule (default every 5 minutes)
+godaddy_ddns_schedule: "*/5 * * * *"
+
+# Keep last N successful/failed jobs for debugging
+godaddy_ddns_successful_jobs_history: 1
+godaddy_ddns_failed_jobs_history: 3

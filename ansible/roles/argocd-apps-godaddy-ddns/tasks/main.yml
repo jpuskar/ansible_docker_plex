@@ -1,0 +1,15 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Template out godaddy-config secret
+  template:
+    src: godaddy-config-secret.yaml
+    dest: "{{ output_dir_path }}/godaddy-config-secret.yaml"
+
+- name: Template out godaddy-ddns cronjob
+  template:
+    src: godaddy-ddns-cronjob.yaml
+    dest: "{{ output_dir_path }}/godaddy-ddns-cronjob.yaml"

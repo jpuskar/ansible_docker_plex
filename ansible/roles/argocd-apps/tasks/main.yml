@@ -20,6 +20,7 @@
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
     - unifi-application.yaml
+    - godaddy-ddns-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -47,6 +48,7 @@
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
     - unifi-application.yaml
+    - godaddy-ddns-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
