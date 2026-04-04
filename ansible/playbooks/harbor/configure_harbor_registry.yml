@@ -88,18 +88,6 @@
         status_code: [201, 409]
       when: harbor_project_check.json | length == 0
 
-    - name: Check if Harbor robot account exists
-      uri:
-        url: "https://{{ harbor_external_url }}/api/v2.0/robots?q=name%3D{{ harbor_robot_name }}"
-        method: GET
-        user: admin
-        password: "{{ harbor_admin_password }}"
-        force_basic_auth: yes
-        validate_certs: true
-        ca_path: "{{ temp_dir }}/harbor-ca.crt"
-        status_code: [200]
-      register: harbor_robot_check
-
     - name: Create Harbor robot account for Talos
       uri:
         url: "https://{{ harbor_external_url }}/api/v2.0/robots"
@@ -124,9 +112,8 @@
                   action: "pull"
                 - resource: "repository"
                   action: "push"
-        status_code: [201]
+        status_code: [201, 409]
       register: harbor_robot_create
-      when: harbor_robot_check.json | length == 0
       no_log: true
 
     - name: Create Kubernetes secret with robot credentials
@@ -143,7 +130,7 @@
             username: "{{ harbor_robot_create.json.name }}"
             password: "{{ harbor_robot_create.json.secret }}"
             registry-url: "{{ harbor_external_url }}"
-      when: harbor_robot_create is changed
+      when: harbor_robot_create.status == 201
       no_log: true
 
     - name: Display completion info
