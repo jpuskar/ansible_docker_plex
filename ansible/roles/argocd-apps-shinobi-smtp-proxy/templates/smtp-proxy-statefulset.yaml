@@ -47,10 +47,6 @@ spec:
             httpGet:
               path: /healthz
               port: {{ shinobi_smtp_proxy_health_port }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
       volumes:
         - name: config
           configMap:
