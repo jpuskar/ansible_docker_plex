@@ -7,7 +7,7 @@
 
   tasks:
     - name: Include cluster vars
-      include_vars: "../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/{{ cluster_name }}.yml"
 
     - name: Get Harbor admin password from Kubernetes secret
       shell:

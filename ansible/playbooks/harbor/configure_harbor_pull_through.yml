@@ -7,10 +7,10 @@
 
   tasks:
     - name: Include cluster vars
-      include_vars: "../../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/{{ cluster_name }}.yml"
 
     - name: Include harbor registry vars
-      include_vars: "../../inventory/group_vars/cluster/harbor_registry.yml"
+      include_vars: "{{ playbook_dir }}/../../inventory/group_vars/cluster/harbor_registry.yml"
 
     - name: Configure pull-through cache projects
       include_role:
