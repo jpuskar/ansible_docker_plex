@@ -1,6 +1,6 @@
 ---
 # Kyverno Helm chart configuration
-kyverno_version: "3.6.1"  # Chart version
+kyverno_version: "3.7.1"  # Chart version
 kyverno_namespace: "kyverno"
 kyverno_repo_url: "https://kyverno.github.io/kyverno/"
 kyverno_chart_name: "kyverno/kyverno"
