@@ -72,3 +72,6 @@
 # Ansible group_vars
 - name: include cluster vars
   include_vars: "{{ (repo_dir ~ '/ansible/inventory/group_vars/cluster/' ~ cluster_name ~ '.yml') | realpath }}"
+
+- name: include harbor registry vars
+  include_vars: "{{ (repo_dir ~ '/ansible/inventory/group_vars/cluster/harbor_registry.yml') | realpath }}"

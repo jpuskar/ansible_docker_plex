@@ -12,3 +12,23 @@ harbor_project_severity: "low"
 
 # Robot account name for Talos pulls
 harbor_robot_name: "talos-puller"
+
+# ── Image proxy rewrite (phase 2) ──────────────────────────────────
+# When enabled, rendered helm manifests for post-Harbor apps are
+# rewritten so every container image pulls through Harbor's proxy
+# cache instead of hitting upstream registries directly.
+harbor_proxy_images_enabled: true
+
+# Map upstream registry → Harbor pull-through project path.
+# Keys are the registry prefixes that appear in image references;
+# values are the Harbor project URL that proxies that registry.
+# Images with no explicit registry (implies docker.io/library/) are
+# handled by the "docker.io" entry.
+harbor_registry_map:
+  "docker.io": "{{ harbor_external_url }}/dockerhub"
+  "registry-1.docker.io": "{{ harbor_external_url }}/dockerhub"
+  "ghcr.io": "{{ harbor_external_url }}/ghcr"
+  "quay.io": "{{ harbor_external_url }}/quay"
+  "gcr.io": "{{ harbor_external_url }}/gcr"
+  "k8s.gcr.io": "{{ harbor_external_url }}/k8sgcr"
+  "registry.k8s.io": "{{ harbor_external_url }}/registryk8s"

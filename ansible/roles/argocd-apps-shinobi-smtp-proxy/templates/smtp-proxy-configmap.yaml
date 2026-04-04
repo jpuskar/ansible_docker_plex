@@ -6,4 +6,4 @@ metadata:
   namespace: {{ shinobi_smtp_proxy_namespace }}
 data:
   config.yaml: |-
-    {{ lookup('file', '../files/smtp-proxy-config.yaml') | indent(4, False) }}
+    {{ lookup('template', 'smtp-proxy-config.yaml.j2') | indent(4, False) }}

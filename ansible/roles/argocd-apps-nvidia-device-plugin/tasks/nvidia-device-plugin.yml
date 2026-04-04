@@ -37,5 +37,5 @@
 
 - name: write output manifests for helm template
   copy:
-    content: "{{ patched_manifests }}"
+    content: "{{ patched_manifests | harbor_rewrite_images(harbor_registry_map) if harbor_proxy_images_enabled | default(false) else patched_manifests }}"
     dest: "{{ output_dir_path }}/nvidia-device-plugin-helm-manifests.yaml"
