@@ -54,6 +54,15 @@ class BaselineManager:
         self._baseline_task = None
         self._metrics_task = None
 
+        # Persistent httpx clients per camera — reuses TCP connections and
+        # digest auth nonces, avoiding a 401 challenge on every request.
+        self._clients = {}
+        for cam_id, ip in cameras.items():
+            self._clients[cam_id] = httpx.AsyncClient(
+                auth=httpx.DigestAuth(username, password),
+                timeout=5,
+            )
+
         # Per-camera snapshot counters (reset each metrics interval)
         self._snap_ok = {cam_id: 0 for cam_id in cameras}
         self._snap_fail = {cam_id: 0 for cam_id in cameras}
@@ -74,6 +83,8 @@ class BaselineManager:
                     await task
                 except asyncio.CancelledError:
                     pass
+        for client in self._clients.values():
+            await client.aclose()
 
     # -- Snapshot loop: grab JPEGs into ring buffers --
 
@@ -90,10 +101,9 @@ class BaselineManager:
     async def _grab_snapshot(self, camera_id, ip):
         try:
             url = f'http://{ip}{SNAPSHOT_PATH}'
-            auth = httpx.DigestAuth(self.username, self.password)
-            async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.get(url, auth=auth)
-                resp.raise_for_status()
+            client = self._clients[camera_id]
+            resp = await client.get(url)
+            resp.raise_for_status()
             self.buffers[camera_id].add(resp.content)
             self._snap_ok[camera_id] += 1
         except Exception:
@@ -144,10 +154,9 @@ class BaselineManager:
             jpeg = frames[-1]
         else:
             url = f'http://{ip}{SNAPSHOT_PATH}'
-            auth = httpx.DigestAuth(self.username, self.password)
-            async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.get(url, auth=auth)
-                resp.raise_for_status()
+            client = self._clients[camera_id]
+            resp = await client.get(url)
+            resp.raise_for_status()
             jpeg = resp.content
 
         detections = await self.detector.get_detections(jpeg)

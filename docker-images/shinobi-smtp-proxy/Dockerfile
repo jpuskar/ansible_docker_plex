@@ -29,7 +29,8 @@ COPY src/ ./src/
 
 # Create non-root user for security
 RUN useradd -r -u 1001 -m -s /bin/bash smtpproxy && \
-    chown -R smtpproxy:smtpproxy /app
+    chown -R smtpproxy:smtpproxy /app && \
+    chown -R smtpproxy:smtpproxy /tmp/Ultralytics
 
 # Create config directory (will be mounted as volume)
 RUN mkdir -p /config && chown smtpproxy:smtpproxy /config
