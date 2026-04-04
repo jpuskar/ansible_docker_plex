@@ -53,10 +53,10 @@ class SMTPProxyHandler:
 
             should_filter, reason = await self.email_filter.should_filter(message, subject)
             if should_filter:
-                log.info("Filtered: %s", reason)
+                log.info("Filtered: %s (subject: %s)", reason, subject)
                 return '250 OK'
 
-            log.info("Forwarding email (subject: %s)", subject)
+            log.info("Passed filter: %s (subject: %s)", reason, subject)
             new_message = create_forwarded_message(
                 message, envelope.mail_from, envelope.rcpt_tos, subject)
 
