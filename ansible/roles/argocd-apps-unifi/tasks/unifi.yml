@@ -1,0 +1,20 @@
+---
+- name: Template out Unifi Helm values to temp dir
+  template:
+    src: unifi-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/unifi-values.yaml"
+
+- name: Generate Unifi manifests using helm template (OCI chart)
+  shell:
+    cmd: |-
+      helm template unifi {{ unifi_chart_oci }} \
+        --version {{ unifi_chart_version }} \
+        --namespace {{ unifi_namespace }} \
+        --values {{ temp_dir_path }}/unifi-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for Unifi helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/unifi-helm-manifests.yaml"

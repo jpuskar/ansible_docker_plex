@@ -1,0 +1,33 @@
+---
+- name: Template out MongoDB Helm values to temp dir
+  template:
+    src: mongodb-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/mongodb-values.yaml"
+
+- name: Add Bitnami Helm repository
+  shell:
+    cmd: |-
+      helm repo add bitnami {{ unifi_mongodb_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm bitnami repository
+  shell:
+    cmd: |-
+      helm repo update bitnami
+  changed_when: false
+
+- name: Generate MongoDB manifests using helm template
+  shell:
+    cmd: |-
+      helm template unifi-mongodb bitnami/{{ unifi_mongodb_chart_name }} \
+        --version {{ unifi_mongodb_chart_version }} \
+        --namespace {{ unifi_namespace }} \
+        --values {{ temp_dir_path }}/mongodb-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for MongoDB helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/mongodb-helm-manifests.yaml"

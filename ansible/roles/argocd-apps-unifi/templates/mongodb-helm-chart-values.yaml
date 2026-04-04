@@ -1,0 +1,35 @@
+---
+# Bitnami MongoDB Helm values for Unifi
+# Standalone instance, no auth (matching original microk8s deployment)
+
+architecture: standalone
+
+auth:
+  enabled: false
+
+persistence:
+  enabled: true
+  storageClass: "{{ unifi_mongodb_storage_class }}"
+  size: {{ unifi_mongodb_storage_size }}
+  accessModes:
+    - ReadWriteOnce
+
+image:
+  registry: docker.io
+  repository: bitnami/mongodb
+  tag: "7.0"
+
+resources:
+  requests:
+    cpu: "{{ unifi_mongodb_resources_requests_cpu }}"
+    memory: "{{ unifi_mongodb_resources_requests_memory }}"
+  limits:
+    cpu: "{{ unifi_mongodb_resources_limits_cpu }}"
+    memory: "{{ unifi_mongodb_resources_limits_memory }}"
+
+podSecurityContext:
+  fsGroup: 1001
+
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001

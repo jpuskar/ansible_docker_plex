@@ -1,0 +1,66 @@
+---
+# mkilchhofer/unifi-chart Helm values
+# Migrated from microk8s unifi-5.1.2 (k8s-at-home) to mkilchhofer/unifi-chart 1.16.0
+
+timezone: "{{ unifi_timezone }}"
+
+jvmMaxHeapSize: "{{ unifi_jvm_max_heap_size }}"
+
+runAsRoot: {{ unifi_run_as_root | lower }}
+UID: {{ unifi_uid }}
+GID: {{ unifi_gid }}
+
+# External MongoDB (deployed separately via bitnami/mongodb)
+mongodb:
+  enabled: true
+  dbUri: "mongodb://unifi-mongodb.{{ unifi_namespace }}.svc:27017/unifi"
+  statDbUri: "mongodb://unifi-mongodb.{{ unifi_namespace }}.svc:27017/unifi_stat"
+  databaseName: "unifi"
+
+# Persistence — NFS-backed storage
+persistence:
+  enabled: true
+  storageClass: "{{ unifi_nfs_storage_class }}"
+  size: "{{ unifi_data_nfs_size }}"
+  accessMode: ReadWriteOnce
+  skipuninstall: true
+
+# Strategy — Recreate (single replica, NFS-backed)
+strategyType: Recreate
+
+# Unified LoadBalancer service (all ports via single LB IP)
+# Replaces the separate ClusterIP + MetalLB Service from microk8s
+unifiedService:
+  enabled: true
+  type: LoadBalancer
+  annotations:
+    io.cilium/lb-ipam-ips: "{{ unifi_loadbalancer_ip }}"
+
+# Disable individual services (unified handles all)
+guiService:
+  enabled: false
+controllerService:
+  enabled: false
+discoveryService:
+  enabled: false
+stunService:
+  enabled: false
+syslogService:
+  enabled: false
+speedtestService:
+  enabled: false
+captivePortalService:
+  enabled: false
+
+# Ingress disabled — using unified LoadBalancer
+ingress:
+  enabled: false
+
+# Resources — sized for small site (~4 devices)
+resources:
+  requests:
+    cpu: "{{ unifi_resources_requests_cpu }}"
+    memory: "{{ unifi_resources_requests_memory }}"
+  limits:
+    cpu: "{{ unifi_resources_limits_cpu }}"
+    memory: "{{ unifi_resources_limits_memory }}"
