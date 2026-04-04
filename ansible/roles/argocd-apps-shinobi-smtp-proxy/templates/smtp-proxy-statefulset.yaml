@@ -22,6 +22,9 @@ spec:
             - containerPort: {{ shinobi_smtp_proxy_port }}
               name: smtp
               protocol: TCP
+            - containerPort: {{ shinobi_smtp_proxy_health_port }}
+              name: health
+              protocol: TCP
           volumeMounts:
             - name: config
               mountPath: /config
@@ -33,15 +36,17 @@ spec:
               memory: "{{ shinobi_smtp_proxy_resources_limits_memory }}"
               cpu: "{{ shinobi_smtp_proxy_resources_limits_cpu }}"
           livenessProbe:
-            tcpSocket:
-              port: {{ shinobi_smtp_proxy_port }}
+            httpGet:
+              path: /healthz
+              port: {{ shinobi_smtp_proxy_health_port }}
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            tcpSocket:
-              port: {{ shinobi_smtp_proxy_port }}
+            httpGet:
+              path: /healthz
+              port: {{ shinobi_smtp_proxy_health_port }}
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5

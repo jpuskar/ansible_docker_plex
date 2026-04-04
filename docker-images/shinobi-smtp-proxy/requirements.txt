@@ -1,3 +1,4 @@
+aiohttp
 aiosmtpd
 numpy
 pillow

@@ -48,9 +48,9 @@ ENV PYTHONUNBUFFERED=1
 # Expose SMTP proxy port
 EXPOSE 2525
 
-# Health check - verify the process is running
+# Health check - verify the health endpoint responds
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import socket; s=socket.socket(); s.connect(('localhost', 2525)); s.close()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')" || exit 1
 
 # Use tini as init system for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]

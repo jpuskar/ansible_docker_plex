@@ -10,6 +10,9 @@ shinobi_smtp_proxy_image: "{{ harbor_external_url }}/library/shinobi-smtp-proxy:
 # SMTP port
 shinobi_smtp_proxy_port: 2525
 
+# Health check port
+shinobi_smtp_proxy_health_port: 8080
+
 # Resource requests/limits
 shinobi_smtp_proxy_resources_requests_memory: "512Mi"
 shinobi_smtp_proxy_resources_requests_cpu: "250m"

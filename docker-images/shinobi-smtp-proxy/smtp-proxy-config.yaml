@@ -2,6 +2,9 @@
 listen_host: "0.0.0.0"
 listen_port: 2525
 
+# Health check endpoint
+health_port: 8080
+
 # Shinobi SMTP Server
 forward_host: "shinobi.shinobi.svc.cluster.local"
 forward_port: 2525
