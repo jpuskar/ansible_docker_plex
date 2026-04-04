@@ -9,6 +9,11 @@
     src: smtp-proxy-configmap.yaml
     dest: "{{ output_dir_path }}/smtp-proxy-configmap.yaml"
 
+- name: Template out smtp-proxy camera credentials secret
+  template:
+    src: smtp-proxy-secret.yaml
+    dest: "{{ output_dir_path }}/smtp-proxy-secret.yaml"
+
 - name: Template out smtp-proxy service
   template:
     src: smtp-proxy-service.yaml

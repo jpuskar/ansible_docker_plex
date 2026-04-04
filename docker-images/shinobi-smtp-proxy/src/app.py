@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import warnings
 import yaml
 
@@ -44,8 +45,8 @@ async def main():
         )
         baseline_manager = BaselineManager(
             cameras=cameras_cfg,
-            username=config.get('camera_username', 'admin'),
-            password=config.get('camera_password', ''),
+            username=os.environ.get('CAMERA_USERNAME', config.get('camera_username', 'admin')),
+            password=os.environ.get('CAMERA_PASSWORD', config.get('camera_password', '')),
             detector=detector,
             snapshot_interval=config.get('snapshot_interval', 1),
             buffer_seconds=config.get('buffer_seconds', 10),

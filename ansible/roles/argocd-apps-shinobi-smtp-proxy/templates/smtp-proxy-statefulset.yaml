@@ -18,6 +18,17 @@ spec:
       containers:
         - name: smtp-proxy
           image: {{ shinobi_smtp_proxy_image }}
+          env:
+            - name: CAMERA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: camera-username
+            - name: CAMERA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: camera-password
           ports:
             - containerPort: {{ shinobi_smtp_proxy_port }}
               name: smtp

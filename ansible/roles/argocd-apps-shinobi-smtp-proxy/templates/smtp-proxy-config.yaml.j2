@@ -38,11 +38,8 @@ position_tolerance: {{ shinobi_smtp_proxy_position_tolerance }}  # 0-1, how clos
 snapshot_interval: {{ shinobi_smtp_proxy_snapshot_interval }}  # seconds between snapshots per camera
 buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}  # how many seconds of snapshots to keep
 
-# Camera credentials (shared across all cameras)
-camera_username: "{{ shinobi_smtp_proxy_camera_username }}"
-camera_password: "{{ shinobi_smtp_proxy_camera_password }}"
-
 # Camera IPs keyed by sender email prefix (e.g. camnorthtoeast -> 192.168.x.x)
+# Credentials come from CAMERA_USERNAME / CAMERA_PASSWORD env vars (Secret)
 cameras:
 {% for cam_id, cam_ip in shinobi_smtp_proxy_cameras.items() %}
   {{ cam_id }}: "{{ cam_ip }}"
