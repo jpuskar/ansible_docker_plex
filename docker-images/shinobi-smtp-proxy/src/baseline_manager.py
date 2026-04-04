@@ -12,7 +12,7 @@ log = logging.getLogger('smtp-proxy')
 logging.getLogger('httpx').setLevel(logging.WARNING)
 logging.getLogger('httpcore').setLevel(logging.WARNING)
 
-SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi?channel=1'
+SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi?channel=1&subtype=1'
 
 
 class CameraBuffer:
