@@ -150,12 +150,12 @@ talos_images_info:
 # Default image requirements (can be overridden per-host in host_vars)
 talos_image_requirements:
   secureboot: true
-  version: "v1.11.5"
+  version: "v1.12.6"
   extensions: []
 
 # Harbor registry configuration for Talos
 # Enable this in later bootstrap phases after Harbor is deployed
-talos_harbor_registry_enabled: false
+talos_harbor_registry_enabled: true
 
 # Harbor registry configuration (loaded from cluster vars when enabled)
 # talos_harbor_registry_url: "https://harbor.example.com"

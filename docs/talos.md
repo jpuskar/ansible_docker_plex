@@ -66,6 +66,13 @@ talosctl --talosconfig ./talosconfig --nodes $IP_ADDRESS etcd remove-member <ID>
 ```
 
 
+# Upgrades
+(Not all notes are secure boot though)
+```shell
+./tmp/talosctl-v1.12.6-linux-amd64 --talosconfig ../tmp/talos/k8s2/talosconfig --nodes IP_ADDR upgrade --image "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.6" -s
+```
+
+
 # Secure Boot
 
 ## Dell Optiplex 7050
