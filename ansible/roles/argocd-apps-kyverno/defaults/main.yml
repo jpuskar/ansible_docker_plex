@@ -1,0 +1,17 @@
+---
+# Kyverno Helm chart configuration
+kyverno_version: "3.6.1"  # Chart version
+kyverno_namespace: "kyverno"
+kyverno_repo_url: "https://kyverno.github.io/kyverno/"
+kyverno_chart_name: "kyverno/kyverno"
+
+# Replicas configuration
+kyverno_admission_controller_replicas: 1
+kyverno_background_controller_replicas: 1
+kyverno_cleanup_controller_replicas: 1
+kyverno_reports_controller_replicas: 1
+
+# Domain replacement configuration
+kyverno_domain_replacement_enabled: true
+kyverno_domain_placeholder: "MY_DOMAIN"
+kyverno_domain_actual: ""  # Set this to your actual domain

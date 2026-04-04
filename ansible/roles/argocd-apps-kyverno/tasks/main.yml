@@ -1,0 +1,8 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Include kyverno tasks
+  include_tasks: kyverno.yml
