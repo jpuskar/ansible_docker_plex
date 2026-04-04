@@ -27,3 +27,25 @@ shinobi_smtp_proxy_loadbalancer_ip: !vault |
   32333030633934316162373736373035353066393532376333643833653565306430363361336631
   6233633134313762380a643966323464303866323737633461356432653136373933336164656237
   3663
+
+# Baseline detection
+shinobi_smtp_proxy_baseline_interval: 60
+shinobi_smtp_proxy_position_tolerance: 0.15
+
+# Rolling snapshot buffer
+shinobi_smtp_proxy_snapshot_interval: 1
+shinobi_smtp_proxy_buffer_seconds: 10
+
+# Camera credentials (vault encrypted)
+shinobi_smtp_proxy_camera_username: "CHANGEME_VAULT_ENCRYPT"
+shinobi_smtp_proxy_camera_password: "CHANGEME_VAULT_ENCRYPT"
+
+# Camera IPs keyed by email sender prefix
+# e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast -> 192.168.x.x
+shinobi_smtp_proxy_cameras:
+  camnorthtoeast: "CHANGEME_VAULT_ENCRYPT"
+  camnorthtowest: "CHANGEME_VAULT_ENCRYPT"
+  camwesttosouth: "CHANGEME_VAULT_ENCRYPT"
+  camwesttonorth: "CHANGEME_VAULT_ENCRYPT"
+  camfrontsoutheast: "CHANGEME_VAULT_ENCRYPT"
+  campatiodoor: "CHANGEME_VAULT_ENCRYPT"

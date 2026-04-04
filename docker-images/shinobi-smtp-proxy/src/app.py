@@ -8,6 +8,9 @@ from aiosmtpd.controller import Controller
 
 from SMTPProxyHandler import SMTPProxyHandler
 from auth_helper import authenticator
+from baseline_manager import BaselineManager
+from object_detector import ObjectDetector
+from SMTPProxyHandler import TARGET_CLASSES
 
 # aiosmtpd emits a UserWarning on every connection when auth_require_tls=False.
 # Show it once at startup, route through logging, and strip the source code line.
@@ -26,6 +29,27 @@ log = logging.getLogger('smtp-proxy')
 
 
 async def main():
+    # Set up baseline manager if cameras are configured
+    baseline_manager = None
+    cameras_cfg = config.get('cameras', {})
+    if cameras_cfg:
+        # Detector is shared between baseline polling and email filtering
+        detector = ObjectDetector(
+            confidence_threshold=config.get('confidence_threshold', 0.25),
+            target_classes=TARGET_CLASSES,
+        )
+        baseline_manager = BaselineManager(
+            cameras=cameras_cfg,
+            username=config.get('camera_username', 'admin'),
+            password=config.get('camera_password', ''),
+            detector=detector,
+            snapshot_interval=config.get('snapshot_interval', 1),
+            buffer_seconds=config.get('buffer_seconds', 10),
+            baseline_interval=config.get('baseline_interval', 60),
+            position_tolerance=config.get('position_tolerance', 0.15),
+        )
+        await baseline_manager.start()
+
     handler = SMTPProxyHandler(
         forward_host=config['forward_host'],
         forward_port=config['forward_port'],
@@ -34,6 +58,7 @@ async def main():
         ai_detection_enabled=config.get('ai_detection_enabled', True),
         confidence_threshold=config.get('confidence_threshold', 0.25),
         debug_mime=config.get('debug_mime', False),
+        baseline_manager=baseline_manager,
     )
 
     controller = Controller(
@@ -61,6 +86,8 @@ async def main():
     try:
         await asyncio.Event().wait()  # block forever
     finally:
+        if baseline_manager:
+            await baseline_manager.stop()
         await runner.cleanup()
         controller.stop()
 

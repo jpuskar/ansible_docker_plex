@@ -18,7 +18,7 @@ class SMTPProxyHandler:
 
     def __init__(self, forward_host, forward_port, fallback_subject,
                  filter_keywords, ai_detection_enabled=True, confidence_threshold=0.25,
-                 debug_mime=False):
+                 debug_mime=False, baseline_manager=None):
         self.fallback_subject = fallback_subject
         self.debug_mime = debug_mime
 
@@ -29,7 +29,7 @@ class SMTPProxyHandler:
                 target_classes=TARGET_CLASSES,
             )
 
-        self.email_filter = EmailFilter(filter_keywords, detector)
+        self.email_filter = EmailFilter(filter_keywords, detector, baseline_manager)
         self.email_forwarder = EmailForwarder(forward_host, forward_port)
 
     async def handle_MAIL(self, server, session, envelope, address, mail_options):
@@ -62,7 +62,10 @@ class SMTPProxyHandler:
             original_subject = message.get('Subject', self.fallback_subject)
             subject = decode_subject(original_subject, self.fallback_subject)
 
-            should_filter, reason = await self.email_filter.should_filter(message, subject)
+            # Extract camera ID from sender, e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast
+            camera_id = envelope.mail_from.split('@')[0] if envelope.mail_from else None
+
+            should_filter, reason = await self.email_filter.should_filter(message, subject, camera_id)
             if should_filter:
                 log.info("Filtered: %s (subject: %s)", reason, subject)
                 return '250 OK'

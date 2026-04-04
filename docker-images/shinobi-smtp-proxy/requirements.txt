@@ -1,5 +1,6 @@
 aiohttp
 aiosmtpd
+httpx
 numpy
 opencv-python-headless
 pillow
