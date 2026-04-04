@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.base import MIMEBase
+from email import encoders
 
 log = logging.getLogger('smtp-proxy')
 
@@ -83,6 +84,7 @@ def create_forwarded_message(original, mail_from, rcpt_tos, subject):
                 if data:
                     att = MIMEBase(part.get_content_maintype(), part.get_content_subtype())
                     att.set_payload(data)
+                    encoders.encode_base64(att)
                     if part.get('Content-Disposition'):
                         att['Content-Disposition'] = part['Content-Disposition']
                     msg.attach(att)
