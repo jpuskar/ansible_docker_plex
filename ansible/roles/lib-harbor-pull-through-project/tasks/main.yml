@@ -1,4 +1,16 @@
 ---
+- name: Extract Harbor CA certificate from root-ca-secret
+  shell:
+    cmd: |
+      mkdir -p {{ playbook_dir }}/../../../tmp
+      kubectl get secret root-ca-secret -n cert-manager \
+        -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ playbook_dir }}/../../../tmp/harbor-ca.crt
+  changed_when: false
+
+- name: Set Harbor CA cert path
+  set_fact:
+    harbor_ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+
 - name: Get Harbor admin password from Kubernetes secret if not provided
   shell:
     cmd: |
@@ -22,7 +34,8 @@
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     body_format: json
     body:
       name: "{{ item.endpoint_name }}"
@@ -48,7 +61,8 @@
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     status_code: [200]
   loop: "{{ harbor_pull_through_registries }}"
   loop_control:
@@ -62,7 +76,8 @@
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     body_format: json
     body:
       project_name: "{{ item.item.name }}"

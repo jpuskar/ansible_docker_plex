@@ -23,6 +23,14 @@
         harbor_admin_password: "{{ harbor_admin_password_result.stdout }}"
       no_log: true
 
+    - name: Extract Harbor CA certificate from root-ca-secret
+      shell:
+        cmd: |
+          mkdir -p {{ playbook_dir }}/../../../tmp
+          kubectl get secret root-ca-secret -n cert-manager \
+            -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ playbook_dir }}/../../../tmp/harbor-ca.crt
+      changed_when: false
+
     - name: Check if Harbor project exists
       uri:
         url: "https://{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
@@ -30,7 +38,8 @@
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
         status_code: [200]
       register: harbor_project_check
 
@@ -41,7 +50,8 @@
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
         body_format: json
         body:
           project_name: "{{ harbor_project_name }}"
@@ -60,7 +70,8 @@
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
         status_code: [200]
       register: harbor_robot_check
 
@@ -71,7 +82,8 @@
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
         body_format: json
         body:
           name: "{{ harbor_robot_name }}"
