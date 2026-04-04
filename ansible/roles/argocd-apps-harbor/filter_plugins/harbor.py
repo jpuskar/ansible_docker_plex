@@ -23,6 +23,9 @@ def harbor_patch_pod_security(helm_output, run_as_user, fs_group=None):
     if fs_group is None:
         fs_group = run_as_user
 
+    run_as_user = int(run_as_user)
+    fs_group = int(fs_group)
+
     # Helm output can contain stray tabs which are invalid in YAML
     helm_output = helm_output.replace('\t', '  ')
 
