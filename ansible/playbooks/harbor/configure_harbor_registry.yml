@@ -30,10 +30,10 @@
         harbor_admin_password: "{{ harbor_admin_password_result.stdout }}"
       no_log: true
 
-    - name: Extract Harbor CA certificate from root-ca-secret
+    - name: Extract Harbor CA certificate from harbor-ingress secret
       shell:
         cmd: |
-          kubectl get secret root-ca-secret -n cert-manager \
+          kubectl get secret harbor-ingress -n harbor \
             -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
       changed_when: false
 

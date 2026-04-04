@@ -1,15 +1,33 @@
 ---
-- name: Extract Harbor CA certificate from root-ca-secret
+- name: Extract Harbor CA certificate from harbor-ingress secret
   shell:
     cmd: |
-      mkdir -p {{ playbook_dir }}/../../../tmp
-      kubectl get secret root-ca-secret -n cert-manager \
-        -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ playbook_dir }}/../../../tmp/harbor-ca.crt
+      kubectl get secret harbor-ingress -n harbor \
+        -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
   changed_when: false
+
+- name: Verify CA certificate was extracted
+  stat:
+    path: "{{ temp_dir }}/harbor-ca.crt"
+  register: ca_cert_stat
+
+- name: Read CA certificate content
+  slurp:
+    src: "{{ temp_dir }}/harbor-ca.crt"
+  register: ca_cert_content
+  when: ca_cert_stat.stat.exists
+
+- name: Assert CA certificate is valid
+  assert:
+    that:
+      - ca_cert_stat.stat.exists
+      - ca_cert_stat.stat.size > 0
+      - "(ca_cert_content.content | b64decode) is search('BEGIN CERTIFICATE')"
+    fail_msg: "CA cert at {{ temp_dir }}/harbor-ca.crt is missing or invalid (exists: {{ ca_cert_stat.stat.exists }}, size: {{ ca_cert_stat.stat.size | default(0) }})"
 
 - name: Set Harbor CA cert path
   set_fact:
-    harbor_ca_path: "{{ playbook_dir }}/../../../tmp/harbor-ca.crt"
+    harbor_ca_path: "{{ temp_dir }}/harbor-ca.crt"
 
 - name: Get Harbor admin password from Kubernetes secret if not provided
   shell:
