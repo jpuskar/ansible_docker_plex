@@ -1,0 +1,33 @@
+---
+- name: Template out redis-operator Helm values to temp dir
+  template:
+    src: redis-operator-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/redis-operator-values.yaml"
+
+- name: Add ot-helm Helm repository
+  shell:
+    cmd: |-
+      helm repo add ot-helm {{ redis_operator_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm ot-helm repositories
+  shell:
+    cmd: |-
+      helm repo update ot-helm
+  changed_when: false
+
+- name: Generate redis-operator manifests using helm template
+  shell:
+    cmd: |-
+      helm template redis-operator ot-helm/{{ redis_operator_chart_name }} \
+        --version {{ redis_operator_chart_version }} \
+        --namespace {{ redis_operator_namespace }} \
+        --values {{ temp_dir_path }}/redis-operator-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/redis-operator-helm-manifests.yaml"

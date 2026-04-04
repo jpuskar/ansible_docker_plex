@@ -1,0 +1,31 @@
+# Percona PostgreSQL Operator Helm values
+
+# Watch all namespaces for PostgresCluster resources
+watchAllNamespaces: {{ percona_postgres_watch_all_namespaces | lower }}
+
+# Operator replica count
+replicaCount: {{ percona_postgres_replica_count }}
+
+# Allow scheduling on control plane nodes
+tolerations:
+{% for toleration in percona_postgres_tolerations %}
+  - key: {{ toleration.key }}
+    operator: {{ toleration.operator }}
+    effect: {{ toleration.effect }}
+{% endfor %}
+
+# Resource limits for operator
+resources:
+  limits:
+    cpu: {{ percona_postgres_resources.limits.cpu }}
+    memory: {{ percona_postgres_resources.limits.memory }}
+  requests:
+    cpu: {{ percona_postgres_resources.requests.cpu }}
+    memory: {{ percona_postgres_resources.requests.memory }}
+
+# Logging configuration
+logLevel: "{{ percona_postgres_log_level }}"
+logStructured: {{ percona_postgres_log_structured | lower }}
+
+# Telemetry (set to true to disable)
+disableTelemetry: {{ percona_postgres_disable_telemetry | lower }}

@@ -1,0 +1,28 @@
+---
+# redis-operator ArgoCD Application Role Defaults
+
+# OT Redis Operator Helm chart configuration
+redis_operator_chart_repo: "https://ot-container-kit.github.io/helm-charts/"
+redis_operator_chart_name: "redis-operator"
+redis_operator_chart_version: "0.18.0"
+redis_operator_namespace: "redis-operator"
+
+# Operator configuration
+redis_operator_replica_count: 1
+redis_operator_watch_namespace: ""
+redis_operator_enable_metrics: true
+
+# Tolerations
+redis_operator_tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# Resource limits for operator
+redis_operator_resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

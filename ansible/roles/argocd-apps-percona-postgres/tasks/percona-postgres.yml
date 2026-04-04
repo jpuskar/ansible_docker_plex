@@ -1,0 +1,33 @@
+---
+- name: Template out percona-postgres Helm values to temp dir
+  template:
+    src: percona-postgres-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/percona-postgres-values.yaml"
+
+- name: Add percona Helm repository
+  shell:
+    cmd: |-
+      helm repo add percona {{ percona_postgres_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm percona repositories
+  shell:
+    cmd: |-
+      helm repo update percona
+  changed_when: false
+
+- name: Generate percona-postgres manifests using helm template
+  shell:
+    cmd: |-
+      helm template percona-postgres percona/{{ percona_postgres_chart_name }} \
+        --version {{ percona_postgres_chart_version }} \
+        --namespace {{ percona_postgres_namespace }} \
+        --values {{ temp_dir_path }}/percona-postgres-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/percona-postgres-helm-manifests.yaml"

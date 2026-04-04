@@ -1,0 +1,36 @@
+# OT Redis Operator Helm values
+
+# Operator replica count
+replicaCount: {{ redis_operator_replica_count }}
+
+# Allow scheduling on control plane nodes
+tolerations:
+{% for toleration in redis_operator_tolerations %}
+  - key: {{ toleration.key }}
+    operator: {{ toleration.operator }}
+    effect: {{ toleration.effect }}
+{% endfor %}
+
+# Resource limits for operator
+resources:
+  limits:
+    cpu: {{ redis_operator_resources.limits.cpu }}
+    memory: {{ redis_operator_resources.limits.memory }}
+  requests:
+    cpu: {{ redis_operator_resources.requests.cpu }}
+    memory: {{ redis_operator_resources.requests.memory }}
+
+# RBAC configuration
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: redis-operator
+
+# Watch all namespaces for Redis resources
+watchNamespace: "{{ redis_operator_watch_namespace }}"
+
+# Metrics endpoint
+redisOperator:
+  enableMetrics: {{ redis_operator_enable_metrics | lower }}

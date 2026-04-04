@@ -2,4 +2,4 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: redis-operator
+  name: {{ redis_operator_namespace }}
