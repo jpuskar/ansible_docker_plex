@@ -15,3 +15,6 @@ shinobi_smtp_proxy_resources_requests_memory: "512Mi"
 shinobi_smtp_proxy_resources_requests_cpu: "250m"
 shinobi_smtp_proxy_resources_limits_memory: "2Gi"
 shinobi_smtp_proxy_resources_limits_cpu: "1000m"
+
+# LoadBalancer IP (Cilium LB-IPAM) — shinobi-smtp-proxy.spaceskippy.net
+shinobi_smtp_proxy_loadbalancer_ip: "CHANGEME_VAULT_ENCRYPT"
