@@ -77,11 +77,9 @@ class ObjectDetector:
                         conf=conf,
                     )
                     detections.append(d)
-                    log.info("Detected %s (%.0f%%) at (%.2f, %.2f)",
-                             d.name, conf * 100, d.cx, d.cy)
+                    log.debug("Detected %s (%.0f%%) at (%.2f, %.2f)",
+                              d.name, conf * 100, d.cx, d.cy)
 
-            if not detections:
-                log.info("No target objects detected")
             return detections
         except Exception:
             log.exception("YOLO detection error")

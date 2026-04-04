@@ -52,15 +52,22 @@ class BaselineManager:
         self.baselines = {}                 # {camera_id: [Detection, ...]}
         self._snapshot_task = None
         self._baseline_task = None
+        self._metrics_task = None
+
+        # Per-camera snapshot counters (reset each metrics interval)
+        self._snap_ok = {cam_id: 0 for cam_id in cameras}
+        self._snap_fail = {cam_id: 0 for cam_id in cameras}
+        self._metrics_interval = 10
 
     async def start(self):
         self._snapshot_task = asyncio.create_task(self._snapshot_loop())
         self._baseline_task = asyncio.create_task(self._baseline_loop())
+        self._metrics_task = asyncio.create_task(self._metrics_loop())
         log.info("Camera manager started: %d cameras, %ds snapshots, %ds baseline",
                  len(self.cameras), self.snapshot_interval, self.baseline_interval)
 
     async def stop(self):
-        for task in (self._snapshot_task, self._baseline_task):
+        for task in (self._snapshot_task, self._baseline_task, self._metrics_task):
             if task:
                 task.cancel()
                 try:
@@ -88,8 +95,33 @@ class BaselineManager:
                 resp = await client.get(url, auth=auth)
                 resp.raise_for_status()
             self.buffers[camera_id].add(resp.content)
+            self._snap_ok[camera_id] += 1
         except Exception:
+            self._snap_fail[camera_id] += 1
             log.debug("Snapshot failed for %s", camera_id, exc_info=True)
+
+    # -- Metrics loop: periodic snapshot health summary --
+
+    async def _metrics_loop(self):
+        while True:
+            await asyncio.sleep(self._metrics_interval)
+            ok_cams = [c for c, n in self._snap_ok.items() if n > 0]
+            fail_cams = [c for c, n in self._snap_fail.items()
+                         if n > 0 and self._snap_ok[c] == 0]
+            partial = [c for c, n in self._snap_fail.items()
+                       if n > 0 and self._snap_ok[c] > 0]
+
+            parts = [f"{len(ok_cams)}/{len(self.cameras)} ok"]
+            if fail_cams:
+                parts.append(f"down: {', '.join(sorted(fail_cams))}")
+            if partial:
+                parts.append(f"flaky: {', '.join(sorted(partial))}")
+            log.info("Snapshots [%ds]: %s", self._metrics_interval, ' | '.join(parts))
+
+            # Reset counters
+            for cam_id in self.cameras:
+                self._snap_ok[cam_id] = 0
+                self._snap_fail[cam_id] = 0
 
     # -- Baseline loop: run YOLO periodically on quiet frames --
 

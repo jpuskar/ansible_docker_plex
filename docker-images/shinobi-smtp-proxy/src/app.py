@@ -15,6 +15,7 @@ from SMTPProxyHandler import TARGET_CLASSES
 # aiosmtpd emits a UserWarning on every connection when auth_require_tls=False.
 # Show it once at startup, route through logging, and strip the source code line.
 warnings.filterwarnings('once', message='Requiring AUTH while not requiring TLS')
+warnings.filterwarnings('ignore', message='Session.login_data is deprecated')
 warnings.formatwarning = lambda msg, cat, *a, **kw: f'{cat.__name__}: {msg}'
 logging.captureWarnings(True)
 
@@ -26,6 +27,9 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
 log = logging.getLogger('smtp-proxy')
+
+# Silence aiosmtpd's per-connection SMTP verb logging (EHLO, MAIL, RCPT, QUIT, etc.)
+logging.getLogger('mail.log').setLevel(logging.WARNING)
 
 
 async def main():

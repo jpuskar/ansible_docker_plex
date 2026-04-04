@@ -30,7 +30,7 @@ def decode_subject(raw_subject, fallback_subject):
         if not cleaned:
             cleaned = fallback_subject
 
-        log.info("Subject: '%s' -> '%s'", raw_subject, cleaned)
+        log.debug("Subject decoded: '%s' -> '%s'", raw_subject, cleaned)
         return cleaned
     except Exception:
         log.warning("Failed to decode subject '%s'", raw_subject, exc_info=True)

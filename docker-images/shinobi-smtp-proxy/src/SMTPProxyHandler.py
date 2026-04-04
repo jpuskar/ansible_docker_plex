@@ -33,12 +33,12 @@ class SMTPProxyHandler:
         self.email_forwarder = EmailForwarder(forward_host, forward_port)
 
     async def handle_MAIL(self, server, session, envelope, address, mail_options):
-        log.info("MAIL FROM: %s", address)
+        log.debug("MAIL FROM: %s", address)
         envelope.mail_from = address
         return '250 OK'
 
     async def handle_RCPT(self, server, session, envelope, address, rcpt_options):
-        log.info("RCPT TO: %s", address)
+        log.debug("RCPT TO: %s", address)
         envelope.rcpt_tos.append(address)
         return '250 OK'
 

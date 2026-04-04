@@ -19,13 +19,11 @@ class EmailFilter:
         subject_lower = subject.lower()
         for kw in self.filter_keywords:
             if kw in subject_lower:
-                log.info("Filtered by keyword '%s' (subject: %s)", kw, subject)
                 return True, f"keyword: {kw}"
 
         # No images = nothing worth forwarding
         images = extract_images(message)
         if not images:
-            log.info("Filtered: no images attached (subject: %s)", subject)
             return True, "no images"
 
         if self.object_detector is None:
@@ -49,11 +47,9 @@ class EmailFilter:
                 detections = await self.object_detector.get_detections(image_data)
                 if detections:
                     names = ', '.join(d.name for d in detections)
-                    log.info("Objects detected in email image: %s", names)
                     return False, f"objects in email: {names}"
             except Exception:
                 log.exception("Image detection error, allowing through")
                 return False, "detection error, allowing"
 
-        log.info("Filtered: no relevant objects in %d image(s)", len(images))
         return True, "no objects detected in images"
