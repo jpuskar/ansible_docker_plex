@@ -1,4 +1,5 @@
 import asyncio
+import io
 import logging
 import queue
 import threading
@@ -7,6 +8,7 @@ from collections import deque
 
 import cv2
 import numpy as np
+from PIL import Image, ImageDraw
 
 log = logging.getLogger('smtp-proxy')
 
@@ -409,6 +411,41 @@ class BaselineManager:
         return result
 
     # ================================================================
+    # Image annotation
+    # ================================================================
+
+    @staticmethod
+    def _annotate_frame(jpeg_bytes, detections, new_detections=None):
+        """Draw bounding boxes and labels on a JPEG frame. Returns annotated JPEG bytes.
+        Green boxes for new/alerting detections, gray for baseline-matched ones."""
+        try:
+            img = Image.open(io.BytesIO(jpeg_bytes))
+            draw = ImageDraw.Draw(img)
+            w, h = img.size
+            new_set = set(id(d) for d in (new_detections or detections))
+
+            for d in detections:
+                x1 = int((d.cx - d.w / 2) * w)
+                y1 = int((d.cy - d.h / 2) * h)
+                x2 = int((d.cx + d.w / 2) * w)
+                y2 = int((d.cy + d.h / 2) * h)
+                is_new = id(d) in new_set
+                color = (0, 255, 0) if is_new else (128, 128, 128)
+                draw.rectangle([x1, y1, x2, y2], outline=color, width=2)
+                label = f"{d.name} {d.conf:.0%}"
+                # Label background
+                bbox = draw.textbbox((x1, y1 - 14), label)
+                draw.rectangle([bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1], fill=color)
+                draw.text((x1, y1 - 14), label, fill=(0, 0, 0))
+
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=85)
+            return buf.getvalue()
+        except Exception:
+            log.debug("Annotation failed, sending raw frame", exc_info=True)
+            return jpeg_bytes
+
+    # ================================================================
     # Motion detection loop (strategy='rtsp', motion_detection=True)
     # ================================================================
 
@@ -453,8 +490,9 @@ class BaselineManager:
                             del self._pending_alerts[camera_id]
                             log.info("Motion %s: CONFIRMED %s (no baseline)", camera_id, names)
                             if self.discord_notifier:
+                                annotated = self._annotate_frame(jpeg_bytes, detections)
                                 await self.discord_notifier.send_alert(
-                                    camera_id, f"Motion: {names}", jpeg_bytes)
+                                    camera_id, f"Motion: {names}", annotated)
                         else:
                             self._pending_alerts[camera_id] = {
                                 'names': names, 'jpeg': jpeg_bytes, 'time': now}
@@ -462,8 +500,9 @@ class BaselineManager:
                     else:
                         log.info("Motion %s: %s (no baseline)", camera_id, names)
                         if self.discord_notifier:
+                            annotated = self._annotate_frame(jpeg_bytes, detections)
                             await self.discord_notifier.send_alert(
-                                camera_id, f"Motion: {names}", jpeg_bytes)
+                                camera_id, f"Motion: {names}", annotated)
                     continue
 
                 new = [d for d in detections
@@ -482,8 +521,9 @@ class BaselineManager:
                                      [repr(d) for d in detections],
                                      [repr(b) for b in baseline])
                             if self.discord_notifier:
+                                annotated = self._annotate_frame(jpeg_bytes, detections, new)
                                 await self.discord_notifier.send_alert(
-                                    camera_id, f"Motion: {names}", jpeg_bytes)
+                                    camera_id, f"Motion: {names}", annotated)
                         elif not pending or pending['names'] != names or now - pending['time'] >= 5.0:
                             self._pending_alerts[camera_id] = {
                                 'names': names, 'jpeg': jpeg_bytes, 'time': now}
@@ -497,8 +537,9 @@ class BaselineManager:
                                  [repr(d) for d in detections],
                                  [repr(b) for b in baseline])
                         if self.discord_notifier:
+                            annotated = self._annotate_frame(jpeg_bytes, detections, new)
                             await self.discord_notifier.send_alert(
-                                camera_id, f"Motion: {names}", jpeg_bytes)
+                                camera_id, f"Motion: {names}", annotated)
                 else:
                     # No new objects — clear any pending alert for this camera
                     self._pending_alerts.pop(camera_id, None)
@@ -597,14 +638,16 @@ class BaselineManager:
                 if not baseline:
                     names = ', '.join(d.name for d in detections)
                     log.info("Frame %d/%d: detected %s (no baseline)", idx + 1, n, names)
-                    return True, f"new objects (no baseline): {names}", frames[idx]
+                    annotated = self._annotate_frame(frames[idx], detections)
+                    return True, f"new objects (no baseline): {names}", annotated
 
                 new = [d for d in detections
                        if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
                 if new:
                     names = ', '.join(d.name for d in new)
                     log.info("Frame %d/%d: new objects: %s", idx + 1, n, names)
-                    return True, f"new objects: {names}", frames[idx]
+                    annotated = self._annotate_frame(frames[idx], detections, new)
+                    return True, f"new objects: {names}", annotated
 
         log.info("No new objects in %d frames for %s", n, camera_id)
         return False, f"no new objects in {n} frames", None

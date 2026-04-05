@@ -31,6 +31,7 @@ debug_mime: false
 # AI Image Detection
 ai_detection_enabled: true
 confidence_threshold: 0.25
+ir_confidence_threshold: {{ shinobi_smtp_proxy_ir_confidence_threshold | default(0.45) }}
 
 # Baseline detection - periodic YOLO to filter out stationary objects
 baseline_interval: {{ shinobi_smtp_proxy_baseline_interval }}

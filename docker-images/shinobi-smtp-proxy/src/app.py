@@ -56,6 +56,7 @@ async def main():
         detector = ObjectDetector(
             confidence_threshold=config.get('confidence_threshold', 0.25),
             target_classes=TARGET_CLASSES,
+            ir_confidence_threshold=config.get('ir_confidence_threshold', 0.45),
         )
         baseline_manager = BaselineManager(
             cameras=cameras_cfg,
