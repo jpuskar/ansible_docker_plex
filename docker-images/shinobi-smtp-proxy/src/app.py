@@ -52,6 +52,7 @@ async def main():
             buffer_seconds=config.get('buffer_seconds', 10),
             baseline_interval=config.get('baseline_interval', 60),
             position_tolerance=config.get('position_tolerance', 0.15),
+            strategy=config.get('camera_strategy', 'rtsp'),
         )
         await baseline_manager.start()
 

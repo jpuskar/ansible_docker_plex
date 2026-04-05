@@ -35,8 +35,11 @@ baseline_interval: {{ shinobi_smtp_proxy_baseline_interval }}  # seconds between
 position_tolerance: {{ shinobi_smtp_proxy_position_tolerance }}  # 0-1, how close two detections must be to match
 
 # Rolling snapshot buffer - captures frames continuously for pre-event analysis
-snapshot_interval: {{ shinobi_smtp_proxy_snapshot_interval }}  # seconds between snapshots per camera
+snapshot_interval: {{ shinobi_smtp_proxy_snapshot_interval }}  # seconds between snapshots per camera (http strategy only)
 buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}  # how many seconds of snapshots to keep
+
+# Camera frame strategy: 'rtsp' (persistent MJPEG sub-stream) or 'http' (polling snapshots)
+camera_strategy: rtsp
 
 # Camera IPs keyed by sender email prefix (e.g. camnorthtoeast -> 192.168.x.x)
 # Credentials come from CAMERA_USERNAME / CAMERA_PASSWORD env vars (Secret)
