@@ -23,6 +23,6 @@ filter_keywords:
   - "Motion Detection Stop"
 
 # AI Image Detection (reduces false positives)
-# Uses local YOLOv8n model to detect people, vehicles, and animals
+# Uses local YOLOv8m model to detect people, vehicles, and animals
 ai_detection_enabled: true
 confidence_threshold: 0.25  # Detection confidence (0.0-1.0, lower = more sensitive)

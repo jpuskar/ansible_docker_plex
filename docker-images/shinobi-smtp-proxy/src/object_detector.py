@@ -37,11 +37,11 @@ class Detection:
 
 
 class ObjectDetector:
-    """Runs YOLOv8n to detect people, vehicles, or animals."""
+    """Runs YOLOv8m to detect people, vehicles, or animals."""
 
     def __init__(
         self,
-        model_path="yolov8n.pt",
+        model_path="yolov8m.pt",
         confidence_threshold=0.25,
         target_classes=None,
         ir_confidence_threshold=0.45,

@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 
 # Download YOLO model during build to avoid downloading on every container start
 # This caches the model in the image
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8m.pt')"
 
 # Copy application source
 COPY src/ ./src/
