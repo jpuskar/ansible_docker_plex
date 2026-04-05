@@ -56,9 +56,15 @@ class ShinobiNotifier:
                 if resp.status != 200:
                     log.warning("Shinobi monitor list returned %d", resp.status)
                     return
-                monitors = await resp.json()
+                monitors = await resp.json(content_type=None)
         except Exception:
             log.warning("Failed to fetch Shinobi monitor list", exc_info=True)
+            return
+
+        # Shinobi returns a plain array on success, or {"ok": false} on auth failure
+        if not isinstance(monitors, list):
+            log.warning("Shinobi monitor list returned unexpected response: %s",
+                        str(monitors)[:200])
             return
 
         # Build IP -> monitor_id lookup from Shinobi's monitor list
