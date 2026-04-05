@@ -166,3 +166,18 @@ shinobi_smtp_proxy_confirm_cameras:
 # Minimum detection bbox area — discard tiny YOLO hallucinations
 # 0.003 = 0.3% of frame (roughly 15x15 px at 704x480)
 shinobi_smtp_proxy_min_detection_area: 0.003
+
+# Static baselines: known objects always present at these positions
+# Merged into dynamic baselines so they're never flagged as "new"
+# Useful for parked cars that YOLO can't see in IR/night mode
+# Each entry: name (COCO class), cx/cy (normalized center coords)
+# Optional: w/h (normalized bbox size, defaults to 0.15/0.10)
+shinobi_smtp_proxy_static_baselines:
+  camfrontdoor:
+    - name: car
+      cx: 0.30
+      cy: 0.10
+  camfrontsoutheast:
+    - name: car
+      cx: 0.30
+      cy: 0.50

@@ -177,13 +177,20 @@ class BaselineManager:
     RTSPReader thread triggers YOLO analysis + Discord alerts autonomously.
     """
 
+    # COCO class name → ID mapping for static baselines
+    COCO_NAME_TO_ID = {
+        'person': 0, 'bicycle': 1, 'car': 2, 'motorcycle': 3,
+        'bus': 5, 'truck': 7, 'cat': 15, 'dog': 16,
+    }
+
     def __init__(self, cameras, username, password, detector,
                  snapshot_interval=1, buffer_seconds=10,
                  baseline_interval=60, position_tolerance=0.15,
                  strategy='rtsp', discord_notifier=None,
                  motion_detection=True, motion_threshold=MOTION_THRESHOLD,
                  motion_min_area=MOTION_MIN_AREA, detection_zones=None,
-                 confirm_cameras=None, min_detection_area=0.003):
+                 confirm_cameras=None, min_detection_area=0.003,
+                 static_baselines=None):
         self.cameras = cameras              # {camera_id: ip}
         self.username = username
         self.password = password
@@ -205,6 +212,37 @@ class BaselineManager:
                     np.array(poly, dtype=np.float32) for poly in zones
                 ]
             log.info("Detection zones configured for: %s", ', '.join(self._zones.keys()))
+
+        # Static baselines: {camera_id: [Detection, ...]}
+        # Known positions where objects are expected (e.g. parked car in driveway).
+        # Periodically probed at low confidence to verify presence.
+        # "Sticky" — once confirmed, stays in baseline until a probe says it's gone.
+        from object_detector import Detection
+        self._static_baselines = {}
+        if static_baselines:
+            for cam_id, entries in static_baselines.items():
+                dets = []
+                for entry in entries:
+                    name = entry['name']
+                    cls_id = self.COCO_NAME_TO_ID.get(name, -1)
+                    dets.append(Detection(
+                        cls_id=cls_id, name=name,
+                        cx=entry['cx'], cy=entry['cy'],
+                        w=entry.get('w', 0.15), h=entry.get('h', 0.10),
+                        conf=1.0,
+                    ))
+                self._static_baselines[cam_id] = dets
+            log.info("Static baselines configured for: %s",
+                     ', '.join(f"{k} ({len(v)} objects)" for k, v in self._static_baselines.items()))
+
+        # Sticky state: tracks which static entries are confirmed present
+        # {camera_id: set of indices into _static_baselines[camera_id]}
+        self._sticky_confirmed = {}
+        # Low-confidence probe runs every N baseline cycles (e.g. 5 × 60s = 5min)
+        # Also runs on cycle 1 (first baseline) so sticky kicks in immediately
+        self._sticky_probe_every = 5
+        self._sticky_probe_confidence = 0.15
+        self._baseline_cycle = 0
 
         maxlen = max(buffer_seconds * 2, 10)  # 2fps * buffer_seconds
         self.buffers = {cam_id: CameraBuffer(maxlen) for cam_id in cameras}
@@ -556,14 +594,19 @@ class BaselineManager:
         # Wait briefly for cameras to connect and buffer frames before first scan
         await asyncio.sleep(15)
         while True:
+            self._baseline_cycle += 1
+            is_probe_cycle = (self._static_baselines and
+                              (self._baseline_cycle == 1 or
+                               self._baseline_cycle % self._sticky_probe_every == 0))
+
             for camera_id in self.cameras:
                 try:
-                    await self._update_baseline(camera_id)
+                    await self._update_baseline(camera_id, probe=is_probe_cycle)
                 except Exception:
                     log.warning("Baseline update failed for %s", camera_id, exc_info=True)
             await asyncio.sleep(self.baseline_interval)
 
-    async def _update_baseline(self, camera_id):
+    async def _update_baseline(self, camera_id, probe=False):
         buf = self.buffers.get(camera_id)
         recent = buf.get_recent(seconds=2) if buf else []
         total = buf.total() if buf else 0
@@ -574,6 +617,32 @@ class BaselineManager:
         jpeg = recent[-1]
         detections = await self.detector.get_detections(
             jpeg, confidence_override=self.detector.confidence_threshold)
+
+        # Sticky static baseline probe: periodically run at low confidence
+        # to check if expected objects (e.g. parked car) are actually there
+        static = self._static_baselines.get(camera_id, [])
+        if static:
+            if probe:
+                low_conf_dets = await self.detector.get_detections(
+                    jpeg, confidence_override=self._sticky_probe_confidence)
+                confirmed = set()
+                for i, s in enumerate(static):
+                    if (any(s.is_near(d, self.position_tolerance) for d in detections) or
+                            any(s.is_near(d, self.position_tolerance) for d in low_conf_dets)):
+                        confirmed.add(i)
+                prev = self._sticky_confirmed.get(camera_id, set())
+                self._sticky_confirmed[camera_id] = confirmed
+                if confirmed != prev:
+                    names = [repr(static[i]) for i in sorted(confirmed)]
+                    log.info("Sticky probe %s: confirmed %s", camera_id, names or 'none')
+
+            # Merge confirmed sticky entries into baseline
+            confirmed = self._sticky_confirmed.get(camera_id, set())
+            for i in confirmed:
+                s = static[i]
+                if not any(s.is_near(d, self.position_tolerance) for d in detections):
+                    detections.append(s)
+
         self.baselines[camera_id] = detections
         if detections:
             log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])

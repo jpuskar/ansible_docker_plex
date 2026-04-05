@@ -75,6 +75,7 @@ async def main():
             detection_zones=config.get('detection_zones', {}),
             confirm_cameras=config.get('confirm_cameras', []),
             min_detection_area=config.get('min_detection_area', 0.003),
+            static_baselines=config.get('static_baselines', {}),
         )
         await baseline_manager.start()
 

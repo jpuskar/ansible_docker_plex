@@ -76,6 +76,26 @@ confirm_cameras:
 # Detections smaller than this are discarded as noise
 min_detection_area: {{ shinobi_smtp_proxy_min_detection_area | default(0.003) }}
 
+# Static baselines: known objects always present (e.g. parked car)
+# Merged into dynamic baselines so they never trigger alerts
+{% if shinobi_smtp_proxy_static_baselines is defined %}
+static_baselines:
+{% for cam_id, entries in shinobi_smtp_proxy_static_baselines.items() %}
+  {{ cam_id }}:
+{% for entry in entries %}
+    - name: {{ entry.name }}
+      cx: {{ entry.cx }}
+      cy: {{ entry.cy }}
+{% if entry.w is defined %}
+      w: {{ entry.w }}
+{% endif %}
+{% if entry.h is defined %}
+      h: {{ entry.h }}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+
 # Camera IPs
 cameras:
 {% for cam_id, cam_ip in shinobi_smtp_proxy_cameras.items() %}
