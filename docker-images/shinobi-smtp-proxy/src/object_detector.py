@@ -35,6 +35,31 @@ class Detection:
             abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance
         )
 
+    def overlaps_any_rect(self, rects: list[tuple[float, float, float, float]],
+                          min_overlap: float = 0.1) -> bool:
+        """Check if this detection's bbox overlaps any of the given rects.
+
+        Each rect is (x, y, w, h) in normalized 0-1 coords.
+        min_overlap is fraction of this detection's area that must be covered.
+        """
+        dx1 = self.cx - self.w / 2
+        dy1 = self.cy - self.h / 2
+        dx2 = self.cx + self.w / 2
+        dy2 = self.cy + self.h / 2
+        det_area = self.w * self.h
+        if det_area <= 0:
+            return False
+        for rx, ry, rw, rh in rects:
+            ox1 = max(dx1, rx)
+            oy1 = max(dy1, ry)
+            ox2 = min(dx2, rx + rw)
+            oy2 = min(dy2, ry + rh)
+            if ox1 < ox2 and oy1 < oy2:
+                overlap = (ox2 - ox1) * (oy2 - oy1)
+                if overlap / det_area >= min_overlap:
+                    return True
+        return False
+
     def __repr__(self) -> str:
         return f"{self.name}@({self.cx:.2f},{self.cy:.2f})"
 

@@ -77,7 +77,7 @@ class RTSPReader(threading.Thread):
         rtsp_url: str,
         buf: CameraBuffer,
         target_fps: int = 2,
-        motion_queue: queue.Queue[tuple[str, bytes]] | None = None,
+        motion_queue: queue.Queue[tuple[str, bytes, list[tuple[float, float, float, float]]]] | None = None,
         motion_threshold: int = MOTION_THRESHOLD,
         motion_min_area: int = MOTION_MIN_AREA,
         motion_zone_polygons: list[np.ndarray] | None = None,
@@ -117,8 +117,12 @@ class RTSPReader(threading.Thread):
             cv2.fillPoly(mask, [pts], 255)
         return mask
 
-    def _detect_motion(self, frame: np.ndarray) -> bool:
-        """Returns True if significant motion is detected vs previous frame."""
+    def _detect_motion(self, frame: np.ndarray) -> list[tuple[float, float, float, float]]:
+        """Returns list of motion region rects (normalized x, y, w, h) if motion detected.
+
+        Returns empty list if no significant motion. Each rect represents a
+        contour bounding box in 0-1 normalized coordinates.
+        """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (21, 21), 0)
         if self._prev_gray is None:
@@ -127,7 +131,7 @@ class RTSPReader(threading.Thread):
             if self._motion_mask is None and self._motion_zone_polygons:
                 h, w = gray.shape
                 self._motion_mask = self._build_motion_mask(h, w)
-            return False
+            return []
         delta = cv2.absdiff(self._prev_gray, gray)
         self._prev_gray = gray
         thresh = cv2.threshold(delta, self._motion_threshold, 255, cv2.THRESH_BINARY)[1]
@@ -138,10 +142,13 @@ class RTSPReader(threading.Thread):
         contours, _ = cv2.findContours(
             thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
+        fh, fw = gray.shape
+        motion_rects: list[tuple[float, float, float, float]] = []
         for c in contours:
             if cv2.contourArea(c) >= self._motion_min_area:
-                return True
-        return False
+                x, y, w, h = cv2.boundingRect(c)
+                motion_rects.append((x / fw, y / fh, w / fw, h / fh))
+        return motion_rects
 
     def run(self) -> None:
         while not self._stop_event.is_set():
@@ -193,16 +200,18 @@ class RTSPReader(threading.Thread):
                     if self._motion_queue is not None:
                         if self._warmup_frames > 0:
                             self._warmup_frames -= 1
-                        elif self._detect_motion(frame):
-                            if now - self._last_motion >= MOTION_COOLDOWN:
-                                self._last_motion = now
-                                self.motion_events += 1
-                                try:
-                                    self._motion_queue.put_nowait(
-                                        (self.camera_id, jpeg_bytes)
-                                    )
-                                except queue.Full:
-                                    pass  # drop if processing is backed up
+                        else:
+                            motion_rects = self._detect_motion(frame)
+                            if motion_rects:
+                                if now - self._last_motion >= MOTION_COOLDOWN:
+                                    self._last_motion = now
+                                    self.motion_events += 1
+                                    try:
+                                        self._motion_queue.put_nowait(
+                                            (self.camera_id, jpeg_bytes, motion_rects)
+                                        )
+                                    except queue.Full:
+                                        pass  # drop if processing is backed up
 
             except Exception as exc:
                 self.connected = False
@@ -636,12 +645,17 @@ class BaselineManager:
 
     async def _motion_loop(self) -> None:
         """Reads motion events from the queue, runs YOLO, compares baseline,
-        sends Discord alert if new objects are found."""
+        sends Discord alert if new objects are found.
+
+        Only considers YOLO detections that overlap with where motion actually
+        occurred in the frame — static objects (e.g. trashcan misclassified as
+        person) are ignored because there's no motion at their position.
+        """
         loop = asyncio.get_event_loop()
         while True:
             # Poll the thread-safe queue from async context
             try:
-                camera_id, jpeg_bytes = await loop.run_in_executor(
+                camera_id, jpeg_bytes, motion_rects = await loop.run_in_executor(
                     None, self._motion_queue.get, True, 1.0
                 )
             except Exception:
@@ -656,6 +670,22 @@ class BaselineManager:
                 detections = self._filter_by_zone(camera_id=camera_id, detections=detections)
                 if not detections:
                     log.debug("Motion %s: detections outside zone", camera_id)
+                    continue
+
+                # Motion co-location filter — only keep detections that overlap
+                # with where motion was actually detected in the frame.
+                # Static objects (trashcan, etc.) won't have motion at their position.
+                before_count = len(detections)
+                detections = [
+                    d for d in detections
+                    if d.overlaps_any_rect(rects=motion_rects)
+                ]
+                if not detections:
+                    if before_count > 0:
+                        log.debug(
+                            "Motion %s: %d detections filtered (no motion at their position)",
+                            camera_id, before_count,
+                        )
                     continue
 
                 # Min area filter — discard tiny hallucinations from light flashes
