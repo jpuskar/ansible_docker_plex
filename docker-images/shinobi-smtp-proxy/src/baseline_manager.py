@@ -70,6 +70,7 @@ class RTSPReader(threading.Thread):
         motion_queue=None,
         motion_threshold=MOTION_THRESHOLD,
         motion_min_area=MOTION_MIN_AREA,
+        motion_zone_polygons=None,
     ):
         super().__init__(daemon=True, name=f"rtsp-{camera_id}")
         self.camera_id = camera_id
@@ -87,6 +88,8 @@ class RTSPReader(threading.Thread):
         self._motion_queue = motion_queue
         self._motion_threshold = motion_threshold
         self._motion_min_area = motion_min_area
+        self._motion_zone_polygons = motion_zone_polygons  # normalized 0-1 coords
+        self._motion_mask = None  # built on first frame when we know resolution
         self._prev_gray = None
         self._last_motion = 0.0
         self.motion_events = 0  # counter for metrics
@@ -94,17 +97,34 @@ class RTSPReader(threading.Thread):
     def stop(self):
         self._stop_event.set()
 
+    def _build_motion_mask(self, h, w):
+        """Build a binary mask from zone polygons scaled to pixel coords."""
+        if not self._motion_zone_polygons:
+            return None
+        mask = np.zeros((h, w), dtype=np.uint8)
+        for poly in self._motion_zone_polygons:
+            pts = (poly * np.array([w, h])).astype(np.int32)
+            cv2.fillPoly(mask, [pts], 255)
+        return mask
+
     def _detect_motion(self, frame):
         """Returns True if significant motion is detected vs previous frame."""
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (21, 21), 0)
         if self._prev_gray is None:
             self._prev_gray = gray
+            # Build motion mask on first frame now that we know resolution
+            if self._motion_mask is None and self._motion_zone_polygons:
+                h, w = gray.shape
+                self._motion_mask = self._build_motion_mask(h, w)
             return False
         delta = cv2.absdiff(self._prev_gray, gray)
         self._prev_gray = gray
         thresh = cv2.threshold(delta, self._motion_threshold, 255, cv2.THRESH_BINARY)[1]
         thresh = cv2.dilate(thresh, None, iterations=2)
+        # Mask to detection zone — ignore motion outside configured regions
+        if self._motion_mask is not None:
+            thresh = cv2.bitwise_and(thresh, self._motion_mask)
         contours, _ = cv2.findContours(
             thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
@@ -339,6 +359,7 @@ class BaselineManager:
                     motion_queue=self._motion_queue if motion_detection else None,
                     motion_threshold=motion_threshold,
                     motion_min_area=motion_min_area,
+                    motion_zone_polygons=self._zones.get(cam_id),
                 )
 
         # HTTP snapshot state (strategy='http')
