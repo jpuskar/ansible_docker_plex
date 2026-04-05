@@ -180,7 +180,8 @@ class BaselineManager:
                  baseline_interval=60, position_tolerance=0.15,
                  strategy='rtsp', discord_notifier=None,
                  motion_detection=True, motion_threshold=MOTION_THRESHOLD,
-                 motion_min_area=MOTION_MIN_AREA, detection_zones=None):
+                 motion_min_area=MOTION_MIN_AREA, detection_zones=None,
+                 confirm_cameras=None, min_detection_area=0.003):
         self.cameras = cameras              # {camera_id: ip}
         self.username = username
         self.password = password
@@ -212,6 +213,19 @@ class BaselineManager:
 
         # Motion event queue: (camera_id, jpeg_bytes) from RTSP threads
         self._motion_queue = queue.Queue(maxsize=50) if motion_detection else None
+
+        # Pending alerts: require new objects to appear in 2 consecutive motion frames
+        # before firing a Discord alert (filters single-frame YOLO hallucinations)
+        # Only applies to cameras listed in confirm_cameras
+        # {camera_id: {'names': str, 'jpeg': bytes, 'time': float}}
+        self._pending_alerts = {}
+        self._confirm_cameras = set(confirm_cameras or [])
+        if self._confirm_cameras:
+            log.info("Confirmation required for: %s", ', '.join(sorted(self._confirm_cameras)))
+
+        # Minimum detection bounding box area (fraction of frame, 0.0-1.0)
+        # Detections smaller than this are discarded as noise/hallucinations
+        self._min_detection_area = min_detection_area
 
         # RTSP readers (strategy='rtsp')
         self._readers = {}
@@ -421,27 +435,73 @@ class BaselineManager:
                     log.debug("Motion %s: detections outside zone", camera_id)
                     continue
 
+                # Min area filter — discard tiny hallucinations from light flashes
+                if self._min_detection_area > 0:
+                    detections = [d for d in detections
+                                  if d.w * d.h >= self._min_detection_area]
+                    if not detections:
+                        log.debug("Motion %s: detections below min area", camera_id)
+                        continue
+
                 baseline = self.baselines.get(camera_id, [])
                 if not baseline:
                     names = ', '.join(d.name for d in detections)
-                    log.info("Motion %s: %s (no baseline)", camera_id, names)
-                    if self.discord_notifier:
-                        await self.discord_notifier.send_alert(
-                            camera_id, f"Motion: {names}", jpeg_bytes)
+                    if camera_id in self._confirm_cameras:
+                        now = time.monotonic()
+                        pending = self._pending_alerts.get(camera_id)
+                        if pending and now - pending['time'] < 5.0:
+                            del self._pending_alerts[camera_id]
+                            log.info("Motion %s: CONFIRMED %s (no baseline)", camera_id, names)
+                            if self.discord_notifier:
+                                await self.discord_notifier.send_alert(
+                                    camera_id, f"Motion: {names}", jpeg_bytes)
+                        else:
+                            self._pending_alerts[camera_id] = {
+                                'names': names, 'jpeg': jpeg_bytes, 'time': now}
+                            log.info("Motion %s: pending %s (no baseline)", camera_id, names)
+                    else:
+                        log.info("Motion %s: %s (no baseline)", camera_id, names)
+                        if self.discord_notifier:
+                            await self.discord_notifier.send_alert(
+                                camera_id, f"Motion: {names}", jpeg_bytes)
                     continue
 
                 new = [d for d in detections
                        if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
                 if new:
-                    names = ', '.join(d.name for d in new)
-                    log.info("Motion %s: new objects: %s (det=%s, base=%s)",
-                             camera_id, names,
-                             [repr(d) for d in detections],
-                             [repr(b) for b in baseline])
-                    if self.discord_notifier:
-                        await self.discord_notifier.send_alert(
-                            camera_id, f"Motion: {names}", jpeg_bytes)
+                    names = ', '.join(sorted(set(d.name for d in new)))
+                    # Cameras with parked vehicles need 2-frame confirmation
+                    # to filter single-frame YOLO hallucinations from headlight flashes
+                    if camera_id in self._confirm_cameras:
+                        now = time.monotonic()
+                        pending = self._pending_alerts.get(camera_id)
+                        if pending and pending['names'] == names and now - pending['time'] < 5.0:
+                            del self._pending_alerts[camera_id]
+                            log.info("Motion %s: CONFIRMED new objects: %s (det=%s, base=%s)",
+                                     camera_id, names,
+                                     [repr(d) for d in detections],
+                                     [repr(b) for b in baseline])
+                            if self.discord_notifier:
+                                await self.discord_notifier.send_alert(
+                                    camera_id, f"Motion: {names}", jpeg_bytes)
+                        elif not pending or pending['names'] != names or now - pending['time'] >= 5.0:
+                            self._pending_alerts[camera_id] = {
+                                'names': names, 'jpeg': jpeg_bytes, 'time': now}
+                            log.info("Motion %s: pending confirmation: %s (det=%s, base=%s)",
+                                     camera_id, names,
+                                     [repr(d) for d in detections],
+                                     [repr(b) for b in baseline])
+                    else:
+                        log.info("Motion %s: new objects: %s (det=%s, base=%s)",
+                                 camera_id, names,
+                                 [repr(d) for d in detections],
+                                 [repr(b) for b in baseline])
+                        if self.discord_notifier:
+                            await self.discord_notifier.send_alert(
+                                camera_id, f"Motion: {names}", jpeg_bytes)
                 else:
+                    # No new objects — clear any pending alert for this camera
+                    self._pending_alerts.pop(camera_id, None)
                     log.debug("Motion %s: only baseline objects", camera_id)
 
             except Exception:

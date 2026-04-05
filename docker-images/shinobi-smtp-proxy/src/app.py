@@ -72,6 +72,8 @@ async def main():
             motion_threshold=config.get('motion_threshold', 25),
             motion_min_area=config.get('motion_min_area', 500),
             detection_zones=config.get('detection_zones', {}),
+            confirm_cameras=config.get('confirm_cameras', []),
+            min_detection_area=config.get('min_detection_area', 0.003),
         )
         await baseline_manager.start()
 
