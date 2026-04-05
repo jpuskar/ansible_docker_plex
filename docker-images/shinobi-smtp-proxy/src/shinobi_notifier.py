@@ -95,7 +95,16 @@ class ShinobiNotifier:
 
             if host_ip:
                 ip_to_mid[host_ip] = mid
-                log.debug("Shinobi monitor %s (%s) -> IP %s", mid, name, host_ip)
+                log.info("Shinobi monitor %s (%s) -> IP %s", mid, name, host_ip)
+            else:
+                auto_host = details.get("auto_host", "")
+                auto_enable = details.get("auto_host_enable", "")
+                raw_host = mon.get("host", "")
+                log.warning(
+                    "Shinobi monitor %s (%s): no IP extracted "
+                    "(auto_host_enable=%s, auto_host=%s, host=%s)",
+                    mid, name, auto_enable, auto_host[:80], raw_host,
+                )
 
         # Match our camera IPs to Shinobi monitor IDs
         matched = 0
