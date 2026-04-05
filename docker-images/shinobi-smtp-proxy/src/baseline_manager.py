@@ -10,18 +10,18 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
-log = logging.getLogger('smtp-proxy')
+log = logging.getLogger("smtp-proxy")
 
 # RTSP sub-stream template — MJPEG at 704x480 2fps
-RTSP_SUBSTREAM = 'rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1'
+RTSP_SUBSTREAM = "rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1"
 
 # HTTP snapshot fallback (not used by default)
-SNAPSHOT_PATH = '/cgi-bin/snapshot.cgi?channel=1&subtype=1'
+SNAPSHOT_PATH = "/cgi-bin/snapshot.cgi?channel=1&subtype=1"
 
 # Motion detection defaults
-MOTION_THRESHOLD = 25       # pixel difference threshold (0-255)
-MOTION_MIN_AREA = 500       # minimum contour area in pixels to count as motion
-MOTION_COOLDOWN = 2.0       # seconds between motion events per camera
+MOTION_THRESHOLD = 25  # pixel difference threshold (0-255)
+MOTION_MIN_AREA = 500  # minimum contour area in pixels to count as motion
+MOTION_COOLDOWN = 2.0  # seconds between motion events per camera
 
 
 class CameraBuffer:
@@ -61,10 +61,17 @@ class RTSPReader(threading.Thread):
     Optionally performs frame-differencing motion detection and enqueues events.
     """
 
-    def __init__(self, camera_id, rtsp_url, buf, target_fps=2,
-                 motion_queue=None, motion_threshold=MOTION_THRESHOLD,
-                 motion_min_area=MOTION_MIN_AREA):
-        super().__init__(daemon=True, name=f'rtsp-{camera_id}')
+    def __init__(
+        self,
+        camera_id,
+        rtsp_url,
+        buf,
+        target_fps=2,
+        motion_queue=None,
+        motion_threshold=MOTION_THRESHOLD,
+        motion_min_area=MOTION_MIN_AREA,
+    ):
+        super().__init__(daemon=True, name=f"rtsp-{camera_id}")
         self.camera_id = camera_id
         self.rtsp_url = rtsp_url
         self.buf = buf
@@ -98,7 +105,9 @@ class RTSPReader(threading.Thread):
         self._prev_gray = gray
         thresh = cv2.threshold(delta, self._motion_threshold, 255, cv2.THRESH_BINARY)[1]
         thresh = cv2.dilate(thresh, None, iterations=2)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(
+            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
         for c in contours:
             if cv2.contourArea(c) >= self._motion_min_area:
                 return True
@@ -113,10 +122,16 @@ class RTSPReader(threading.Thread):
                 cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
                 cap.open(self.rtsp_url, cv2.CAP_FFMPEG)
                 if not cap.isOpened():
-                    raise ConnectionError(f"Cannot open RTSP stream for {self.camera_id}")
+                    raise ConnectionError(
+                        f"Cannot open RTSP stream for {self.camera_id}"
+                    )
                 self.connected = True
                 if self._backoff > 0:
-                    log.info("%s RTSP reconnected (was backed off %ds)", self.camera_id, self._backoff)
+                    log.info(
+                        "%s RTSP reconnected (was backed off %ds)",
+                        self.camera_id,
+                        self._backoff,
+                    )
                 self._backoff = 0
                 self._prev_gray = None  # reset motion baseline on reconnect
                 frame_interval = 1.0 / self.target_fps
@@ -134,7 +149,7 @@ class RTSPReader(threading.Thread):
                     if not ret:
                         self.frames_fail += 1
                         continue
-                    ok, jpeg = cv2.imencode('.jpg', frame)
+                    ok, jpeg = cv2.imencode(".jpg", frame)
                     if not ok:
                         self.frames_fail += 1
                         continue
@@ -151,7 +166,8 @@ class RTSPReader(threading.Thread):
                                 self.motion_events += 1
                                 try:
                                     self._motion_queue.put_nowait(
-                                        (self.camera_id, jpeg_bytes))
+                                        (self.camera_id, jpeg_bytes)
+                                    )
                                 except queue.Full:
                                     pass  # drop if processing is backed up
 
@@ -159,7 +175,12 @@ class RTSPReader(threading.Thread):
                 self.connected = False
                 self.frames_fail += 1
                 self._backoff = min(max(self._backoff * 2, 1), 30)
-                log.info("%s RTSP error, reconnect in %ds: %s", self.camera_id, self._backoff, exc)
+                log.info(
+                    "%s RTSP error, reconnect in %ds: %s",
+                    self.camera_id,
+                    self._backoff,
+                    exc,
+                )
                 self._stop_event.wait(self._backoff)
             finally:
                 if cap is not None:
@@ -179,19 +200,38 @@ class BaselineManager:
 
     # COCO class name → ID mapping for static baselines
     COCO_NAME_TO_ID = {
-        'person': 0, 'bicycle': 1, 'car': 2, 'motorcycle': 3,
-        'bus': 5, 'truck': 7, 'cat': 15, 'dog': 16,
+        "person": 0,
+        "bicycle": 1,
+        "car": 2,
+        "motorcycle": 3,
+        "bus": 5,
+        "truck": 7,
+        "cat": 15,
+        "dog": 16,
     }
 
-    def __init__(self, cameras, username, password, detector,
-                 snapshot_interval=1, buffer_seconds=10,
-                 baseline_interval=60, position_tolerance=0.15,
-                 strategy='rtsp', discord_notifier=None,
-                 motion_detection=True, motion_threshold=MOTION_THRESHOLD,
-                 motion_min_area=MOTION_MIN_AREA, detection_zones=None,
-                 confirm_cameras=None, min_detection_area=0.003,
-                 static_baselines=None, shinobi_notifier=None):
-        self.cameras = cameras              # {camera_id: ip}
+    def __init__(
+        self,
+        cameras,
+        username,
+        password,
+        detector,
+        snapshot_interval=1,
+        buffer_seconds=10,
+        baseline_interval=60,
+        position_tolerance=0.15,
+        strategy="rtsp",
+        discord_notifier=None,
+        motion_detection=True,
+        motion_threshold=MOTION_THRESHOLD,
+        motion_min_area=MOTION_MIN_AREA,
+        detection_zones=None,
+        confirm_cameras=None,
+        min_detection_area=0.003,
+        static_baselines=None,
+        shinobi_notifier=None,
+    ):
+        self.cameras = cameras  # {camera_id: ip}
         self.username = username
         self.password = password
         self.detector = detector
@@ -212,29 +252,41 @@ class BaselineManager:
                 self._zones[cam_id] = [
                     np.array(poly, dtype=np.float32) for poly in zones
                 ]
-            log.info("Detection zones configured for: %s", ', '.join(self._zones.keys()))
+            log.info(
+                "Detection zones configured for: %s", ", ".join(self._zones.keys())
+            )
 
         # Static baselines: {camera_id: [Detection, ...]}
         # Known positions where objects are expected (e.g. parked car in driveway).
         # Periodically probed at low confidence to verify presence.
         # "Sticky" — once confirmed, stays in baseline until a probe says it's gone.
         from object_detector import Detection
+
         self._static_baselines = {}
         if static_baselines:
             for cam_id, entries in static_baselines.items():
                 dets = []
                 for entry in entries:
-                    name = entry['name']
+                    name = entry["name"]
                     cls_id = self.COCO_NAME_TO_ID.get(name, -1)
-                    dets.append(Detection(
-                        cls_id=cls_id, name=name,
-                        cx=entry['cx'], cy=entry['cy'],
-                        w=entry.get('w', 0.15), h=entry.get('h', 0.10),
-                        conf=1.0,
-                    ))
+                    dets.append(
+                        Detection(
+                            cls_id=cls_id,
+                            name=name,
+                            cx=entry["cx"],
+                            cy=entry["cy"],
+                            w=entry.get("w", 0.15),
+                            h=entry.get("h", 0.10),
+                            conf=1.0,
+                        )
+                    )
                 self._static_baselines[cam_id] = dets
-            log.info("Static baselines configured for: %s",
-                     ', '.join(f"{k} ({len(v)} objects)" for k, v in self._static_baselines.items()))
+            log.info(
+                "Static baselines configured for: %s",
+                ", ".join(
+                    f"{k} ({len(v)} objects)" for k, v in self._static_baselines.items()
+                ),
+            )
 
         # Sticky state: tracks which static entries are confirmed present
         # {camera_id: set of indices into _static_baselines[camera_id]}
@@ -247,7 +299,7 @@ class BaselineManager:
 
         maxlen = max(buffer_seconds * 2, 10)  # 2fps * buffer_seconds
         self.buffers = {cam_id: CameraBuffer(maxlen) for cam_id in cameras}
-        self.baselines = {}                 # {camera_id: [Detection, ...]}
+        self.baselines = {}  # {camera_id: [Detection, ...]}
         self._baseline_task = None
         self._metrics_task = None
         self._motion_task = None
@@ -262,7 +314,10 @@ class BaselineManager:
         self._pending_alerts = {}
         self._confirm_cameras = set(confirm_cameras or [])
         if self._confirm_cameras:
-            log.info("Confirmation required for: %s", ', '.join(sorted(self._confirm_cameras)))
+            log.info(
+                "Confirmation required for: %s",
+                ", ".join(sorted(self._confirm_cameras)),
+            )
 
         # Minimum detection bounding box area (fraction of frame, 0.0-1.0)
         # Detections smaller than this are discarded as noise/hallucinations
@@ -270,11 +325,13 @@ class BaselineManager:
 
         # RTSP readers (strategy='rtsp')
         self._readers = {}
-        if strategy == 'rtsp':
+        if strategy == "rtsp":
             for cam_id, ip in cameras.items():
                 url = RTSP_SUBSTREAM.format(user=username, passwd=password, ip=ip)
                 self._readers[cam_id] = RTSPReader(
-                    cam_id, url, self.buffers[cam_id],
+                    cam_id,
+                    url,
+                    self.buffers[cam_id],
                     motion_queue=self._motion_queue if motion_detection else None,
                     motion_threshold=motion_threshold,
                     motion_min_area=motion_min_area,
@@ -286,10 +343,11 @@ class BaselineManager:
         self._backoff = {cam_id: 0 for cam_id in cameras}
         self._next_poll = {cam_id: 0.0 for cam_id in cameras}
         self._BACKOFF_CAP = 10
-        if strategy == 'http':
+        if strategy == "http":
             import httpx
-            logging.getLogger('httpx').setLevel(logging.WARNING)
-            logging.getLogger('httpcore').setLevel(logging.WARNING)
+
+            logging.getLogger("httpx").setLevel(logging.WARNING)
+            logging.getLogger("httpcore").setLevel(logging.WARNING)
             for cam_id, ip in cameras.items():
                 transport = httpx.AsyncHTTPTransport(retries=1)
                 self._http_clients[cam_id] = httpx.AsyncClient(
@@ -305,22 +363,37 @@ class BaselineManager:
         self._metrics_interval = 10
 
     async def start(self):
-        if self.strategy == 'rtsp':
+        if self.strategy == "rtsp":
             for reader in self._readers.values():
                 reader.start()
-            log.info("Camera manager started [rtsp]: %d cameras, %ds buffer, %ds baseline, motion=%s",
-                     len(self.cameras), self.buffer_seconds, self.baseline_interval, self.motion_detection)
-        elif self.strategy == 'http':
+            log.info(
+                "Camera manager started [rtsp]: %d cameras, %ds buffer, %ds baseline, motion=%s",
+                len(self.cameras),
+                self.buffer_seconds,
+                self.baseline_interval,
+                self.motion_detection,
+            )
+        elif self.strategy == "http":
             self._snapshot_task = asyncio.create_task(self._http_snapshot_loop())
-            log.info("Camera manager started [http]: %d cameras, %ds snapshots, %ds baseline, path=%s",
-                     len(self.cameras), self.snapshot_interval, self.baseline_interval, SNAPSHOT_PATH)
+            log.info(
+                "Camera manager started [http]: %d cameras, %ds snapshots, %ds baseline, path=%s",
+                len(self.cameras),
+                self.snapshot_interval,
+                self.baseline_interval,
+                SNAPSHOT_PATH,
+            )
         self._baseline_task = asyncio.create_task(self._baseline_loop())
         self._metrics_task = asyncio.create_task(self._metrics_loop())
         if self.motion_detection:
             self._motion_task = asyncio.create_task(self._motion_loop())
 
     async def stop(self):
-        for task in (self._snapshot_task, self._baseline_task, self._metrics_task, self._motion_task):
+        for task in (
+            self._snapshot_task,
+            self._baseline_task,
+            self._metrics_task,
+            self._motion_task,
+        ):
             if task:
                 task.cancel()
                 try:
@@ -347,22 +420,28 @@ class BaselineManager:
 
     async def _http_snapshot_all(self):
         import httpx
+
         now = time.monotonic()
         for cam_id in self.cameras:
             self.buffers[cam_id].evict_stale(self.buffer_seconds)
-        tasks = [self._http_grab_snapshot(cam_id, ip)
-                 for cam_id, ip in self.cameras.items()
-                 if now >= self._next_poll[cam_id]]
+        tasks = [
+            self._http_grab_snapshot(cam_id, ip)
+            for cam_id, ip in self.cameras.items()
+            if now >= self._next_poll[cam_id]
+        ]
         await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _http_grab_snapshot(self, camera_id, ip):
         import httpx
+
         try:
-            url = f'http://{ip}{SNAPSHOT_PATH}'
+            url = f"http://{ip}{SNAPSHOT_PATH}"
             client = self._http_clients[camera_id]
             resp = await client.get(url)
             if resp.status_code == 401:
-                log.warning("Auth failed (real 401) for %s — check credentials", camera_id)
+                log.warning(
+                    "Auth failed (real 401) for %s — check credentials", camera_id
+                )
                 self._snap_fail[camera_id] += 1
                 return
             resp.raise_for_status()
@@ -370,15 +449,24 @@ class BaselineManager:
             self._snap_ok[camera_id] += 1
             self._snap_bytes[camera_id] += len(resp.content)
             if self._backoff[camera_id] > 0:
-                log.info("%s recovered (was backed off %ds)", camera_id, self._backoff[camera_id])
+                log.info(
+                    "%s recovered (was backed off %ds)",
+                    camera_id,
+                    self._backoff[camera_id],
+                )
                 self._backoff[camera_id] = 0
         except (httpx.TimeoutException, httpx.ConnectError) as exc:
             self._snap_fail[camera_id] += 1
             prev = self._backoff[camera_id]
             self._backoff[camera_id] = min(max(prev * 2, 1), self._BACKOFF_CAP)
             self._next_poll[camera_id] = time.monotonic() + self._backoff[camera_id]
-            log.info("%s timeout, backoff %ds (was %ds): %s",
-                     camera_id, self._backoff[camera_id], prev, type(exc).__name__)
+            log.info(
+                "%s timeout, backoff %ds (was %ds): %s",
+                camera_id,
+                self._backoff[camera_id],
+                prev,
+                type(exc).__name__,
+            )
         except Exception:
             self._snap_fail[camera_id] += 1
             log.debug("Snapshot failed for %s", camera_id, exc_info=True)
@@ -391,14 +479,16 @@ class BaselineManager:
         while True:
             await asyncio.sleep(self._metrics_interval)
 
-            if self.strategy == 'rtsp':
+            if self.strategy == "rtsp":
                 self._collect_rtsp_metrics()
 
             ok_cams = [c for c, n in self._snap_ok.items() if n > 0]
-            fail_cams = [c for c, n in self._snap_fail.items()
-                         if n > 0 and self._snap_ok[c] == 0]
-            partial = [c for c, n in self._snap_fail.items()
-                       if n > 0 and self._snap_ok[c] > 0]
+            fail_cams = [
+                c for c, n in self._snap_fail.items() if n > 0 and self._snap_ok[c] == 0
+            ]
+            partial = [
+                c for c, n in self._snap_fail.items() if n > 0 and self._snap_ok[c] > 0
+            ]
 
             parts = [f"{len(ok_cams)}/{len(self.cameras)} ok"]
             if ok_cams:
@@ -415,7 +505,7 @@ class BaselineManager:
                 parts.append(f"motion: {motion_total}")
                 for r in self._readers.values():
                     r.motion_events = 0
-            log.info("Frames [%ds]: %s", self._metrics_interval, ' | '.join(parts))
+            log.info("Frames [%ds]: %s", self._metrics_interval, " | ".join(parts))
 
             for cam_id in self.cameras:
                 self._snap_ok[cam_id] = 0
@@ -476,11 +566,13 @@ class BaselineManager:
                 label = f"{d.name} {d.conf:.0%}"
                 # Label background
                 bbox = draw.textbbox((x1, y1 - 14), label)
-                draw.rectangle([bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1], fill=color)
+                draw.rectangle(
+                    [bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1], fill=color
+                )
                 draw.text((x1, y1 - 14), label, fill=(0, 0, 0))
 
             buf = io.BytesIO()
-            img.save(buf, format='JPEG', quality=85)
+            img.save(buf, format="JPEG", quality=85)
             return buf.getvalue()
         except Exception:
             log.debug("Annotation failed, sending raw frame", exc_info=True)
@@ -509,7 +601,8 @@ class BaselineManager:
             # Poll the thread-safe queue from async context
             try:
                 camera_id, jpeg_bytes = await loop.run_in_executor(
-                    None, self._motion_queue.get, True, 1.0)
+                    None, self._motion_queue.get, True, 1.0
+                )
             except Exception:
                 continue
 
@@ -526,68 +619,107 @@ class BaselineManager:
 
                 # Min area filter — discard tiny hallucinations from light flashes
                 if self._min_detection_area > 0:
-                    detections = [d for d in detections
-                                  if d.w * d.h >= self._min_detection_area]
+                    detections = [
+                        d for d in detections if d.w * d.h >= self._min_detection_area
+                    ]
                     if not detections:
                         log.debug("Motion %s: detections below min area", camera_id)
                         continue
 
                 baseline = self.baselines.get(camera_id, [])
                 if not baseline:
-                    names = ', '.join(d.name for d in detections)
+                    names = ", ".join(d.name for d in detections)
                     if camera_id in self._confirm_cameras:
                         now = time.monotonic()
                         pending = self._pending_alerts.get(camera_id)
-                        if pending and now - pending['time'] < 5.0:
+                        if pending and now - pending["time"] < 5.0:
                             del self._pending_alerts[camera_id]
-                            log.info("Motion %s: CONFIRMED %s (no baseline)", camera_id, names)
+                            log.info(
+                                "Motion %s: CONFIRMED %s (no baseline)",
+                                camera_id,
+                                names,
+                            )
                             annotated = self._annotate_frame(jpeg_bytes, detections)
                             await self._send_alert(
-                                camera_id, f"Motion: {names}", annotated, detections)
+                                camera_id, f"Motion: {names}", annotated, detections
+                            )
                         else:
                             self._pending_alerts[camera_id] = {
-                                'names': names, 'jpeg': jpeg_bytes, 'time': now}
-                            log.info("Motion %s: pending %s (no baseline)", camera_id, names)
+                                "names": names,
+                                "jpeg": jpeg_bytes,
+                                "time": now,
+                            }
+                            log.info(
+                                "Motion %s: pending %s (no baseline)", camera_id, names
+                            )
                     else:
                         log.info("Motion %s: %s (no baseline)", camera_id, names)
                         annotated = self._annotate_frame(jpeg_bytes, detections)
                         await self._send_alert(
-                            camera_id, f"Motion: {names}", annotated, detections)
+                            camera_id, f"Motion: {names}", annotated, detections
+                        )
                     continue
 
-                new = [d for d in detections
-                       if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
+                new = [
+                    d
+                    for d in detections
+                    if not any(d.is_near(b, self.position_tolerance) for b in baseline)
+                ]
                 if new:
-                    names = ', '.join(sorted(set(d.name for d in new)))
+                    names = ", ".join(sorted(set(d.name for d in new)))
                     # Cameras with parked vehicles need 2-frame confirmation
                     # to filter single-frame YOLO hallucinations from headlight flashes
                     if camera_id in self._confirm_cameras:
                         now = time.monotonic()
                         pending = self._pending_alerts.get(camera_id)
-                        if pending and pending['names'] == names and now - pending['time'] < 5.0:
+                        if (
+                            pending
+                            and pending["names"] == names
+                            and now - pending["time"] < 5.0
+                        ):
                             del self._pending_alerts[camera_id]
-                            log.info("Motion %s: CONFIRMED new objects: %s (det=%s, base=%s)",
-                                     camera_id, names,
-                                     [repr(d) for d in detections],
-                                     [repr(b) for b in baseline])
-                            annotated = self._annotate_frame(jpeg_bytes, detections, new)
+                            log.info(
+                                "Motion %s: CONFIRMED new objects: %s (det=%s, base=%s)",
+                                camera_id,
+                                names,
+                                [repr(d) for d in detections],
+                                [repr(b) for b in baseline],
+                            )
+                            annotated = self._annotate_frame(
+                                jpeg_bytes, detections, new
+                            )
                             await self._send_alert(
-                                camera_id, f"Motion: {names}", annotated, new)
-                        elif not pending or pending['names'] != names or now - pending['time'] >= 5.0:
+                                camera_id, f"Motion: {names}", annotated, new
+                            )
+                        elif (
+                            not pending
+                            or pending["names"] != names
+                            or now - pending["time"] >= 5.0
+                        ):
                             self._pending_alerts[camera_id] = {
-                                'names': names, 'jpeg': jpeg_bytes, 'time': now}
-                            log.info("Motion %s: pending confirmation: %s (det=%s, base=%s)",
-                                     camera_id, names,
-                                     [repr(d) for d in detections],
-                                     [repr(b) for b in baseline])
+                                "names": names,
+                                "jpeg": jpeg_bytes,
+                                "time": now,
+                            }
+                            log.info(
+                                "Motion %s: pending confirmation: %s (det=%s, base=%s)",
+                                camera_id,
+                                names,
+                                [repr(d) for d in detections],
+                                [repr(b) for b in baseline],
+                            )
                     else:
-                        log.info("Motion %s: new objects: %s (det=%s, base=%s)",
-                                 camera_id, names,
-                                 [repr(d) for d in detections],
-                                 [repr(b) for b in baseline])
+                        log.info(
+                            "Motion %s: new objects: %s (det=%s, base=%s)",
+                            camera_id,
+                            names,
+                            [repr(d) for d in detections],
+                            [repr(b) for b in baseline],
+                        )
                         annotated = self._annotate_frame(jpeg_bytes, detections, new)
                         await self._send_alert(
-                            camera_id, f"Motion: {names}", annotated, new)
+                            camera_id, f"Motion: {names}", annotated, new
+                        )
                 else:
                     # No new objects — clear any pending alert for this camera
                     self._pending_alerts.pop(camera_id, None)
@@ -605,15 +737,18 @@ class BaselineManager:
         await asyncio.sleep(15)
         while True:
             self._baseline_cycle += 1
-            is_probe_cycle = (self._static_baselines and
-                              (self._baseline_cycle == 1 or
-                               self._baseline_cycle % self._sticky_probe_every == 0))
+            is_probe_cycle = self._static_baselines and (
+                self._baseline_cycle == 1
+                or self._baseline_cycle % self._sticky_probe_every == 0
+            )
 
             for camera_id in self.cameras:
                 try:
                     await self._update_baseline(camera_id, probe=is_probe_cycle)
                 except Exception:
-                    log.warning("Baseline update failed for %s", camera_id, exc_info=True)
+                    log.warning(
+                        "Baseline update failed for %s", camera_id, exc_info=True
+                    )
             await asyncio.sleep(self.baseline_interval)
 
     async def _update_baseline(self, camera_id, probe=False):
@@ -621,12 +756,17 @@ class BaselineManager:
         recent = buf.get_recent(seconds=2) if buf else []
         total = buf.total() if buf else 0
         if not recent:
-            log.debug("Baseline skipped for %s: no recent frames (0 of %d in buffer)", camera_id, total)
+            log.debug(
+                "Baseline skipped for %s: no recent frames (0 of %d in buffer)",
+                camera_id,
+                total,
+            )
             return
 
         jpeg = recent[-1]
         detections = await self.detector.get_detections(
-            jpeg, confidence_override=self.detector.confidence_threshold)
+            jpeg, confidence_override=self.detector.confidence_threshold
+        )
 
         # Sticky static baseline probe: periodically run at low confidence
         # to check if expected objects (e.g. parked car) are actually there
@@ -634,17 +774,23 @@ class BaselineManager:
         if static:
             if probe:
                 low_conf_dets = await self.detector.get_detections(
-                    jpeg, confidence_override=self._sticky_probe_confidence)
+                    jpeg, confidence_override=self._sticky_probe_confidence
+                )
                 confirmed = set()
                 for i, s in enumerate(static):
-                    if (any(s.is_near(d, self.position_tolerance) for d in detections) or
-                            any(s.is_near(d, self.position_tolerance) for d in low_conf_dets)):
+                    if any(
+                        s.is_near(d, self.position_tolerance) for d in detections
+                    ) or any(
+                        s.is_near(d, self.position_tolerance) for d in low_conf_dets
+                    ):
                         confirmed.add(i)
                 prev = self._sticky_confirmed.get(camera_id, set())
                 self._sticky_confirmed[camera_id] = confirmed
                 if confirmed != prev:
                     names = [repr(static[i]) for i in sorted(confirmed)]
-                    log.info("Sticky probe %s: confirmed %s", camera_id, names or 'none')
+                    log.info(
+                        "Sticky probe %s: confirmed %s", camera_id, names or "none"
+                    )
 
             # Merge confirmed sticky entries into baseline
             confirmed = self._sticky_confirmed.get(camera_id, set())
@@ -656,8 +802,12 @@ class BaselineManager:
         self.baselines[camera_id] = detections
         if detections:
             log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])
-        log.debug("Baseline for %s: chose previous frame of %d available, %d detections",
-                  camera_id, total, len(detections))
+        log.debug(
+            "Baseline for %s: chose previous frame of %d available, %d detections",
+            camera_id,
+            total,
+            len(detections),
+        )
 
     # ================================================================
     # Event analysis (works with both strategies)
@@ -699,7 +849,7 @@ class BaselineManager:
         batch_size = 3
 
         for batch_start in range(0, len(check_order), batch_size):
-            batch_indices = check_order[batch_start:batch_start + batch_size]
+            batch_indices = check_order[batch_start : batch_start + batch_size]
             tasks = [self.detector.get_detections(frames[i]) for i in batch_indices]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -716,15 +866,20 @@ class BaselineManager:
                     continue
 
                 if not baseline:
-                    names = ', '.join(d.name for d in detections)
-                    log.info("Frame %d/%d: detected %s (no baseline)", idx + 1, n, names)
+                    names = ", ".join(d.name for d in detections)
+                    log.info(
+                        "Frame %d/%d: detected %s (no baseline)", idx + 1, n, names
+                    )
                     annotated = self._annotate_frame(frames[idx], detections)
                     return True, f"new objects (no baseline): {names}", annotated
 
-                new = [d for d in detections
-                       if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
+                new = [
+                    d
+                    for d in detections
+                    if not any(d.is_near(b, self.position_tolerance) for b in baseline)
+                ]
                 if new:
-                    names = ', '.join(d.name for d in new)
+                    names = ", ".join(d.name for d in new)
                     log.info("Frame %d/%d: new objects: %s", idx + 1, n, names)
                     annotated = self._annotate_frame(frames[idx], detections, new)
                     return True, f"new objects: {names}", annotated

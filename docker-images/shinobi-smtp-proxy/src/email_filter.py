@@ -2,7 +2,7 @@ import logging
 
 from email_utils import extract_images
 
-log = logging.getLogger('smtp-proxy')
+log = logging.getLogger("smtp-proxy")
 
 
 class EmailFilter:
@@ -33,7 +33,9 @@ class EmailFilter:
         # (analyzes pre-event + post-event frames from camera, not just email attachment)
         if self.baseline_manager and camera_id:
             try:
-                has_new, reason, frame = await self.baseline_manager.analyze_event(camera_id)
+                has_new, reason, frame = await self.baseline_manager.analyze_event(
+                    camera_id
+                )
                 if has_new:
                     return False, reason, frame
                 else:
@@ -46,7 +48,7 @@ class EmailFilter:
             try:
                 detections = await self.object_detector.get_detections(image_data)
                 if detections:
-                    names = ', '.join(d.name for d in detections)
+                    names = ", ".join(d.name for d in detections)
                     return False, f"objects in email: {names}", image_data
             except Exception:
                 log.exception("Image detection error, allowing through")

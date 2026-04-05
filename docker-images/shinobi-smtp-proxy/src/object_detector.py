@@ -7,28 +7,30 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
-log = logging.getLogger('smtp-proxy')
+log = logging.getLogger("smtp-proxy")
 
 
 class Detection:
     """A single YOLO detection with class, position, and size."""
-    __slots__ = ('cls_id', 'name', 'cx', 'cy', 'w', 'h', 'conf')
+
+    __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "conf")
 
     def __init__(self, cls_id, name, cx, cy, w, h, conf):
         self.cls_id = cls_id
         self.name = name
-        self.cx = cx    # center x (0-1, fraction of image width)
-        self.cy = cy    # center y (0-1, fraction of image height)
-        self.w = w      # width (0-1)
-        self.h = h      # height (0-1)
+        self.cx = cx  # center x (0-1, fraction of image width)
+        self.cy = cy  # center y (0-1, fraction of image height)
+        self.w = w  # width (0-1)
+        self.h = h  # height (0-1)
         self.conf = conf
 
     def is_near(self, other, tolerance=0.15):
         """Check if another detection of the same class is nearby."""
         if self.cls_id != other.cls_id:
             return False
-        return (abs(self.cx - other.cx) < tolerance
-                and abs(self.cy - other.cy) < tolerance)
+        return (
+            abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance
+        )
 
     def __repr__(self):
         return f"{self.name}@({self.cx:.2f},{self.cy:.2f})"
@@ -37,8 +39,13 @@ class Detection:
 class ObjectDetector:
     """Runs YOLOv8n to detect people, vehicles, or animals."""
 
-    def __init__(self, model_path='yolov8n.pt', confidence_threshold=0.25,
-                 target_classes=None, ir_confidence_threshold=0.45):
+    def __init__(
+        self,
+        model_path="yolov8n.pt",
+        confidence_threshold=0.25,
+        target_classes=None,
+        ir_confidence_threshold=0.45,
+    ):
         self.confidence_threshold = confidence_threshold
         self.ir_confidence_threshold = ir_confidence_threshold
         self.target_classes = set(target_classes or [])
@@ -55,8 +62,8 @@ class ObjectDetector:
     def _is_grayscale(img):
         """Fast check: sample patches across the image to detect IR/night mode.
         Returns True if image has negligible color saturation."""
-        if img.mode != 'RGB':
-            return img.mode in ('L', 'LA')
+        if img.mode != "RGB":
+            return img.mode in ("L", "LA")
         w, h = img.size
         ps = 20  # patch half-size
         # Sample 5 spread-out patches: top-left, top-right, center, bottom-left, bottom-right
@@ -91,7 +98,8 @@ class ObjectDetector:
 
     async def get_detections(self, image_data, confidence_override=None):
         """Returns list of Detection objects for target classes found in image.
-        If confidence_override is set, it is used instead of the dynamic IR/day threshold."""
+        If confidence_override is set, it is used instead of the dynamic IR/day threshold.
+        """
         try:
             img = Image.open(io.BytesIO(image_data))
             img_w, img_h = img.size
@@ -101,7 +109,9 @@ class ObjectDetector:
             if confidence_override is not None:
                 conf_thresh = confidence_override
             else:
-                conf_thresh = self.ir_confidence_threshold if is_ir else self.confidence_threshold
+                conf_thresh = (
+                    self.ir_confidence_threshold if is_ir else self.confidence_threshold
+                )
 
             # CLAHE contrast enhancement for IR/night frames
             # Improves YOLO detection of dim objects (e.g. parked car under IR LEDs)
@@ -111,7 +121,9 @@ class ObjectDetector:
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
                 None,
-                lambda: self.model.predict(img, conf=conf_thresh, imgsz=416, verbose=False),
+                lambda: self.model.predict(
+                    img, conf=conf_thresh, imgsz=416, verbose=False
+                ),
             )
             detections = []
             for result in results:
@@ -133,8 +145,13 @@ class ObjectDetector:
                         conf=conf,
                     )
                     detections.append(d)
-                    log.debug("Detected %s (%.0f%%) at (%.2f, %.2f)",
-                              d.name, conf * 100, d.cx, d.cy)
+                    log.debug(
+                        "Detected %s (%.0f%%) at (%.2f, %.2f)",
+                        d.name,
+                        conf * 100,
+                        d.cx,
+                        d.cy,
+                    )
 
             return detections
         except Exception:

@@ -3,7 +3,7 @@ import email
 import logging
 import smtplib
 
-log = logging.getLogger('smtp-proxy')
+log = logging.getLogger("smtp-proxy")
 
 
 class EmailForwarder:
@@ -11,10 +11,13 @@ class EmailForwarder:
         self.host = host
         self.port = port
 
-    async def forward(self, mail_from, rcpt_tos, message_data, username=None, password=None):
+    async def forward(
+        self, mail_from, rcpt_tos, message_data, username=None, password=None
+    ):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, self._send, mail_from, rcpt_tos, message_data, username, password)
+            None, self._send, mail_from, rcpt_tos, message_data, username, password
+        )
 
     def _send(self, mail_from, rcpt_tos, message_data, username, password):
         log.info("Forwarding to %s:%s", self.host, self.port)

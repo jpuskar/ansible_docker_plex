@@ -2,7 +2,7 @@ import logging
 
 from aiosmtpd.smtp import AuthResult
 
-log = logging.getLogger('smtp-proxy')
+log = logging.getLogger("smtp-proxy")
 
 
 def _extract_login_password(auth_data):
@@ -10,9 +10,9 @@ def _extract_login_password(auth_data):
     username = auth_data.login
     password = auth_data.password
     if isinstance(username, bytes):
-        username = username.decode('utf-8')
+        username = username.decode("utf-8")
     if isinstance(password, bytes):
-        password = password.decode('utf-8')
+        password = password.decode("utf-8")
     return username, password
 
 
@@ -23,12 +23,12 @@ def authenticator(server, session, envelope, mechanism, auth_data):
     so the forwarder can relay them downstream.
     """
     try:
-        if mechanism not in ('LOGIN', 'PLAIN'):
+        if mechanism not in ("LOGIN", "PLAIN"):
             log.warning("Unsupported AUTH mechanism: %s", mechanism)
             return AuthResult(success=False, message="Unsupported mechanism")
 
         # aiosmtpd passes a LoginPassword namedtuple for both LOGIN and PLAIN
-        if not hasattr(auth_data, 'login'):
+        if not hasattr(auth_data, "login"):
             log.error("Unexpected auth_data type: %s", type(auth_data).__name__)
             return AuthResult(success=False, message="Invalid credentials")
 
