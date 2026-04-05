@@ -1,12 +1,12 @@
 ---
 # Intel GPU Device Plugin ArgoCD Application Role Defaults
 
-# Helm chart configuration
-intel_gpu_chart_name: "intel-device-plugins-gpu"
-intel_gpu_chart_version: "0.35.0"
 intel_gpu_namespace: "intel-gpu-plugin"
 
-# Node selector — only deploy on nodes with Intel GPU detected by NFD
+# Plugin image
+intel_gpu_plugin_image: "intel/intel-gpu-plugin:0.35.0"
+
+# Node selector — only deploy on nodes with Intel GPU
 intel_gpu_node_selector:
   intel.feature.node.kubernetes.io/gpu: "true"
 
@@ -14,15 +14,8 @@ intel_gpu_node_selector:
 # 1 = exclusive access, >1 = time-sliced sharing
 intel_gpu_shared_dev_num: 10
 
-# Allocation policy: none, balanced, packed
-intel_gpu_allocation_policy: "none"
-
 # Log verbosity (0-5, higher = more verbose)
 intel_gpu_log_level: 2
 
 # Enable GPU monitoring metrics
 intel_gpu_enable_monitoring: true
-
-# Whether to create NFD NodeFeatureRule
-# Only useful if NFD is running — set false if NFD is not deployed
-intel_gpu_node_feature_rule: false

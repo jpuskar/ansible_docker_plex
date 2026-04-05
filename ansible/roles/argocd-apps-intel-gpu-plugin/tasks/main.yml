@@ -4,39 +4,7 @@
     src: namespace.yaml
     dest: "{{ output_dir_path }}/namespace.yaml"
 
-- name: Template out Intel GPU Device Plugin Helm values to temp dir
+- name: Template out Intel GPU Device Plugin DaemonSet
   template:
-    src: intel-gpu-helm-values.yaml
-    dest: "{{ temp_dir_path }}/intel-gpu-values.yaml"
-
-- name: Add Intel Helm repository
-  shell:
-    cmd: |-
-      helm repo add intel https://intel.github.io/helm-charts
-  changed_when: false
-  failed_when: false
-
-- name: Update Intel Helm repositories
-  shell:
-    cmd: |-
-      helm repo update intel
-  changed_when: false
-
-- name: Generate Intel GPU Device Plugin manifests using helm template
-  shell:
-    executable: /usr/bin/bash
-    cmd: |-
-      set -euo pipefail
-      helm template intel-gpu-plugin intel/{{ intel_gpu_chart_name }} \
-        --version {{ intel_gpu_chart_version }} \
-        --namespace {{ intel_gpu_namespace }} \
-        --values {{ temp_dir_path }}/intel-gpu-values.yaml \
-        --include-crds | \
-      yq eval '.' - | \
-      sed '1s/^/---\n/' | sed '/^---$/!b;n;/^---$/d'
-  register: helm_template_output
-
-- name: Write output manifests for Intel GPU Device Plugin helm template
-  copy:
-    content: "{{ helm_template_output.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
-    dest: "{{ output_dir_path }}/intel-gpu-plugin-helm-manifests.yaml"
+    src: intel-gpu-plugin-daemonset.yaml
+    dest: "{{ output_dir_path }}/intel-gpu-plugin-daemonset.yaml"
