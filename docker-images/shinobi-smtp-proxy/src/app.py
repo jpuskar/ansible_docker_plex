@@ -35,28 +35,6 @@ logging.getLogger('mail.log').setLevel(logging.WARNING)
 
 
 async def main():
-    # Set up baseline manager if cameras are configured
-    baseline_manager = None
-    cameras_cfg = config.get('cameras', {})
-    if cameras_cfg:
-        # Detector is shared between baseline polling and email filtering
-        detector = ObjectDetector(
-            confidence_threshold=config.get('confidence_threshold', 0.25),
-            target_classes=TARGET_CLASSES,
-        )
-        baseline_manager = BaselineManager(
-            cameras=cameras_cfg,
-            username=os.environ.get('CAMERA_USERNAME', config.get('camera_username', 'admin')),
-            password=os.environ.get('CAMERA_PASSWORD', config.get('camera_password', '')),
-            detector=detector,
-            snapshot_interval=config.get('snapshot_interval', 1),
-            buffer_seconds=config.get('buffer_seconds', 10),
-            baseline_interval=config.get('baseline_interval', 60),
-            position_tolerance=config.get('position_tolerance', 0.15),
-            strategy=config.get('camera_strategy', 'rtsp'),
-        )
-        await baseline_manager.start()
-
     # Set up Discord notifier if configured
     discord_notifier = None
     discord_token = os.environ.get('DISCORD_BOT_TOKEN', '')
