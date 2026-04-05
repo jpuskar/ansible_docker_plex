@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import io
 import json
@@ -22,8 +24,9 @@ class DiscordNotifier:
     """
 
     def __init__(
-        self, bot_token, channel_id, cooldown_seconds=60, bot_name="Shinobi SMTP Proxy"
-    ):
+        self, bot_token: str, channel_id: str, cooldown_seconds: int = 60,
+        bot_name: str = "Shinobi SMTP Proxy",
+    ) -> None:
         self.bot_token = bot_token
         self.channel_id = channel_id
         self.cooldown_seconds = cooldown_seconds
@@ -34,20 +37,21 @@ class DiscordNotifier:
         self._last_sent = {}  # {camera_id: monotonic timestamp}
         self._session = None
 
-    async def _get_session(self):
+    async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def close(self):
+    async def close(self) -> None:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    def _in_cooldown(self, camera_id):
+    def _in_cooldown(self, camera_id: str) -> bool:
         last = self._last_sent.get(camera_id, 0)
         return (time.monotonic() - last) < self.cooldown_seconds
 
-    async def send_alert(self, camera_id, description, jpeg_bytes=None):
+    async def send_alert(self, camera_id: str, description: str,
+                         jpeg_bytes: bytes | None = None) -> bool:
         """Send a detection alert to Discord for a camera.
 
         Args:

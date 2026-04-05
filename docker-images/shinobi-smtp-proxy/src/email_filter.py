@@ -1,6 +1,14 @@
+from __future__ import annotations
+
 import logging
+from email.message import Message
+from typing import TYPE_CHECKING
 
 from email_utils import extract_images
+
+if TYPE_CHECKING:
+    from baseline_manager import BaselineManager
+    from object_detector import ObjectDetector
 
 log = logging.getLogger("smtp-proxy")
 
@@ -8,12 +16,14 @@ log = logging.getLogger("smtp-proxy")
 class EmailFilter:
     """Decides whether to drop an email based on subject keywords and image content."""
 
-    def __init__(self, filter_keywords, object_detector=None, baseline_manager=None):
+    def __init__(self, filter_keywords: list[str], object_detector: ObjectDetector | None = None,
+                 baseline_manager: BaselineManager | None = None) -> None:
         self.filter_keywords = [kw.lower() for kw in filter_keywords]
         self.object_detector = object_detector
         self.baseline_manager = baseline_manager
 
-    async def should_filter(self, message, subject, camera_id=None):
+    async def should_filter(self, message: Message, subject: str,
+                            camera_id: str | None = None) -> tuple[bool, str, bytes | None]:
         """Returns (should_drop, reason, alert_frame_jpeg_or_None)."""
         # Fast path: keyword match on subject
         subject_lower = subject.lower()

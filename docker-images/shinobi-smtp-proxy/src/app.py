@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -35,7 +37,7 @@ log = logging.getLogger("smtp-proxy")
 logging.getLogger("mail.log").setLevel(logging.WARNING)
 
 
-async def main():
+async def main() -> None:
     # Set up Discord notifier if configured
     discord_notifier = None
     discord_token = os.environ.get("DISCORD_BOT_TOKEN", "")

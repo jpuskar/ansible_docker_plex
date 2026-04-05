@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 import json
 import logging
 import urllib.parse
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from object_detector import Detection
 
 log = logging.getLogger("smtp-proxy")
 
@@ -15,7 +21,8 @@ class ShinobiNotifier:
     Endpoint: GET /{api_key}/motion/{group_key}/{monitor_id}?data={...}
     """
 
-    def __init__(self, base_url, api_key, group_key, monitor_map=None):
+    def __init__(self, base_url: str, api_key: str, group_key: str,
+                 monitor_map: dict[str, str] | None = None) -> None:
         """
         Args:
             base_url: Shinobi base URL (e.g. http://shinobi:8080)
@@ -30,16 +37,16 @@ class ShinobiNotifier:
         self.monitor_map = monitor_map or {}
         self._session = None
 
-    async def _get_session(self):
+    async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def close(self):
+    async def close(self) -> None:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def discover_monitors(self, cameras):
+    async def discover_monitors(self, cameras: dict[str, str]) -> None:
         """Auto-discover monitor_map by matching camera IPs to Shinobi monitors.
 
         Calls GET /{api_key}/monitor/{group_key} to list all monitors,
@@ -133,7 +140,8 @@ class ShinobiNotifier:
             len(monitors),
         )
 
-    async def trigger_event(self, camera_id, detections, reason=None):
+    async def trigger_event(self, camera_id: str, detections: list[Detection],
+                            reason: str | None = None) -> bool:
         """Push a detection event to Shinobi's timeline.
 
         Args:

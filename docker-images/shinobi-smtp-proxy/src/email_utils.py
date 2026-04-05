@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import email.header
 import logging
 import re
 
+from email.message import Message
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
@@ -11,7 +14,7 @@ from email import encoders
 log = logging.getLogger("smtp-proxy")
 
 
-def decode_subject(raw_subject, fallback_subject):
+def decode_subject(raw_subject: str, fallback_subject: str) -> str:
     """Decode an RFC 2047 subject line to clean ASCII."""
     try:
         parts = email.header.decode_header(raw_subject)
@@ -37,7 +40,7 @@ def decode_subject(raw_subject, fallback_subject):
         return fallback_subject
 
 
-def extract_images(message):
+def extract_images(message: Message) -> list[bytes]:
     """Return list of raw image bytes from a message's MIME parts.
     Also checks application/octet-stream parts for image magic bytes."""
     images = []
@@ -53,7 +56,7 @@ def extract_images(message):
     return images
 
 
-def _looks_like_image(data):
+def _looks_like_image(data: bytes) -> bool:
     """Check if raw bytes start with known image magic bytes."""
     if len(data) < 4:
         return False
@@ -67,7 +70,7 @@ def _looks_like_image(data):
     )  # WEBP
 
 
-def create_forwarded_message(original, mail_from, rcpt_tos, subject):
+def create_forwarded_message(original: Message, mail_from: str, rcpt_tos: list[str], subject: str) -> MIMEMultipart:
     """Build a new MIME message with a cleaned subject, preserving attachments."""
     msg = MIMEMultipart()
     msg["From"] = mail_from

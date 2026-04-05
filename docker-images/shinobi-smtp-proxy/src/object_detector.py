@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import io
 import logging
@@ -15,7 +17,8 @@ class Detection:
 
     __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "conf")
 
-    def __init__(self, cls_id, name, cx, cy, w, h, conf):
+    def __init__(self, cls_id: int, name: str, cx: float, cy: float,
+                 w: float, h: float, conf: float) -> None:
         self.cls_id = cls_id
         self.name = name
         self.cx = cx  # center x (0-1, fraction of image width)
@@ -24,7 +27,7 @@ class Detection:
         self.h = h  # height (0-1)
         self.conf = conf
 
-    def is_near(self, other, tolerance=0.15):
+    def is_near(self, other: Detection, tolerance: float = 0.15) -> bool:
         """Check if another detection of the same class is nearby."""
         if self.cls_id != other.cls_id:
             return False
@@ -32,7 +35,7 @@ class Detection:
             abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.name}@({self.cx:.2f},{self.cy:.2f})"
 
 
@@ -41,11 +44,11 @@ class ObjectDetector:
 
     def __init__(
         self,
-        model_path="yolov8m.pt",
-        confidence_threshold=0.25,
-        target_classes=None,
-        ir_confidence_threshold=0.45,
-    ):
+        model_path: str = "yolov8m.pt",
+        confidence_threshold: float = 0.25,
+        target_classes: set[int] | None = None,
+        ir_confidence_threshold: float = 0.45,
+    ) -> None:
         self.confidence_threshold = confidence_threshold
         self.ir_confidence_threshold = ir_confidence_threshold
         self.target_classes = set(target_classes or [])
@@ -53,13 +56,13 @@ class ObjectDetector:
         self.model = YOLO(model_path)
         log.info("YOLO model loaded")
 
-    async def detect(self, image_data):
+    async def detect(self, image_data: bytes) -> bool:
         """Returns True if any target object is found in the image bytes."""
         detections = await self.get_detections(image_data)
         return len(detections) > 0
 
     @staticmethod
-    def _is_grayscale(img):
+    def _is_grayscale(img: Image.Image) -> bool:
         """Fast check: sample patches across the image to detect IR/night mode.
         Returns True if image has negligible color saturation."""
         if img.mode != "RGB":
@@ -86,7 +89,7 @@ class ObjectDetector:
         return avg_spread < 10.0
 
     @staticmethod
-    def _apply_clahe(img):
+    def _apply_clahe(img: Image.Image) -> Image.Image:
         """Apply CLAHE contrast enhancement to an IR/grayscale PIL image.
         Converts to LAB, applies CLAHE to the L channel, converts back to RGB."""
         arr = np.array(img)
@@ -96,7 +99,8 @@ class ObjectDetector:
         enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
         return Image.fromarray(enhanced)
 
-    async def get_detections(self, image_data, confidence_override=None):
+    async def get_detections(self, image_data: bytes,
+                             confidence_override: float | None = None) -> list[Detection]:
         """Returns list of Detection objects for target classes found in image.
         If confidence_override is set, it is used instead of the dynamic IR/day threshold.
         """

@@ -1,10 +1,17 @@
+from __future__ import annotations
+
 import email
 import logging
+from typing import TYPE_CHECKING
 
 from email_utils import decode_subject, create_forwarded_message
 from email_filter import EmailFilter
 from email_forwarder import EmailForwarder
 from object_detector import ObjectDetector
+
+if TYPE_CHECKING:
+    from baseline_manager import BaselineManager
+    from discord_notifier import DiscordNotifier
 
 log = logging.getLogger("smtp-proxy")
 
@@ -18,16 +25,16 @@ class SMTPProxyHandler:
 
     def __init__(
         self,
-        forward_host,
-        forward_port,
-        fallback_subject,
-        filter_keywords,
-        ai_detection_enabled=True,
-        confidence_threshold=0.25,
-        debug_mime=False,
-        baseline_manager=None,
-        discord_notifier=None,
-    ):
+        forward_host: str,
+        forward_port: int,
+        fallback_subject: str,
+        filter_keywords: list[str],
+        ai_detection_enabled: bool = True,
+        confidence_threshold: float = 0.25,
+        debug_mime: bool = False,
+        baseline_manager: BaselineManager | None = None,
+        discord_notifier: DiscordNotifier | None = None,
+    ) -> None:
         self.fallback_subject = fallback_subject
         self.debug_mime = debug_mime
         self.discord_notifier = discord_notifier
@@ -39,8 +46,12 @@ class SMTPProxyHandler:
                 target_classes=TARGET_CLASSES,
             )
 
-        self.email_filter = EmailFilter(filter_keywords, detector, baseline_manager)
-        self.email_forwarder = EmailForwarder(forward_host, forward_port)
+        self.email_filter = EmailFilter(
+            filter_keywords=filter_keywords,
+            object_detector=detector,
+            baseline_manager=baseline_manager,
+        )
+        self.email_forwarder = EmailForwarder(host=forward_host, port=forward_port)
 
     async def handle_MAIL(self, server, session, envelope, address, mail_options):
         log.debug("MAIL FROM: %s", address)
@@ -77,13 +88,13 @@ class SMTPProxyHandler:
                     )
 
             original_subject = message.get("Subject", self.fallback_subject)
-            subject = decode_subject(original_subject, self.fallback_subject)
+            subject = decode_subject(raw_subject=original_subject, fallback_subject=self.fallback_subject)
 
             # Extract camera ID from sender, e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast
             camera_id = envelope.mail_from.split("@")[0] if envelope.mail_from else None
 
             should_filter, reason, alert_frame = await self.email_filter.should_filter(
-                message, subject, camera_id
+                message=message, subject=subject, camera_id=camera_id,
             )
             if should_filter:
                 log.info("Filtered: %s (subject: %s)", reason, subject)
@@ -95,19 +106,21 @@ class SMTPProxyHandler:
             if self.discord_notifier:
                 description = f"{subject}\n{reason}"
                 await self.discord_notifier.send_alert(
-                    camera_id or "unknown", description, alert_frame
+                    camera_id=camera_id or "unknown", description=description,
+                    jpeg_bytes=alert_frame,
                 )
 
             new_message = create_forwarded_message(
-                message, envelope.mail_from, envelope.rcpt_tos, subject
+                original=message, mail_from=envelope.mail_from,
+                rcpt_tos=envelope.rcpt_tos, subject=subject,
             )
 
             await self.email_forwarder.forward(
-                envelope.mail_from,
-                envelope.rcpt_tos,
-                new_message.as_string(),
-                username,
-                password,
+                mail_from=envelope.mail_from,
+                rcpt_tos=envelope.rcpt_tos,
+                message_data=new_message.as_string(),
+                username=username,
+                password=password,
             )
 
             return "250 OK"

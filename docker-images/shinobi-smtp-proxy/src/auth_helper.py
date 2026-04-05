@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import logging
 
-from aiosmtpd.smtp import AuthResult
+from aiosmtpd.smtp import AuthResult, Envelope, LoginPassword, SMTP, Session
 
 log = logging.getLogger("smtp-proxy")
 
 
-def _extract_login_password(auth_data):
+def _extract_login_password(auth_data: LoginPassword) -> tuple[str, str]:
     """Pull username/password strings from a LoginPassword namedtuple."""
     username = auth_data.login
     password = auth_data.password
@@ -16,7 +18,7 @@ def _extract_login_password(auth_data):
     return username, password
 
 
-def authenticator(server, session, envelope, mechanism, auth_data):
+def authenticator(server: SMTP, session: Session, envelope: Envelope, mechanism: str, auth_data: LoginPassword) -> AuthResult:
     """aiosmtpd authenticator callback.
 
     Accepts LOGIN and PLAIN mechanisms. Stashes credentials on the session
