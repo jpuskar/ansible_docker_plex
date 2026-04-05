@@ -51,6 +51,15 @@ motion_min_area: {{ shinobi_smtp_proxy_motion_min_area | default(500) }}   # min
 # Discord notifications (bot token + channel ID come from env vars / Secret)
 discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}
 
+# Shinobi NVR integration — push detection events to timeline
+# API key comes from SHINOBI_API_KEY env var (Secret)
+# Monitor map is auto-discovered from camera IPs at startup
+{% if shinobi_smtp_proxy_shinobi_base_url is defined %}
+shinobi:
+  base_url: "{{ shinobi_smtp_proxy_shinobi_base_url }}"
+  group_key: "{{ shinobi_smtp_proxy_shinobi_group_key }}"
+{% endif %}
+
 # Detection zones — only alert on objects inside these regions.
 # Polygons use normalized coords (0.0-1.0 of frame width/height).
 # [0,0] = top-left, [1,1] = bottom-right.

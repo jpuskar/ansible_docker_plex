@@ -72,6 +72,13 @@ shinobi_smtp_proxy_discord_channel_id: !vault |
   61346666353739333566653161386662303733633136643963663632326562633137
 shinobi_smtp_proxy_discord_cooldown: 60
 
+# Shinobi NVR integration — push events to Shinobi's timeline
+# API key should be vault-encrypted and passed via SHINOBI_API_KEY env var
+shinobi_smtp_proxy_shinobi_base_url: "http://shinobi.shinobi.svc.cluster.local:8080"
+shinobi_smtp_proxy_shinobi_group_key: ""  # fill from Shinobi UI → Settings → API
+shinobi_smtp_proxy_shinobi_api_key: ""    # vault-encrypt this
+# Monitor map is auto-discovered at startup by matching camera IPs to Shinobi monitors
+
 # Camera IPs keyed by email sender prefix
 # e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast -> 192.168.x.x
 shinobi_smtp_proxy_cameras:

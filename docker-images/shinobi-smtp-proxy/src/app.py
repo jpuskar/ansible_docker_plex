@@ -12,6 +12,7 @@ from auth_helper import authenticator
 from baseline_manager import BaselineManager
 from discord_notifier import DiscordNotifier
 from object_detector import ObjectDetector
+from shinobi_notifier import ShinobiNotifier
 from SMTPProxyHandler import TARGET_CLASSES
 
 # aiosmtpd emits a UserWarning on every connection when auth_require_tls=False.
@@ -48,9 +49,27 @@ async def main():
         log.info("Discord notifications enabled (channel %s, cooldown %ds)",
                  discord_channel, config.get('discord_cooldown', 60))
 
+    # Set up Shinobi notifier if configured
+    shinobi_notifier = None
+    shinobi_cfg = config.get('shinobi', {})
+    shinobi_api_key = os.environ.get('SHINOBI_API_KEY', shinobi_cfg.get('api_key', ''))
+    if shinobi_cfg.get('base_url') and shinobi_api_key:
+        shinobi_notifier = ShinobiNotifier(
+            base_url=shinobi_cfg['base_url'],
+            api_key=shinobi_api_key,
+            group_key=shinobi_cfg.get('group_key', ''),
+            monitor_map=shinobi_cfg.get('monitor_map', {}),
+        )
+        log.info("Shinobi notifications enabled (%s)", shinobi_cfg['base_url'])
+
     # Set up baseline manager if cameras are configured
     baseline_manager = None
     cameras_cfg = config.get('cameras', {})
+
+    # Auto-discover Shinobi monitor IDs from camera IPs
+    if shinobi_notifier and cameras_cfg:
+        await shinobi_notifier.discover_monitors(cameras_cfg)
+
     if cameras_cfg:
         # Detector is shared between baseline polling and email filtering
         detector = ObjectDetector(
@@ -76,6 +95,7 @@ async def main():
             confirm_cameras=config.get('confirm_cameras', []),
             min_detection_area=config.get('min_detection_area', 0.003),
             static_baselines=config.get('static_baselines', {}),
+            shinobi_notifier=shinobi_notifier,
         )
         await baseline_manager.start()
 

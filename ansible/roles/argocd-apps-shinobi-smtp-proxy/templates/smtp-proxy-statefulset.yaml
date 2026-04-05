@@ -39,6 +39,11 @@ spec:
                 secretKeyRef:
                   name: smtp-proxy-camera-creds
                   key: discord-channel-id
+            - name: SHINOBI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: shinobi-api-key
           ports:
             - containerPort: {{ shinobi_smtp_proxy_port }}
               name: smtp

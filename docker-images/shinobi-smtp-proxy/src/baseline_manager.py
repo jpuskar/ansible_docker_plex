@@ -190,7 +190,7 @@ class BaselineManager:
                  motion_detection=True, motion_threshold=MOTION_THRESHOLD,
                  motion_min_area=MOTION_MIN_AREA, detection_zones=None,
                  confirm_cameras=None, min_detection_area=0.003,
-                 static_baselines=None):
+                 static_baselines=None, shinobi_notifier=None):
         self.cameras = cameras              # {camera_id: ip}
         self.username = username
         self.password = password
@@ -201,6 +201,7 @@ class BaselineManager:
         self.position_tolerance = position_tolerance
         self.strategy = strategy
         self.discord_notifier = discord_notifier
+        self.shinobi_notifier = shinobi_notifier
         self.motion_detection = motion_detection
 
         # Detection zones: {camera_id: [numpy_polygon, ...]}
@@ -332,6 +333,8 @@ class BaselineManager:
             await client.aclose()
         if self.discord_notifier:
             await self.discord_notifier.close()
+        if self.shinobi_notifier:
+            await self.shinobi_notifier.close()
 
     # ================================================================
     # HTTP snapshot strategy (legacy, strategy='http')
@@ -484,6 +487,17 @@ class BaselineManager:
             return jpeg_bytes
 
     # ================================================================
+    # Alert dispatch (Discord + Shinobi)
+    # ================================================================
+
+    async def _send_alert(self, camera_id, description, jpeg_bytes, detections):
+        """Send alert to Discord (with annotated image) and Shinobi (timeline event)."""
+        if self.discord_notifier:
+            await self.discord_notifier.send_alert(camera_id, description, jpeg_bytes)
+        if self.shinobi_notifier:
+            await self.shinobi_notifier.trigger_event(camera_id, detections)
+
+    # ================================================================
     # Motion detection loop (strategy='rtsp', motion_detection=True)
     # ================================================================
 
@@ -527,20 +541,18 @@ class BaselineManager:
                         if pending and now - pending['time'] < 5.0:
                             del self._pending_alerts[camera_id]
                             log.info("Motion %s: CONFIRMED %s (no baseline)", camera_id, names)
-                            if self.discord_notifier:
-                                annotated = self._annotate_frame(jpeg_bytes, detections)
-                                await self.discord_notifier.send_alert(
-                                    camera_id, f"Motion: {names}", annotated)
+                            annotated = self._annotate_frame(jpeg_bytes, detections)
+                            await self._send_alert(
+                                camera_id, f"Motion: {names}", annotated, detections)
                         else:
                             self._pending_alerts[camera_id] = {
                                 'names': names, 'jpeg': jpeg_bytes, 'time': now}
                             log.info("Motion %s: pending %s (no baseline)", camera_id, names)
                     else:
                         log.info("Motion %s: %s (no baseline)", camera_id, names)
-                        if self.discord_notifier:
-                            annotated = self._annotate_frame(jpeg_bytes, detections)
-                            await self.discord_notifier.send_alert(
-                                camera_id, f"Motion: {names}", annotated)
+                        annotated = self._annotate_frame(jpeg_bytes, detections)
+                        await self._send_alert(
+                            camera_id, f"Motion: {names}", annotated, detections)
                     continue
 
                 new = [d for d in detections
@@ -558,10 +570,9 @@ class BaselineManager:
                                      camera_id, names,
                                      [repr(d) for d in detections],
                                      [repr(b) for b in baseline])
-                            if self.discord_notifier:
-                                annotated = self._annotate_frame(jpeg_bytes, detections, new)
-                                await self.discord_notifier.send_alert(
-                                    camera_id, f"Motion: {names}", annotated)
+                            annotated = self._annotate_frame(jpeg_bytes, detections, new)
+                            await self._send_alert(
+                                camera_id, f"Motion: {names}", annotated, new)
                         elif not pending or pending['names'] != names or now - pending['time'] >= 5.0:
                             self._pending_alerts[camera_id] = {
                                 'names': names, 'jpeg': jpeg_bytes, 'time': now}
@@ -574,10 +585,9 @@ class BaselineManager:
                                  camera_id, names,
                                  [repr(d) for d in detections],
                                  [repr(b) for b in baseline])
-                        if self.discord_notifier:
-                            annotated = self._annotate_frame(jpeg_bytes, detections, new)
-                            await self.discord_notifier.send_alert(
-                                camera_id, f"Motion: {names}", annotated)
+                        annotated = self._annotate_frame(jpeg_bytes, detections, new)
+                        await self._send_alert(
+                            camera_id, f"Motion: {names}", annotated, new)
                 else:
                     # No new objects — clear any pending alert for this camera
                     self._pending_alerts.pop(camera_id, None)
