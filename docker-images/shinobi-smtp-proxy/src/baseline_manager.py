@@ -300,6 +300,7 @@ class BaselineManager:
         maxlen = max(buffer_seconds * 2, 10)  # 2fps * buffer_seconds
         self.buffers = {cam_id: CameraBuffer(maxlen) for cam_id in cameras}
         self.baselines = {}  # {camera_id: [Detection, ...]}
+        self._baseline_initialized = set()  # cameras that have had at least one baseline scan
         self._baseline_task = None
         self._metrics_task = None
         self._motion_task = None
@@ -628,6 +629,13 @@ class BaselineManager:
 
                 baseline = self.baselines.get(camera_id, [])
                 if not baseline:
+                    # Suppress alerts until baseline has run at least once
+                    if camera_id not in self._baseline_initialized:
+                        log.debug(
+                            "Motion %s: ignoring (baseline not yet initialized)",
+                            camera_id,
+                        )
+                        continue
                     names = ", ".join(d.name for d in detections)
                     if camera_id in self._confirm_cameras:
                         now = time.monotonic()
@@ -800,6 +808,7 @@ class BaselineManager:
                     detections.append(s)
 
         self.baselines[camera_id] = detections
+        self._baseline_initialized.add(camera_id)
         if detections:
             log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])
         log.debug(

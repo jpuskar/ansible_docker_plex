@@ -199,9 +199,9 @@ shinobi_smtp_proxy_min_detection_area: 0.003
 shinobi_smtp_proxy_static_baselines:
   camfrontdoor:
     - name: car
-      cx: 0.30
+      cx: 0.35
       cy: 0.10
   camfrontsoutheast:
     - name: car
-      cx: 0.30
-      cy: 0.50
+      cx: 0.46
+      cy: 0.51
