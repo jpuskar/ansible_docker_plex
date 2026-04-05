@@ -2,6 +2,8 @@ import asyncio
 import io
 import logging
 
+import cv2
+import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
@@ -55,7 +57,6 @@ class ObjectDetector:
         Returns True if image has negligible color saturation."""
         if img.mode != 'RGB':
             return img.mode in ('L', 'LA')
-        import numpy as np
         w, h = img.size
         ps = 20  # patch half-size
         # Sample 5 spread-out patches: top-left, top-right, center, bottom-left, bottom-right
@@ -77,6 +78,17 @@ class ObjectDetector:
         avg_spread = total_spread / len(points)
         return avg_spread < 10.0
 
+    @staticmethod
+    def _apply_clahe(img):
+        """Apply CLAHE contrast enhancement to an IR/grayscale PIL image.
+        Converts to LAB, applies CLAHE to the L channel, converts back to RGB."""
+        arr = np.array(img)
+        lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+        return Image.fromarray(enhanced)
+
     async def get_detections(self, image_data, confidence_override=None):
         """Returns list of Detection objects for target classes found in image.
         If confidence_override is set, it is used instead of the dynamic IR/day threshold."""
@@ -84,13 +96,17 @@ class ObjectDetector:
             img = Image.open(io.BytesIO(image_data))
             img_w, img_h = img.size
 
+            is_ir = self._is_grayscale(img)
+
             if confidence_override is not None:
                 conf_thresh = confidence_override
             else:
-                # Detect IR/night mode by checking color saturation
-                # IR images are grayscale — R,G,B channels nearly identical
-                is_ir = self._is_grayscale(img)
                 conf_thresh = self.ir_confidence_threshold if is_ir else self.confidence_threshold
+
+            # CLAHE contrast enhancement for IR/night frames
+            # Improves YOLO detection of dim objects (e.g. parked car under IR LEDs)
+            if is_ir:
+                img = self._apply_clahe(img)
 
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
