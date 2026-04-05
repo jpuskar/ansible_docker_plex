@@ -59,7 +59,7 @@ discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}
 #     - [[0.1, 0.3], [0.6, 0.3], [0.7, 1.0], [0.0, 1.0]]
 {% if shinobi_smtp_proxy_detection_zones is defined %}
 detection_zones:
-{{ shinobi_smtp_proxy_detection_zones | to_nice_yaml(indent=2) | indent(2, false) }}
+{{ shinobi_smtp_proxy_detection_zones | to_nice_yaml(indent=2) | indent(2, true) }}
 {% endif %}
 
 # Camera IPs
