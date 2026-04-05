@@ -18,9 +18,10 @@ class SMTPProxyHandler:
 
     def __init__(self, forward_host, forward_port, fallback_subject,
                  filter_keywords, ai_detection_enabled=True, confidence_threshold=0.25,
-                 debug_mime=False, baseline_manager=None):
+                 debug_mime=False, baseline_manager=None, discord_notifier=None):
         self.fallback_subject = fallback_subject
         self.debug_mime = debug_mime
+        self.discord_notifier = discord_notifier
 
         detector = None
         if ai_detection_enabled:
@@ -65,12 +66,18 @@ class SMTPProxyHandler:
             # Extract camera ID from sender, e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast
             camera_id = envelope.mail_from.split('@')[0] if envelope.mail_from else None
 
-            should_filter, reason = await self.email_filter.should_filter(message, subject, camera_id)
+            should_filter, reason, alert_frame = await self.email_filter.should_filter(message, subject, camera_id)
             if should_filter:
                 log.info("Filtered: %s (subject: %s)", reason, subject)
                 return '250 OK'
 
             log.info("Passed filter: %s (subject: %s)", reason, subject)
+
+            # Send Discord alert with the detection frame if configured
+            if self.discord_notifier:
+                description = f"{subject}\n{reason}"
+                await self.discord_notifier.send_alert(camera_id or 'unknown', description, alert_frame)
+
             new_message = create_forwarded_message(
                 message, envelope.mail_from, envelope.rcpt_tos, subject)
 

@@ -10,6 +10,7 @@ from aiosmtpd.controller import Controller
 from SMTPProxyHandler import SMTPProxyHandler
 from auth_helper import authenticator
 from baseline_manager import BaselineManager
+from discord_notifier import DiscordNotifier
 from object_detector import ObjectDetector
 from SMTPProxyHandler import TARGET_CLASSES
 
@@ -56,6 +57,19 @@ async def main():
         )
         await baseline_manager.start()
 
+    # Set up Discord notifier if configured
+    discord_notifier = None
+    discord_token = os.environ.get('DISCORD_BOT_TOKEN', '')
+    discord_channel = os.environ.get('DISCORD_CHANNEL_ID', config.get('discord_channel_id', ''))
+    if discord_token and discord_channel:
+        discord_notifier = DiscordNotifier(
+            bot_token=discord_token,
+            channel_id=discord_channel,
+            cooldown_seconds=config.get('discord_cooldown', 60),
+        )
+        log.info("Discord notifications enabled (channel %s, cooldown %ds)",
+                 discord_channel, config.get('discord_cooldown', 60))
+
     handler = SMTPProxyHandler(
         forward_host=config['forward_host'],
         forward_port=config['forward_port'],
@@ -65,6 +79,7 @@ async def main():
         confidence_threshold=config.get('confidence_threshold', 0.25),
         debug_mime=config.get('debug_mime', False),
         baseline_manager=baseline_manager,
+        discord_notifier=discord_notifier,
     )
 
     controller = Controller(

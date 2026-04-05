@@ -41,6 +41,9 @@ buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}  # how many seconds of s
 # Camera frame strategy: 'rtsp' (persistent MJPEG sub-stream) or 'http' (polling snapshots)
 camera_strategy: rtsp
 
+# Discord notifications (bot token + channel ID come from env vars / Secret)
+discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}  # seconds between alerts per camera
+
 # Camera IPs keyed by sender email prefix (e.g. camnorthtoeast -> 192.168.x.x)
 # Credentials come from CAMERA_USERNAME / CAMERA_PASSWORD env vars (Secret)
 cameras:

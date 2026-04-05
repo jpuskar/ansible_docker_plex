@@ -324,16 +324,19 @@ class BaselineManager:
 
     async def analyze_event(self, camera_id):
         """Called when an event email arrives. Runs YOLO on buffered frames
-        in batches of 3, middle-out order. Returns as soon as a new object is found."""
+        in batches of 3, middle-out order. Returns as soon as a new object is found.
+
+        Returns: (has_new_objects: bool, reason: str, frame_jpeg: bytes|None)
+        """
 
         buf = self.buffers.get(camera_id)
         if not buf:
             log.warning("No buffer for camera %s", camera_id)
-            return True, "unknown camera, allowing"
+            return True, "unknown camera, allowing", None
 
         frames = buf.get_recent(seconds=self.buffer_seconds)
         if not frames:
-            return True, "no frames buffered, allowing"
+            return True, "no frames buffered, allowing", None
 
         log.info("Event for %s: analyzing %d buffered frames", camera_id, len(frames))
 
@@ -369,14 +372,14 @@ class BaselineManager:
                 if not baseline:
                     names = ', '.join(d.name for d in detections)
                     log.info("Frame %d/%d: detected %s (no baseline)", idx + 1, n, names)
-                    return True, f"new objects (no baseline): {names}"
+                    return True, f"new objects (no baseline): {names}", frames[idx]
 
                 new = [d for d in detections
                        if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
                 if new:
                     names = ', '.join(d.name for d in new)
                     log.info("Frame %d/%d: new objects: %s", idx + 1, n, names)
-                    return True, f"new objects: {names}"
+                    return True, f"new objects: {names}", frames[idx]
 
         log.info("No new objects in %d frames for %s", n, camera_id)
-        return False, f"no new objects in {n} frames"
+        return False, f"no new objects in {n} frames", None

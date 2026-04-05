@@ -14,30 +14,30 @@ class EmailFilter:
         self.baseline_manager = baseline_manager
 
     async def should_filter(self, message, subject, camera_id=None):
-        """Returns (should_drop, reason)."""
+        """Returns (should_drop, reason, alert_frame_jpeg_or_None)."""
         # Fast path: keyword match on subject
         subject_lower = subject.lower()
         for kw in self.filter_keywords:
             if kw in subject_lower:
-                return True, f"keyword: {kw}"
+                return True, f"keyword: {kw}", None
 
         # No images = nothing worth forwarding
         images = extract_images(message)
         if not images:
-            return True, "no images"
+            return True, "no images", None
 
         if self.object_detector is None:
-            return False, "no detector, passed"
+            return False, "no detector, passed", None
 
         # If we have a baseline manager with rolling buffer, use that
         # (analyzes pre-event + post-event frames from camera, not just email attachment)
         if self.baseline_manager and camera_id:
             try:
-                has_new, reason = await self.baseline_manager.analyze_event(camera_id)
+                has_new, reason, frame = await self.baseline_manager.analyze_event(camera_id)
                 if has_new:
-                    return False, reason
+                    return False, reason, frame
                 else:
-                    return True, reason
+                    return True, reason, None
             except Exception:
                 log.exception("Event analysis error, falling back to email image")
 
@@ -47,9 +47,9 @@ class EmailFilter:
                 detections = await self.object_detector.get_detections(image_data)
                 if detections:
                     names = ', '.join(d.name for d in detections)
-                    return False, f"objects in email: {names}"
+                    return False, f"objects in email: {names}", image_data
             except Exception:
                 log.exception("Image detection error, allowing through")
-                return False, "detection error, allowing"
+                return False, "detection error, allowing", None
 
-        return True, "no objects detected in images"
+        return True, "no objects detected in images", None

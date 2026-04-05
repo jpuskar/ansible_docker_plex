@@ -52,6 +52,11 @@ shinobi_smtp_proxy_camera_password: !vault |
   3334373834653930630a386331643763663663313061336331383139376233383034613365323865
   33333931383236306135383161306561306434333666326163343030363336303636
 
+# Discord bot notifications
+shinobi_smtp_proxy_discord_bot_token: ""   # vault encrypt this after setting
+shinobi_smtp_proxy_discord_channel_id: ""  # vault encrypt this after setting
+shinobi_smtp_proxy_discord_cooldown: 60
+
 # Camera IPs keyed by email sender prefix
 # e.g. camnorthtoeast@spaceskippy.net -> camnorthtoeast -> 192.168.x.x
 shinobi_smtp_proxy_cameras:
