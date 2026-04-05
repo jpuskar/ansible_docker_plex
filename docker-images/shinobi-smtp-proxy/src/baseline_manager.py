@@ -572,7 +572,8 @@ class BaselineManager:
             return
 
         jpeg = recent[-1]
-        detections = await self.detector.get_detections(jpeg)
+        detections = await self.detector.get_detections(
+            jpeg, confidence_override=self.detector.confidence_threshold)
         self.baselines[camera_id] = detections
         if detections:
             log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])

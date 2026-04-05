@@ -77,16 +77,20 @@ class ObjectDetector:
         avg_spread = total_spread / len(points)
         return avg_spread < 10.0
 
-    async def get_detections(self, image_data):
-        """Returns list of Detection objects for target classes found in image."""
+    async def get_detections(self, image_data, confidence_override=None):
+        """Returns list of Detection objects for target classes found in image.
+        If confidence_override is set, it is used instead of the dynamic IR/day threshold."""
         try:
             img = Image.open(io.BytesIO(image_data))
             img_w, img_h = img.size
 
-            # Detect IR/night mode by checking color saturation
-            # IR images are grayscale — R,G,B channels nearly identical
-            is_ir = self._is_grayscale(img)
-            conf_thresh = self.ir_confidence_threshold if is_ir else self.confidence_threshold
+            if confidence_override is not None:
+                conf_thresh = confidence_override
+            else:
+                # Detect IR/night mode by checking color saturation
+                # IR images are grayscale — R,G,B channels nearly identical
+                is_ir = self._is_grayscale(img)
+                conf_thresh = self.ir_confidence_threshold if is_ir else self.confidence_threshold
 
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
