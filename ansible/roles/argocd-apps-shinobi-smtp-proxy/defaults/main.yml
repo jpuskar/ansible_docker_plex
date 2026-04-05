@@ -19,6 +19,11 @@ shinobi_smtp_proxy_resources_requests_cpu: "250m"
 shinobi_smtp_proxy_resources_limits_memory: "2Gi"
 shinobi_smtp_proxy_resources_limits_cpu: "2000m"
 
+# Intel GPU acceleration (OpenVINO on iGPU)
+# Requires: i915 Talos extension, Intel GPU device plugin DaemonSet
+# When enabled, requests gpu.intel.com/i915 resource on the pod
+shinobi_smtp_proxy_intel_gpu_enabled: true
+
 # LoadBalancer IP (Cilium LB-IPAM) — shinobi-smtp-proxy.spaceskippy.net
 shinobi_smtp_proxy_loadbalancer_ip: !vault |
   $ANSIBLE_VAULT;1.1;AES256

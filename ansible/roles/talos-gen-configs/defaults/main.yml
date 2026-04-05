@@ -107,6 +107,28 @@ talos_images_info:
 #        - nvidia-gdrdrv-device
 #        - nvme-cli
 #        - util-linux-tools
+  # v1.12.6 with SecureBoot, i915 GPU driver, and Intel microcode
+  - name: "v1.12.6-secureboot-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.6"
+    tags:
+      arch: amd64
+      secureboot: true
+      version: "v1.12.6"
+      extensions:
+        - i915
+        - intel-ucode
+
+  # v1.12.6 with i915 GPU driver and Intel microcode (no SecureBoot)
+  - name: "v1.12.6-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.6"
+    tags:
+      arch: amd64
+      secureboot: false
+      version: "v1.12.6"
+      extensions:
+        - i915
+        - intel-ucode
+
   # v1.12.6 with SecureBoot and Intel microcode
   - name: "v1.12.6-secureboot-intel-ucode"
     image: "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.6"

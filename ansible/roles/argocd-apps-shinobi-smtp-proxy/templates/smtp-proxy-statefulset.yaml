@@ -58,9 +58,15 @@ spec:
             requests:
               memory: "{{ shinobi_smtp_proxy_resources_requests_memory }}"
               cpu: "{{ shinobi_smtp_proxy_resources_requests_cpu }}"
+{% if shinobi_smtp_proxy_intel_gpu_enabled | default(false) %}
+              gpu.intel.com/i915: "1"
+{% endif %}
             limits:
               memory: "{{ shinobi_smtp_proxy_resources_limits_memory }}"
               cpu: "{{ shinobi_smtp_proxy_resources_limits_cpu }}"
+{% if shinobi_smtp_proxy_intel_gpu_enabled | default(false) %}
+              gpu.intel.com/i915: "1"
+{% endif %}
           livenessProbe:
             httpGet:
               path: /healthz

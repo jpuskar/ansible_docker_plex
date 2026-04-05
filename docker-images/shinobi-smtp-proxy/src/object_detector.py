@@ -65,11 +65,15 @@ class Detection:
 
 
 class ObjectDetector:
-    """Runs YOLOv8m to detect people, vehicles, or animals."""
+    """Runs YOLOv8m with OpenVINO on Intel GPU (falls back to CPU)."""
+
+    # OpenVINO model directory exported during Docker build
+    _OPENVINO_MODEL = "yolov8m_openvino_model"
+    _PYTORCH_MODEL = "yolov8m.pt"
 
     def __init__(
         self,
-        model_path: str = "yolov8m.pt",
+        model_path: str | None = None,
         confidence_threshold: float = 0.25,
         target_classes: set[int] | None = None,
         ir_confidence_threshold: float = 0.45,
@@ -77,9 +81,21 @@ class ObjectDetector:
         self.confidence_threshold = confidence_threshold
         self.ir_confidence_threshold = ir_confidence_threshold
         self.target_classes = set(target_classes or [])
-        log.info("Loading YOLO model %s...", model_path)
-        self.model = YOLO(model_path)
-        log.info("YOLO model loaded")
+
+        # Try OpenVINO model first (exported during Docker build), fall back to PyTorch
+        import pathlib
+        ov_path = pathlib.Path(self._OPENVINO_MODEL)
+        if model_path:
+            resolved = model_path
+        elif ov_path.is_dir() and (ov_path / "yolov8m.xml").exists():
+            resolved = str(ov_path)
+        else:
+            resolved = self._PYTORCH_MODEL
+
+        log.info("Loading YOLO model %s...", resolved)
+        self.model = YOLO(resolved)
+        self._using_openvino = resolved.endswith("_openvino_model") or resolved.endswith(".xml")
+        log.info("YOLO model loaded (OpenVINO=%s)", self._using_openvino)
 
     async def detect(self, image_data: bytes) -> bool:
         """Returns True if any target object is found in the image bytes."""
@@ -151,7 +167,7 @@ class ObjectDetector:
             results = await loop.run_in_executor(
                 None,
                 lambda: self.model.predict(
-                    img, conf=conf_thresh, imgsz=640, verbose=False
+                    img, conf=conf_thresh, imgsz=640, verbose=False,
                 ),
             )
             detections = []
