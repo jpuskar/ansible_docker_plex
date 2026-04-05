@@ -71,12 +71,15 @@ class ShinobiNotifier:
             )
             return
 
-        # Build IP -> monitor_id lookup from Shinobi's monitor list
+        # Build lookups from Shinobi's monitor list: by IP and by mid/name
         ip_to_mid = {}
+        mid_set = set()
+        name_to_mid = {}
         for mon in monitors:
             mid = mon.get("mid", "")
             name = mon.get("name", "")
-            host_ip = None
+            mid_set.add(mid)
+            name_to_mid[name] = mid
 
             details = mon.get("details", {})
             if isinstance(details, str):
@@ -85,6 +88,7 @@ class ShinobiNotifier:
                 except (json.JSONDecodeError, TypeError):
                     details = {}
 
+            host_ip = None
             # Mode 1: full URL in details.auto_host
             if details.get("auto_host_enable") == "1" and details.get("auto_host"):
                 parsed = urlparse(details["auto_host"])
@@ -95,18 +99,14 @@ class ShinobiNotifier:
 
             if host_ip:
                 ip_to_mid[host_ip] = mid
-                log.info("Shinobi monitor %s (%s) -> IP %s", mid, name, host_ip)
-            else:
-                auto_host = details.get("auto_host", "")
-                auto_enable = details.get("auto_host_enable", "")
-                raw_host = mon.get("host", "")
-                log.warning(
-                    "Shinobi monitor %s (%s): no IP extracted "
-                    "(auto_host_enable=%s, auto_host=%s, host=%s)",
-                    mid, name, auto_enable, auto_host[:80], raw_host,
-                )
 
-        # Match our camera IPs to Shinobi monitor IDs
+            log.info(
+                "Shinobi monitor: mid=%s, name=%s, ip=%s",
+                mid, name, host_ip or "(stripped by API perms)",
+            )
+
+        # Match our camera IDs to Shinobi monitor IDs
+        # Priority: explicit monitor_map > IP match > mid match > name match
         matched = 0
         for camera_id, camera_ip in cameras.items():
             if camera_id in self.monitor_map:
@@ -114,16 +114,17 @@ class ShinobiNotifier:
             if camera_ip in ip_to_mid:
                 self.monitor_map[camera_id] = ip_to_mid[camera_ip]
                 matched += 1
-                log.info(
-                    "Mapped %s (%s) -> Shinobi monitor %s",
-                    camera_id,
-                    camera_ip,
-                    ip_to_mid[camera_ip],
-                )
+                log.info("Mapped %s -> monitor %s (by IP)", camera_id, ip_to_mid[camera_ip])
+            elif camera_id in mid_set:
+                self.monitor_map[camera_id] = camera_id
+                matched += 1
+                log.info("Mapped %s -> monitor %s (mid matches camera_id)", camera_id, camera_id)
+            elif camera_id in name_to_mid:
+                self.monitor_map[camera_id] = name_to_mid[camera_id]
+                matched += 1
+                log.info("Mapped %s -> monitor %s (by name)", camera_id, name_to_mid[camera_id])
             else:
-                log.warning(
-                    "No Shinobi monitor found for %s (%s)", camera_id, camera_ip
-                )
+                log.warning("No Shinobi monitor found for %s (%s)", camera_id, camera_ip)
 
         log.info(
             "Shinobi monitor discovery: %d/%d cameras mapped (%d monitors total)",
