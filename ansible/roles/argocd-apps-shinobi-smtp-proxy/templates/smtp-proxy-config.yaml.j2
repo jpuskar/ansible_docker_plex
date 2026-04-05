@@ -2,50 +2,67 @@
 listen_host: "0.0.0.0"
 listen_port: 2525
 
+# SMTP proxy — set to false to run as standalone motion detector
+smtp_enabled: false
+
 # Health check endpoint
 health_port: {{ shinobi_smtp_proxy_health_port }}
 
-# Shinobi SMTP Server
+# Shinobi SMTP Server (only used when smtp_enabled: true)
 forward_host: "shinobi-smtp2.{{ site_fqdn }}"
 forward_port: 2525
 
 # Logging
 log_level: "INFO"
 
-# Subject line cleaning
+# Subject line cleaning (smtp only)
 clean_subjects: true
 fallback_subject: "Motion Detected"
 
-# Subject filtering - drop emails containing these keywords
+# Subject filtering (smtp only)
 filter_keywords:
   - "Intensity Change Stop"
   - "Intensity Change"
   - "Motion Detection Stop"
 
-# Debug: log MIME structure of every email
-debug_mime: true
+# Debug: log MIME structure of every email (smtp only)
+debug_mime: false
 
-# AI Image Detection (reduces false positives)
-# Uses local YOLOv8n model to detect people, vehicles, and animals
+# AI Image Detection
 ai_detection_enabled: true
-confidence_threshold: 0.25  # Detection confidence (0.0-1.0, lower = more sensitive)
+confidence_threshold: 0.25
 
-# Baseline detection - polls cameras to filter out stationary objects
-baseline_interval: {{ shinobi_smtp_proxy_baseline_interval }}  # seconds between baseline YOLO runs
-position_tolerance: {{ shinobi_smtp_proxy_position_tolerance }}  # 0-1, how close two detections must be to match
+# Baseline detection - periodic YOLO to filter out stationary objects
+baseline_interval: {{ shinobi_smtp_proxy_baseline_interval }}
+position_tolerance: {{ shinobi_smtp_proxy_position_tolerance }}
 
-# Rolling snapshot buffer - captures frames continuously for pre-event analysis
-snapshot_interval: {{ shinobi_smtp_proxy_snapshot_interval }}  # seconds between snapshots per camera (http strategy only)
-buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}  # how many seconds of snapshots to keep
+# Rolling frame buffer
+buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}
 
-# Camera frame strategy: 'rtsp' (persistent MJPEG sub-stream) or 'http' (polling snapshots)
+# Camera frame strategy: 'rtsp' or 'http'
 camera_strategy: rtsp
 
-# Discord notifications (bot token + channel ID come from env vars / Secret)
-discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}  # seconds between alerts per camera
+# Motion detection (rtsp strategy only) — replaces camera-triggered SMTP alerts
+motion_detection: true
+motion_threshold: {{ shinobi_smtp_proxy_motion_threshold | default(25) }}  # pixel diff threshold (0-255)
+motion_min_area: {{ shinobi_smtp_proxy_motion_min_area | default(500) }}   # min contour area in pixels
 
-# Camera IPs keyed by sender email prefix (e.g. camnorthtoeast -> 192.168.x.x)
-# Credentials come from CAMERA_USERNAME / CAMERA_PASSWORD env vars (Secret)
+# Discord notifications (bot token + channel ID come from env vars / Secret)
+discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}
+
+# Detection zones — only alert on objects inside these regions.
+# Polygons use normalized coords (0.0-1.0 of frame width/height).
+# [0,0] = top-left, [1,1] = bottom-right.
+# If no zones for a camera, whole frame is valid.
+# Example: driveway polygon that excludes the street
+#   camfrontdoor:
+#     - [[0.1, 0.3], [0.6, 0.3], [0.7, 1.0], [0.0, 1.0]]
+{% if shinobi_smtp_proxy_detection_zones is defined %}
+detection_zones:
+{{ shinobi_smtp_proxy_detection_zones | to_nice_yaml(indent=2) | indent(2, false) }}
+{% endif %}
+
+# Camera IPs
 cameras:
 {% for cam_id, cam_ip in shinobi_smtp_proxy_cameras.items() %}
   {{ cam_id }}: "{{ cam_ip }}"
