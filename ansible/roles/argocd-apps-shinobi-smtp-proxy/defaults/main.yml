@@ -17,7 +17,7 @@ shinobi_smtp_proxy_health_port: 8080
 shinobi_smtp_proxy_resources_requests_memory: "512Mi"
 shinobi_smtp_proxy_resources_requests_cpu: "250m"
 shinobi_smtp_proxy_resources_limits_memory: "2Gi"
-shinobi_smtp_proxy_resources_limits_cpu: "1000m"
+shinobi_smtp_proxy_resources_limits_cpu: "2000m"
 
 # LoadBalancer IP (Cilium LB-IPAM) — shinobi-smtp-proxy.spaceskippy.net
 shinobi_smtp_proxy_loadbalancer_ip: !vault |
@@ -29,7 +29,7 @@ shinobi_smtp_proxy_loadbalancer_ip: !vault |
   3663
 
 # Baseline detection
-shinobi_smtp_proxy_baseline_interval: 60
+shinobi_smtp_proxy_baseline_interval: 30
 shinobi_smtp_proxy_position_tolerance: 0.15
 
 # Rolling snapshot buffer

@@ -151,7 +151,7 @@ class ObjectDetector:
             results = await loop.run_in_executor(
                 None,
                 lambda: self.model.predict(
-                    img, conf=conf_thresh, imgsz=416, verbose=False
+                    img, conf=conf_thresh, imgsz=640, verbose=False
                 ),
             )
             detections = []
