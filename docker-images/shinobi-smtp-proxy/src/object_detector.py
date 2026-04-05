@@ -65,11 +65,11 @@ class Detection:
 
 
 class ObjectDetector:
-    """Runs YOLOv8m with OpenVINO on Intel GPU (falls back to CPU)."""
+    """Runs YOLOv8l with OpenVINO on Intel GPU (falls back to CPU)."""
 
     # OpenVINO model directory exported during Docker build
-    _OPENVINO_MODEL = "yolov8m_openvino_model"
-    _PYTORCH_MODEL = "yolov8m.pt"
+    _OPENVINO_MODEL = "yolov8l_openvino_model"
+    _PYTORCH_MODEL = "yolov8l.pt"
 
     def __init__(
         self,
@@ -87,7 +87,7 @@ class ObjectDetector:
         ov_path = pathlib.Path(self._OPENVINO_MODEL)
         if model_path:
             resolved = model_path
-        elif ov_path.is_dir() and (ov_path / "yolov8m.xml").exists():
+        elif ov_path.is_dir() and (ov_path / "yolov8l.xml").exists():
             resolved = str(ov_path)
         else:
             resolved = self._PYTORCH_MODEL
@@ -163,6 +163,8 @@ class ObjectDetector:
             if is_ir:
                 img = self._apply_clahe(img)
 
+            import time
+            t0 = time.monotonic()
             loop = asyncio.get_running_loop()
             results = await loop.run_in_executor(
                 None,
@@ -170,6 +172,9 @@ class ObjectDetector:
                     img, conf=conf_thresh, imgsz=640, verbose=False,
                 ),
             )
+            elapsed_ms = (time.monotonic() - t0) * 1000
+            log.info("YOLO inference: %.0fms (OpenVINO=%s)", elapsed_ms, self._using_openvino)
+
             detections = []
             for result in results:
                 if result.boxes is None or len(result.boxes) == 0:
