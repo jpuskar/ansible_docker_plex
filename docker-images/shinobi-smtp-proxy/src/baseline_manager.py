@@ -106,7 +106,10 @@ class RTSPReader(threading.Thread):
         while not self._stop_event.is_set():
             cap = None
             try:
-                cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                cap = cv2.VideoCapture()
+                cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
+                cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
+                cap.open(self.rtsp_url, cv2.CAP_FFMPEG)
                 if not cap.isOpened():
                     raise ConnectionError(f"Cannot open RTSP stream for {self.camera_id}")
                 self.connected = True
@@ -431,7 +434,10 @@ class BaselineManager:
                        if not any(d.is_near(b, self.position_tolerance) for b in baseline)]
                 if new:
                     names = ', '.join(d.name for d in new)
-                    log.info("Motion %s: new objects: %s", camera_id, names)
+                    log.info("Motion %s: new objects: %s (det=%s, base=%s)",
+                             camera_id, names,
+                             [repr(d) for d in detections],
+                             [repr(b) for b in baseline])
                     if self.discord_notifier:
                         await self.discord_notifier.send_alert(
                             camera_id, f"Motion: {names}", jpeg_bytes)
@@ -446,7 +452,8 @@ class BaselineManager:
     # ================================================================
 
     async def _baseline_loop(self):
-        await asyncio.sleep(self.baseline_interval)
+        # Wait briefly for cameras to connect and buffer frames before first scan
+        await asyncio.sleep(15)
         while True:
             for camera_id in self.cameras:
                 try:
@@ -466,6 +473,8 @@ class BaselineManager:
         jpeg = recent[-1]
         detections = await self.detector.get_detections(jpeg)
         self.baselines[camera_id] = detections
+        if detections:
+            log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])
         log.debug("Baseline for %s: chose previous frame of %d available, %d detections",
                   camera_id, total, len(detections))
 
