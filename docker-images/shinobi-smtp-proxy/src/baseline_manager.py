@@ -134,6 +134,7 @@ class RTSPReader(threading.Thread):
                     )
                 self._backoff = 0
                 self._prev_gray = None  # reset motion baseline on reconnect
+                self._warmup_frames = 10  # skip motion detection for first N frames
                 frame_interval = 1.0 / self.target_fps
                 last_frame = 0.0
 
@@ -160,7 +161,9 @@ class RTSPReader(threading.Thread):
 
                     # Motion detection (if enabled)
                     if self._motion_queue is not None:
-                        if self._detect_motion(frame):
+                        if self._warmup_frames > 0:
+                            self._warmup_frames -= 1
+                        elif self._detect_motion(frame):
                             if now - self._last_motion >= MOTION_COOLDOWN:
                                 self._last_motion = now
                                 self.motion_events += 1
