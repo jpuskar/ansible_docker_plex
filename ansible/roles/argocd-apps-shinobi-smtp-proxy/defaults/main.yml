@@ -15,7 +15,7 @@ shinobi_smtp_proxy_health_port: 8080
 
 # Resource requests/limits
 shinobi_smtp_proxy_resources_requests_memory: "1Gi"
-shinobi_smtp_proxy_resources_requests_cpu: "2000m"
+shinobi_smtp_proxy_resources_requests_cpu: "1000m"
 shinobi_smtp_proxy_resources_limits_memory: "2Gi"
 shinobi_smtp_proxy_resources_limits_cpu: "2000m"
 
