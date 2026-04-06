@@ -9,7 +9,13 @@ velero_namespace: "velero"
 
 # ── NFS backup location ────────────────────────────────────────────
 # The NFS server and export path for the backup storage location.
-velero_nfs_server: "CHANGEME"   # vault-encrypt this (see harbor role for example)
+velero_nfs_server: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33393961316364346230333331346530346634336130646133383866363663376237343532353564
+  3965363332646237643065383064316430303835343039300a633432633465336331363136626335
+  62663533656631646163636230313032386662646666303332333462356535353639663434613632
+  6666366362316533390a653935316162326437653536636461323662366137663765303666666162
+  3961
 velero_nfs_path: /tank0/k8s2-velero
 
 # ── Backup Storage Location ────────────────────────────────────────
