@@ -93,9 +93,22 @@ class ObjectDetector:
             resolved = self._PYTORCH_MODEL
 
         log.info("Loading YOLO model %s...", resolved)
-        self.model = YOLO(resolved)
+        self.model = YOLO(resolved, task="detect")
         self._using_openvino = resolved.endswith("_openvino_model") or resolved.endswith(".xml")
-        log.info("YOLO model loaded (OpenVINO=%s)", self._using_openvino)
+
+        # Select OpenVINO device: prefer GPU, fall back to CPU
+        if self._using_openvino:
+            try:
+                import openvino as ov
+                devices = ov.Core().available_devices
+                log.info("OpenVINO available devices: %s", devices)
+                self._ov_device = "GPU" if "GPU" in devices else "CPU"
+            except Exception:
+                self._ov_device = "CPU"
+        else:
+            self._ov_device = None
+
+        log.info("YOLO model loaded (OpenVINO=%s, device=%s)", self._using_openvino, self._ov_device)
 
     async def detect(self, image_data: bytes) -> bool:
         """Returns True if any target object is found in the image bytes."""
@@ -166,14 +179,15 @@ class ObjectDetector:
             import time
             t0 = time.monotonic()
             loop = asyncio.get_running_loop()
+            predict_kwargs: dict = dict(conf=conf_thresh, imgsz=640, verbose=False)
+            if self._ov_device:
+                predict_kwargs["device"] = self._ov_device
             results = await loop.run_in_executor(
                 None,
-                lambda: self.model.predict(
-                    img, conf=conf_thresh, imgsz=640, verbose=False,
-                ),
+                lambda: self.model.predict(img, **predict_kwargs),
             )
             elapsed_ms = (time.monotonic() - t0) * 1000
-            log.info("YOLO inference: %.0fms (OpenVINO=%s)", elapsed_ms, self._using_openvino)
+            log.info("YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)
 
             detections = []
             for result in results:
