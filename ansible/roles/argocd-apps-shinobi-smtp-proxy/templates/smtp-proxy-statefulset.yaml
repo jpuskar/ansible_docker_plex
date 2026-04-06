@@ -44,6 +44,8 @@ spec:
                 secretKeyRef:
                   name: smtp-proxy-camera-creds
                   key: shinobi-api-key
+            - name: OV_GPU_DisableWinogradConvolution
+              value: "1"
           ports:
             - containerPort: {{ shinobi_smtp_proxy_port }}
               name: smtp
