@@ -104,8 +104,10 @@ async def main() -> None:
             motion_min_area=config.get("motion_min_area", 500),
             detection_zones=config.get("detection_zones", {}),
             min_detection_area=config.get("min_detection_area", 0.003),
-            static_baselines=config.get("static_baselines", {}),
             shinobi_notifier=shinobi_notifier,
+            baseline_add_threshold=config.get("baseline_add_threshold", 3),
+            baseline_verify_confidence=config.get("baseline_verify_confidence", 0.15),
+            min_motion_novelty=config.get("min_motion_novelty", 0.05),
         )
         await baseline_manager.start()
 

@@ -76,25 +76,17 @@ detection_zones:
 # Detections smaller than this are discarded as noise
 min_detection_area: {{ shinobi_smtp_proxy_min_detection_area | default(0.003) }}
 
-# Static baselines: known objects always present (e.g. parked car)
-# Merged into dynamic baselines so they never trigger alerts
-{% if shinobi_smtp_proxy_static_baselines is defined %}
-static_baselines:
-{% for cam_id, entries in shinobi_smtp_proxy_static_baselines.items() %}
-  {{ cam_id }}:
-{% for entry in entries %}
-    - name: {{ entry.name }}
-      cx: {{ entry.cx }}
-      cy: {{ entry.cy }}
-{% if entry.w is defined %}
-      w: {{ entry.w }}
-{% endif %}
-{% if entry.h is defined %}
-      h: {{ entry.h }}
-{% endif %}
-{% endfor %}
-{% endfor %}
-{% endif %}
+# Baseline hysteresis thresholds
+# Objects must appear for add_threshold consecutive cycles to enter baseline
+# When a promoted object misses at normal confidence, verify at low confidence
+# before dropping — catches objects flickering near the threshold
+baseline_add_threshold: {{ shinobi_smtp_proxy_baseline_add_threshold | default(3) }}
+baseline_verify_confidence: {{ shinobi_smtp_proxy_baseline_verify_confidence | default(0.15) }}
+
+# Motion novelty threshold (0-1 scale)
+# Motion below this is considered environmental (wind, tree sway, shadows)
+# and won't trigger alerts even if YOLO detects an object there
+min_motion_novelty: {{ shinobi_smtp_proxy_min_motion_novelty | default(0.05) }}
 
 # Camera IPs
 cameras:

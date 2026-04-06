@@ -71,7 +71,17 @@ class RTSPReader(threading.Thread):
     Reconnects automatically with exponential backoff (cap 30s).
     Encodes each frame to JPEG before storing.
     Optionally performs frame-differencing motion detection and enqueues events.
+
+    Motion heatmap: maintains an exponential moving average of per-cell motion
+    intensity. Environmental motion (wind, flickering lights) builds up in the
+    heatmap so it can be subtracted from instantaneous motion, leaving only
+    novel motion (person walking, car arriving).
     """
+
+    # Motion heatmap grid resolution
+    _GRID_ROWS = 12
+    _GRID_COLS = 16
+    _HEATMAP_ALPHA = 0.05  # EMA factor: lower = slower adaptation
 
     def __init__(
         self,
@@ -79,7 +89,7 @@ class RTSPReader(threading.Thread):
         rtsp_url: str,
         buf: CameraBuffer,
         target_fps: int = 2,
-        motion_queue: queue.Queue[tuple[str, bytes, list[tuple[float, float, float, float]]]] | None = None,
+        motion_queue: queue.Queue[tuple[str, bytes, list[tuple[float, float, float, float, float]]]] | None = None,
         motion_threshold: int = MOTION_THRESHOLD,
         motion_min_area: int = MOTION_MIN_AREA,
         motion_zone_polygons: list[np.ndarray] | None = None,
@@ -105,6 +115,10 @@ class RTSPReader(threading.Thread):
         self._prev_gray = None
         self._last_motion = 0.0
         self.motion_events = 0  # counter for metrics
+        # Motion heatmap: EMA of per-cell motion intensity (0-255 scale)
+        self._motion_heatmap = np.zeros(
+            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
+        )
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -119,11 +133,13 @@ class RTSPReader(threading.Thread):
             cv2.fillPoly(mask, [pts], 255)
         return mask
 
-    def _detect_motion(self, frame: np.ndarray) -> list[tuple[float, float, float, float]]:
-        """Returns list of motion region rects (normalized x, y, w, h) if motion detected.
+    def _detect_motion(self, frame: np.ndarray) -> list[tuple[float, float, float, float, float]]:
+        """Returns list of motion region rects with novelty scores.
 
-        Returns empty list if no significant motion. Each rect represents a
-        contour bounding box in 0-1 normalized coordinates.
+        Each tuple is (x, y, w, h, novelty) in normalized 0-1 coords.
+        novelty = how much the motion in this region exceeds the temporal
+        background motion (heatmap). High novelty = genuinely new motion
+        (person, car). Low novelty = environmental (wind, trees, shadows).
         """
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         gray = cv2.GaussianBlur(gray, (21, 21), 0)
@@ -136,6 +152,28 @@ class RTSPReader(threading.Thread):
             return []
         delta = cv2.absdiff(self._prev_gray, gray)
         self._prev_gray = gray
+
+        # Compute per-cell mean motion intensity for heatmap update
+        fh, fw = gray.shape
+        cell_h = fh / self._GRID_ROWS
+        cell_w = fw / self._GRID_COLS
+        current_grid = np.zeros(
+            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
+        )
+        for r in range(self._GRID_ROWS):
+            for c in range(self._GRID_COLS):
+                y1 = int(r * cell_h)
+                y2 = int((r + 1) * cell_h)
+                x1 = int(c * cell_w)
+                x2 = int((c + 1) * cell_w)
+                current_grid[r, c] = delta[y1:y2, x1:x2].mean()
+
+        # Update heatmap with EMA
+        self._motion_heatmap = (
+            self._motion_heatmap * (1 - self._HEATMAP_ALPHA)
+            + current_grid * self._HEATMAP_ALPHA
+        )
+
         thresh = cv2.threshold(delta, self._motion_threshold, 255, cv2.THRESH_BINARY)[1]
         thresh = cv2.dilate(thresh, None, iterations=2)
         # Mask to detection zone — ignore motion outside configured regions
@@ -144,12 +182,20 @@ class RTSPReader(threading.Thread):
         contours, _ = cv2.findContours(
             thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
-        fh, fw = gray.shape
-        motion_rects: list[tuple[float, float, float, float]] = []
-        for c in contours:
-            if cv2.contourArea(c) >= self._motion_min_area:
-                x, y, w, h = cv2.boundingRect(c)
-                motion_rects.append((x / fw, y / fh, w / fw, h / fh))
+        motion_rects: list[tuple[float, float, float, float, float]] = []
+        for cont in contours:
+            if cv2.contourArea(cont) >= self._motion_min_area:
+                x, y, w, h = cv2.boundingRect(cont)
+                # Compute novelty: mean motion in this rect vs heatmap baseline
+                r1 = max(0, int(y / cell_h))
+                r2 = min(self._GRID_ROWS, int((y + h) / cell_h) + 1)
+                c1 = max(0, int(x / cell_w))
+                c2 = min(self._GRID_COLS, int((x + w) / cell_w) + 1)
+                current_mean = current_grid[r1:r2, c1:c2].mean()
+                heatmap_mean = self._motion_heatmap[r1:r2, c1:c2].mean()
+                # Novelty: how much instantaneous exceeds the background
+                novelty = max(0.0, current_mean - heatmap_mean) / 255.0
+                motion_rects.append((x / fw, y / fh, w / fw, h / fh, novelty))
         return motion_rects
 
     def run(self) -> None:
@@ -174,6 +220,7 @@ class RTSPReader(threading.Thread):
                     )
                 self._backoff = 0
                 self._prev_gray = None  # reset motion baseline on reconnect
+                self._motion_heatmap[:] = 0  # reset heatmap on reconnect
                 self._warmup_frames = 10  # skip motion detection for first N frames
                 frame_interval = 1.0 / self.target_fps
                 last_frame = 0.0
@@ -237,6 +284,151 @@ class RTSPReader(threading.Thread):
                     cap.release()
 
 
+class BaselineCandidate:
+    """Tracks a single detected object across multiple baseline cycles."""
+
+    __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "hits", "misses", "promoted")
+
+    def __init__(self, det: Detection) -> None:
+        self.cls_id = det.cls_id
+        self.name = det.name
+        self.cx = det.cx
+        self.cy = det.cy
+        self.w = det.w
+        self.h = det.h
+        self.hits = 1
+        self.misses = 0
+        self.promoted = False
+
+    def update(self, det: Detection) -> None:
+        """Exponential moving average of position/size."""
+        alpha = 0.3
+        self.cx = self.cx * (1 - alpha) + det.cx * alpha
+        self.cy = self.cy * (1 - alpha) + det.cy * alpha
+        self.w = self.w * (1 - alpha) + det.w * alpha
+        self.h = self.h * (1 - alpha) + det.h * alpha
+        self.hits += 1
+        self.misses = 0
+
+    def as_detection(self) -> Detection:
+        return Detection(
+            cls_id=self.cls_id, name=self.name,
+            cx=self.cx, cy=self.cy, w=self.w, h=self.h,
+            conf=1.0,
+        )
+
+    def __repr__(self) -> str:
+        state = "P" if self.promoted else "c"
+        return f"{self.name}@({self.cx:.2f},{self.cy:.2f})[{state} h={self.hits} m={self.misses}]"
+
+
+class BaselineTracker:
+    """Hysteresis-based baseline: objects must appear N cycles to enter.
+    To leave, a low-confidence verification pass must also fail to find them."""
+
+    def __init__(self, add_threshold: int = 3,
+                 tolerance: float = 0.15) -> None:
+        self.add_threshold = add_threshold
+        self.tolerance = tolerance
+        self.candidates: list[BaselineCandidate] = []
+        self.cycles = 0
+        # Indices of promoted candidates that missed in the latest update()
+        self._missed_promoted: list[int] = []
+
+    @property
+    def is_warm(self) -> bool:
+        return self.cycles >= self.add_threshold
+
+    def _match(self, det: Detection, cand: BaselineCandidate) -> bool:
+        return (cand.cls_id == det.cls_id
+                and abs(cand.cx - det.cx) < self.tolerance
+                and abs(cand.cy - det.cy) < self.tolerance)
+
+    def update(self, detections: list[Detection]) -> list[str]:
+        """Feed one cycle of normal-confidence detections.
+        Returns log messages. Call verify_missed() after if any promoted missed."""
+        self.cycles += 1
+        matched_candidates: set[int] = set()
+        messages: list[str] = []
+        self._missed_promoted = []
+
+        for det in detections:
+            best = None
+            for i, cand in enumerate(self.candidates):
+                if i in matched_candidates:
+                    continue
+                if self._match(det, cand):
+                    best = i
+                    break
+            if best is not None:
+                matched_candidates.add(best)
+                self.candidates[best].update(det)
+                if not self.candidates[best].promoted and self.candidates[best].hits >= self.add_threshold:
+                    self.candidates[best].promoted = True
+                    messages.append(f"promoted {self.candidates[best]}")
+            else:
+                self.candidates.append(BaselineCandidate(det))
+
+        # Track misses — unpromoted candidates get garbage-collected,
+        # promoted ones go to _missed_promoted for low-conf verification
+        to_remove = []
+        for i, cand in enumerate(self.candidates):
+            if i not in matched_candidates:
+                cand.misses += 1
+                if cand.promoted:
+                    self._missed_promoted.append(i)
+                elif cand.misses >= 3:
+                    to_remove.append(i)
+
+        for i in reversed(to_remove):
+            self.candidates.pop(i)
+        # Re-index _missed_promoted after removals
+        if to_remove:
+            removed_set = set(to_remove)
+            shift = [sum(1 for r in to_remove if r < i) for i in self._missed_promoted]
+            self._missed_promoted = [
+                i - s for i, s in zip(self._missed_promoted, shift)
+                if i not in removed_set
+            ]
+
+        return messages
+
+    @property
+    def has_missed_promoted(self) -> bool:
+        return len(self._missed_promoted) > 0
+
+    def verify_missed(self, low_conf_detections: list[Detection]) -> list[str]:
+        """Check missed promoted candidates against a low-confidence detection pass.
+        Found → keep (reset misses). Not found → demote and remove."""
+        messages: list[str] = []
+        to_remove = []
+
+        for i in self._missed_promoted:
+            cand = self.candidates[i]
+            found = any(self._match(d, cand) for d in low_conf_detections)
+            if found:
+                cand.misses = 0
+                messages.append(f"verified at low-conf {cand}")
+            else:
+                messages.append(f"demoted (gone) {cand}")
+                cand.promoted = False
+                to_remove.append(i)
+
+        for i in reversed(sorted(to_remove)):
+            self.candidates.pop(i)
+
+        self._missed_promoted = []
+        return messages
+
+    def get_baseline(self) -> list[Detection]:
+        """Promoted candidates only — the stable baseline."""
+        return [c.as_detection() for c in self.candidates if c.promoted]
+
+    def get_all_seen(self) -> list[Detection]:
+        """All candidates seen at least once — used during warmup."""
+        return [c.as_detection() for c in self.candidates if c.hits > 0]
+
+
 class BaselineManager:
     """Manages camera frame buffers, periodic baselines, and event analysis.
 
@@ -247,18 +439,6 @@ class BaselineManager:
     When motion_detection=True and strategy='rtsp', frame-differencing in each
     RTSPReader thread triggers YOLO analysis + Discord alerts autonomously.
     """
-
-    # COCO class name → ID mapping for static baselines
-    COCO_NAME_TO_ID = {
-        "person": 0,
-        "bicycle": 1,
-        "car": 2,
-        "motorcycle": 3,
-        "bus": 5,
-        "truck": 7,
-        "cat": 15,
-        "dog": 16,
-    }
 
     def __init__(
         self,
@@ -277,8 +457,10 @@ class BaselineManager:
         motion_min_area: int = MOTION_MIN_AREA,
         detection_zones: dict[str, list[list[list[float]]]] | None = None,
         min_detection_area: float = 0.003,
-        static_baselines: dict[str, list[dict[str, str | float]]] | None = None,
         shinobi_notifier: ShinobiNotifier | None = None,
+        baseline_add_threshold: int = 3,
+        baseline_verify_confidence: float = 0.15,
+        min_motion_novelty: float = 0.05,
     ) -> None:
         self.cameras = cameras  # {camera_id: ip}
         self.username = username
@@ -305,47 +487,21 @@ class BaselineManager:
                 "Detection zones configured for: %s", ", ".join(self._zones.keys())
             )
 
-        # Static baselines: {camera_id: [Detection, ...]}
-        # Known positions where objects are expected (e.g. parked car in driveway).
-        # Periodically probed at low confidence to verify presence.
-        # "Sticky" — once confirmed, stays in baseline until a probe says it's gone.
-        self._static_baselines: dict[str, list[Detection]] = {}
-        if static_baselines:
-            for cam_id, entries in static_baselines.items():
-                dets = []
-                for entry in entries:
-                    name = entry["name"]
-                    cls_id = self.COCO_NAME_TO_ID.get(name, -1)
-                    dets.append(
-                        Detection(
-                            cls_id=cls_id,
-                            name=name,
-                            cx=entry["cx"],
-                            cy=entry["cy"],
-                            w=entry.get("w", 0.15),
-                            h=entry.get("h", 0.10),
-                            conf=1.0,
-                        )
-                    )
-                self._static_baselines[cam_id] = dets
-            log.info(
-                "Static baselines configured for: %s",
-                ", ".join(
-                    f"{k} ({len(v)} objects)" for k, v in self._static_baselines.items()
-                ),
+        # Hysteresis baseline trackers — one per camera
+        self._trackers: dict[str, BaselineTracker] = {
+            cam_id: BaselineTracker(
+                add_threshold=baseline_add_threshold,
+                tolerance=position_tolerance,
             )
-
-        # Sticky state: tracks which static entries are confirmed present
-        # {camera_id: set of indices into _static_baselines[camera_id]}
-        self._sticky_confirmed: dict[str, set[int]] = {}
-        # Consecutive probe failure counter per (camera_id, index)
-        # Only drop a confirmed entry after N consecutive failed probes
-        self._sticky_miss_count: dict[tuple[str, int], int] = {}
-        self._sticky_miss_threshold = 3  # consecutive failures before drop
-        # Low-confidence probe runs every baseline cycle (60s)
-        self._sticky_probe_every = 1
-        self._sticky_probe_confidence = 0.15
-        self._baseline_cycle = 0
+            for cam_id in cameras
+        }
+        self._verify_confidence = baseline_verify_confidence
+        log.info(
+            "Baseline hysteresis: promote after %d cycles (%ds), verify at %.0f%% confidence",
+            baseline_add_threshold,
+            baseline_add_threshold * baseline_interval,
+            baseline_verify_confidence * 100,
+        )
 
         maxlen = max(buffer_seconds * 2, 10)  # 2fps * buffer_seconds
         self.buffers: dict[str, CameraBuffer] = {
@@ -370,6 +526,10 @@ class BaselineManager:
         # Minimum detection bounding box area (fraction of frame, 0.0-1.0)
         # Detections smaller than this are discarded as noise/hallucinations
         self._min_detection_area = min_detection_area
+
+        # Minimum motion novelty score for a detection to be considered
+        # genuinely moving (vs environmental: wind, shadows, tree sway)
+        self._min_motion_novelty = min_motion_novelty
 
         # RTSP readers (strategy='rtsp')
         self._readers = {}
@@ -656,9 +816,10 @@ class BaselineManager:
         """Reads motion events from the queue, runs YOLO, compares baseline,
         sends Discord alert if new objects are found.
 
-        Only considers YOLO detections that overlap with where motion actually
-        occurred in the frame — static objects (e.g. trashcan misclassified as
-        person) are ignored because there's no motion at their position.
+        Only considers YOLO detections where the overlapping motion has high
+        novelty — i.e. the motion significantly exceeds the temporal background
+        for that region. Environmental motion (trees, shadows) has low novelty
+        because the heatmap has learned it as normal.
         """
         loop = asyncio.get_event_loop()
         while True:
@@ -698,21 +859,29 @@ class BaselineManager:
                     m.motion_filtered_total.labels(camera=camera_id, reason="outside_zone").inc()
                     continue
 
-                # Motion co-location filter — only keep detections that overlap
-                # with where motion was actually detected in the frame.
-                # Static objects (trashcan, etc.) won't have motion at their position.
+                # Motion novelty filter — only keep detections where the
+                # overlapping motion is significantly above the temporal
+                # background (heatmap). Trees swaying = low novelty,
+                # person walking = high novelty.
                 before_count = len(detections)
-                detections = [
-                    d for d in detections
-                    if d.overlaps_any_rect(rects=motion_rects)
-                ]
+                novel_detections = []
+                for d in detections:
+                    novelty = d.max_novelty(rects=motion_rects)
+                    if novelty >= self._min_motion_novelty:
+                        novel_detections.append(d)
+                    else:
+                        log.debug(
+                            "Motion %s: %s novelty=%.3f < %.3f (environmental)",
+                            camera_id, d.name, novelty, self._min_motion_novelty,
+                        )
+                detections = novel_detections
                 if not detections:
                     if before_count > 0:
                         log.info(
-                            "Motion %s: %d detections filtered (no motion at their position)",
+                            "Motion %s: %d detections filtered (environmental motion, novelty too low)",
                             camera_id, before_count,
                         )
-                    m.motion_filtered_total.labels(camera=camera_id, reason="no_motion_overlap").inc()
+                    m.motion_filtered_total.labels(camera=camera_id, reason="low_novelty").inc()
                     continue
 
                 # Min area filter — discard tiny hallucinations from light flashes
@@ -727,23 +896,20 @@ class BaselineManager:
                         continue
 
                 baseline = self.baselines.get(camera_id, [])
+                tracker = self._trackers[camera_id]
                 if not baseline:
-                    # Suppress alerts until baseline has run at least once
+                    # Before first baseline cycle: suppress all
                     if camera_id not in self._baseline_initialized:
                         log.debug(
                             "Motion %s: ignoring (baseline not yet initialized)",
                             camera_id,
                         )
                         continue
-                    names = ", ".join(d.name for d in detections)
-                    log.info("Motion %s: %s (no baseline)", camera_id, names)
-                    annotated = self._annotate_frame(jpeg_bytes=jpeg_bytes, detections=detections)
-                    await self._send_alert(
-                        camera_id=camera_id, description=f"Motion: {names}",
-                        jpeg_bytes=annotated, detections=detections,
-                    )
-                    continue
+                    # During warmup: use all candidates seen so far
+                    if not tracker.is_warm:
+                        baseline = tracker.get_all_seen()
 
+                # Compare detections against baseline (promoted, or all-seen during warmup)
                 new = [
                     d
                     for d in detections
@@ -751,7 +917,7 @@ class BaselineManager:
                         d.is_near(other=b, tolerance=self.position_tolerance)
                         for b in baseline
                     )
-                ]
+                ] if baseline else detections
                 if new:
                     names = ", ".join(sorted(set(d.name for d in new)))
                     log.info(
@@ -783,12 +949,6 @@ class BaselineManager:
         # Wait briefly for cameras to connect and buffer frames before first scan
         await asyncio.sleep(15)
         while True:
-            self._baseline_cycle += 1
-            is_probe_cycle = self._static_baselines and (
-                self._baseline_cycle == 1
-                or self._baseline_cycle % self._sticky_probe_every == 0
-            )
-
             for camera_id in self.cameras:
                 # Skip cameras with recent motion to avoid absorbing
                 # transient objects (e.g. person walking) into baseline
@@ -803,14 +963,14 @@ class BaselineManager:
                     continue
 
                 try:
-                    await self._update_baseline(camera_id, probe=is_probe_cycle)
+                    await self._update_baseline(camera_id)
                 except Exception:
                     log.warning(
                         "Baseline update failed for %s", camera_id, exc_info=True
                     )
             await asyncio.sleep(self.baseline_interval)
 
-    async def _update_baseline(self, camera_id: str, probe: bool = False) -> None:
+    async def _update_baseline(self, camera_id: str) -> None:
         buf = self.buffers.get(camera_id)
         recent = buf.get_recent(seconds=2) if buf else []
         total = buf.total() if buf else 0
@@ -830,75 +990,36 @@ class BaselineManager:
             camera_id=camera_id,
         )
 
-        # Sticky static baseline probe: periodically run at low confidence
-        # to check if expected objects (e.g. parked car) are actually there
-        static = self._static_baselines.get(camera_id, [])
-        if static:
-            if probe:
-                low_conf_dets = await self._scheduler.infer(
-                    jpeg,
-                    priority=PRIORITY_BASELINE,
-                    confidence_override=self._sticky_probe_confidence,
-                    camera_id=camera_id,
-                )
-                prev = self._sticky_confirmed.get(camera_id, set())
-                confirmed = set()
-                for i, s in enumerate(static):
-                    seen = any(
-                        s.is_near(other=d, tolerance=self.position_tolerance)
-                        for d in detections
-                    ) or any(
-                        s.is_near(other=d, tolerance=self.position_tolerance)
-                        for d in low_conf_dets
-                    )
-                    key = (camera_id, i)
-                    if seen:
-                        confirmed.add(i)
-                        self._sticky_miss_count.pop(key, None)
-                    elif i in prev:
-                        # Was confirmed — count consecutive misses
-                        misses = self._sticky_miss_count.get(key, 0) + 1
-                        self._sticky_miss_count[key] = misses
-                        if misses < self._sticky_miss_threshold:
-                            confirmed.add(i)  # keep it confirmed
-                            log.info(
-                                "Sticky probe %s: %r missed %d/%d",
-                                camera_id, static[i], misses,
-                                self._sticky_miss_threshold,
-                            )
-                        else:
-                            log.info(
-                                "Sticky probe %s: dropping %r after %d misses",
-                                camera_id, static[i], misses,
-                            )
-                            self._sticky_miss_count.pop(key, None)
-                self._sticky_confirmed[camera_id] = confirmed
-                if confirmed != prev:
-                    names = [repr(static[i]) for i in sorted(confirmed)]
-                    log.info(
-                        "Sticky probe %s: confirmed %s", camera_id, names or "none"
-                    )
+        tracker = self._trackers[camera_id]
+        messages = tracker.update(detections)
 
-            # Merge confirmed sticky entries into baseline
-            confirmed = self._sticky_confirmed.get(camera_id, set())
-            for i in confirmed:
-                s = static[i]
-                if not any(
-                    s.is_near(other=d, tolerance=self.position_tolerance)
-                    for d in detections
-                ):
-                    detections.append(s)
+        # If any promoted candidates missed at normal confidence,
+        # verify at low confidence before dropping them
+        if tracker.has_missed_promoted:
+            low_conf_dets = await self._scheduler.infer(
+                jpeg,
+                priority=PRIORITY_BASELINE,
+                confidence_override=self._verify_confidence,
+                camera_id=camera_id,
+            )
+            messages += tracker.verify_missed(low_conf_dets)
 
-        self.baselines[camera_id] = detections
+        for msg in messages:
+            log.info("Baseline %s: %s", camera_id, msg)
+
+        baseline = tracker.get_baseline()
+        self.baselines[camera_id] = baseline
         self._baseline_initialized.add(camera_id)
-        m.baseline_objects.labels(camera=camera_id).set(len(detections))
-        if detections:
-            log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])
+        m.baseline_objects.labels(camera=camera_id).set(len(baseline))
+        if baseline:
+            log.info("Baseline %s: %s", camera_id, [repr(d) for d in baseline])
         log.debug(
-            "Baseline for %s: chose previous frame of %d available, %d detections",
+            "Baseline for %s: cycle %d, %d detections, %d candidates, %d promoted",
             camera_id,
-            total,
+            tracker.cycles,
             len(detections),
+            len(tracker.candidates),
+            len(baseline),
         )
 
     # ================================================================

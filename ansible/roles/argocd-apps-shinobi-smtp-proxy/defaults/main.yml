@@ -190,17 +190,8 @@ shinobi_smtp_proxy_detection_zones:
 # 0.003 = 0.3% of frame (roughly 15x15 px at 704x480)
 shinobi_smtp_proxy_min_detection_area: 0.003
 
-# Static baselines: known objects always present at these positions
-# Merged into dynamic baselines so they're never flagged as "new"
-# Useful for parked cars that YOLO can't see in IR/night mode
-# Each entry: name (COCO class), cx/cy (normalized center coords)
-# Optional: w/h (normalized bbox size, defaults to 0.15/0.10)
-shinobi_smtp_proxy_static_baselines:
-  camfrontdoor:
-    - name: car
-      cx: 0.35
-      cy: 0.10
-  camfrontsoutheast:
-    - name: car
-      cx: 0.46
-      cy: 0.51
+# Baseline hysteresis — objects must appear for N consecutive cycles (60s each)
+# to enter baseline. When a baseline object misses at normal confidence,
+# a low-confidence verification pass confirms whether it's truly gone.
+shinobi_smtp_proxy_baseline_add_threshold: 3
+shinobi_smtp_proxy_baseline_verify_confidence: 0.15
