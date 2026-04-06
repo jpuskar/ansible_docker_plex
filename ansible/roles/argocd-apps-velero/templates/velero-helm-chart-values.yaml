@@ -9,9 +9,6 @@ configuration:
     - name: default
       provider: velero.io/aws
       bucket: {{ velero_bsl_bucket }}
-      credential:
-        name: ""
-        key: ""
       config:
         region: minio
         s3ForcePathStyle: "true"
