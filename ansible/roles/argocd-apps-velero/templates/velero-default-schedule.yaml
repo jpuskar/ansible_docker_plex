@@ -2,6 +2,23 @@
 apiVersion: velero.io/v1
 kind: Schedule
 metadata:
+  name: daily-cluster-resources
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "{{ velero_default_schedule_cron }}"
+  template:
+    ttl: {{ velero_default_schedule_ttl }}
+    includedNamespaces:
+      - "*"
+    # API objects only — no PVC data. This is the safety net for
+    # secrets, certs, CRDs, and anything not in git.
+    defaultVolumesToFsBackup: false
+    snapshotMoveData: false
+    storageLocation: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
   name: daily-monitoring
   namespace: {{ velero_namespace }}
 spec:
