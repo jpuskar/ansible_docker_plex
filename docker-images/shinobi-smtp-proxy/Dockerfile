@@ -12,20 +12,20 @@ RUN apt-get update && \
         wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Intel GPU compute runtime — install .deb packages from GitHub releases
-# Provides OpenCL ICD + Level Zero for OpenVINO GPU inference via /dev/dri
-# https://github.com/intel/compute-runtime/releases
-ARG IGC_VERSION=2.30.1
-ARG IGC_BUILD=20950
-ARG NEO_VERSION=26.09.37435.1
-ARG GMMLIB_VERSION=22.9.0
+# Intel GPU compute runtime — Skylake (Gen9) requires LEGACY packages
+# Regular packages (26.x) only support Gen12+ (Tiger Lake and newer)
+# https://github.com/intel/compute-runtime/blob/master/LEGACY_PLATFORMS.md
+# https://github.com/intel/compute-runtime/releases/tag/24.35.30872.36
+ARG IGC_VERSION=1.0.17537.24
+ARG NEO_LEGACY_VERSION=24.35.30872.36
+ARG L0_LEGACY_VERSION=1.5.30872.36
+ARG GMMLIB_VERSION=22.5.0
 RUN mkdir -p /tmp/neo && cd /tmp/neo && \
-    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/v${IGC_VERSION}/intel-igc-core-2_${IGC_VERSION}+${IGC_BUILD}_amd64.deb && \
-    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/v${IGC_VERSION}/intel-igc-opencl-2_${IGC_VERSION}+${IGC_BUILD}_amd64.deb && \
-    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_VERSION}/intel-opencl-icd_${NEO_VERSION}-0_amd64.deb && \
-    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_VERSION}/intel-ocloc_${NEO_VERSION}-0_amd64.deb && \
-    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_VERSION}/libigdgmm12_${GMMLIB_VERSION}_amd64.deb && \
-    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_VERSION}/libze-intel-gpu1_${NEO_VERSION}-0_amd64.deb && \
+    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/igc-${IGC_VERSION}/intel-igc-core_${IGC_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/igc-${IGC_VERSION}/intel-igc-opencl_${IGC_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/intel-opencl-icd-legacy1_${NEO_LEGACY_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/intel-level-zero-gpu-legacy1_${L0_LEGACY_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/libigdgmm12_${GMMLIB_VERSION}_amd64.deb && \
     dpkg -i *.deb && \
     rm -rf /tmp/neo && \
     apt-get purge -y wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
