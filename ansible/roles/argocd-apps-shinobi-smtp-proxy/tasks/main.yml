@@ -28,3 +28,8 @@
   template:
     src: smtp-proxy-podmonitor.yaml
     dest: "{{ output_dir_path }}/smtp-proxy-podmonitor.yaml"
+
+- name: Template out smtp-proxy grafana dashboard
+  template:
+    src: smtp-proxy-grafana-dashboard.yaml
+    dest: "{{ output_dir_path }}/smtp-proxy-grafana-dashboard.yaml"
