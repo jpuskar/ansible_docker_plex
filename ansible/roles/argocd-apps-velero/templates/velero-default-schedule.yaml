@@ -1,0 +1,15 @@
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-full-backup
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "{{ velero_default_schedule_cron }}"
+  template:
+    ttl: {{ velero_default_schedule_ttl }}
+    includedNamespaces:
+      - "*"
+    defaultVolumesToFsBackup: true
+    snapshotMoveData: false
+    storageLocation: default

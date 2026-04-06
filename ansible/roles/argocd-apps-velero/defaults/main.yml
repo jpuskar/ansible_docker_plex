@@ -1,0 +1,38 @@
+---
+# Velero ArgoCD Application Role Defaults
+
+# Helm chart configuration
+velero_chart_repo: "https://vmware-tanzu.github.io/helm-charts"
+velero_chart_name: "velero"
+velero_chart_version: "8.2.0"
+velero_namespace: "velero"
+
+# ── NFS backup location ────────────────────────────────────────────
+# The NFS server and export path for the backup storage location.
+velero_nfs_server: "CHANGEME"
+velero_nfs_path: "/mnt/backups/velero"
+
+# ── Backup Storage Location ────────────────────────────────────────
+velero_bsl_bucket: "velero"
+
+# ── Snapshot / CSI ─────────────────────────────────────────────────
+# Enable CSI snapshotting for PVC backups
+velero_features: "EnableCSI"
+
+# ── Default backup schedule (daily at 02:00, keep 7 days) ─────────
+velero_default_schedule_enabled: true
+velero_default_schedule_cron: "0 2 * * *"
+velero_default_schedule_ttl: "168h"
+
+# ── Resource requests/limits for the Velero server ─────────────────
+velero_resources_requests_cpu: "100m"
+velero_resources_requests_memory: "256Mi"
+velero_resources_limits_cpu: "500m"
+velero_resources_limits_memory: "512Mi"
+
+# ── Node-agent (restic/kopia) for PVC file-level backup ───────────
+velero_node_agent_enabled: true
+velero_node_agent_resources_requests_cpu: "100m"
+velero_node_agent_resources_requests_memory: "256Mi"
+velero_node_agent_resources_limits_cpu: "1000m"
+velero_node_agent_resources_limits_memory: "1Gi"

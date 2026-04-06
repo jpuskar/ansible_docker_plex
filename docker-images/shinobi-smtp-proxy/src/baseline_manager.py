@@ -337,10 +337,13 @@ class BaselineManager:
 
         # Sticky state: tracks which static entries are confirmed present
         # {camera_id: set of indices into _static_baselines[camera_id]}
-        self._sticky_confirmed = {}
-        # Low-confidence probe runs every N baseline cycles (e.g. 5 × 60s = 5min)
-        # Also runs on cycle 1 (first baseline) so sticky kicks in immediately
-        self._sticky_probe_every = 5
+        self._sticky_confirmed: dict[str, set[int]] = {}
+        # Consecutive probe failure counter per (camera_id, index)
+        # Only drop a confirmed entry after N consecutive failed probes
+        self._sticky_miss_count: dict[tuple[str, int], int] = {}
+        self._sticky_miss_threshold = 3  # consecutive failures before drop
+        # Low-confidence probe runs every baseline cycle (60s)
+        self._sticky_probe_every = 1
         self._sticky_probe_confidence = 0.15
         self._baseline_cycle = 0
 
@@ -838,17 +841,37 @@ class BaselineManager:
                     confidence_override=self._sticky_probe_confidence,
                     camera_id=camera_id,
                 )
+                prev = self._sticky_confirmed.get(camera_id, set())
                 confirmed = set()
                 for i, s in enumerate(static):
-                    if any(
+                    seen = any(
                         s.is_near(other=d, tolerance=self.position_tolerance)
                         for d in detections
                     ) or any(
                         s.is_near(other=d, tolerance=self.position_tolerance)
                         for d in low_conf_dets
-                    ):
+                    )
+                    key = (camera_id, i)
+                    if seen:
                         confirmed.add(i)
-                prev = self._sticky_confirmed.get(camera_id, set())
+                        self._sticky_miss_count.pop(key, None)
+                    elif i in prev:
+                        # Was confirmed — count consecutive misses
+                        misses = self._sticky_miss_count.get(key, 0) + 1
+                        self._sticky_miss_count[key] = misses
+                        if misses < self._sticky_miss_threshold:
+                            confirmed.add(i)  # keep it confirmed
+                            log.info(
+                                "Sticky probe %s: %r missed %d/%d",
+                                camera_id, static[i], misses,
+                                self._sticky_miss_threshold,
+                            )
+                        else:
+                            log.info(
+                                "Sticky probe %s: dropping %r after %d misses",
+                                camera_id, static[i], misses,
+                            )
+                            self._sticky_miss_count.pop(key, None)
                 self._sticky_confirmed[camera_id] = confirmed
                 if confirmed != prev:
                     names = [repr(static[i]) for i in sorted(confirmed)]

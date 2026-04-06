@@ -1,0 +1,62 @@
+---
+# Velero Helm chart values
+# Docs: https://github.com/vmware-tanzu/helm-charts/tree/main/charts/velero
+
+configuration:
+  features: {{ velero_features }}
+
+  backupStorageLocation:
+    - name: default
+      provider: velero.io/aws
+      bucket: {{ velero_bsl_bucket }}
+      credential:
+        name: ""
+        key: ""
+      config:
+        region: minio
+        s3ForcePathStyle: "true"
+        s3Url: ""
+        publicUrl: ""
+      default: true
+
+  volumeSnapshotLocation: []
+
+  # Use file-system backup (kopia) for PVC data
+  defaultVolumesToFsBackup: true
+
+initContainers: []
+
+resources:
+  requests:
+    cpu: {{ velero_resources_requests_cpu }}
+    memory: {{ velero_resources_requests_memory }}
+  limits:
+    cpu: {{ velero_resources_limits_cpu }}
+    memory: {{ velero_resources_limits_memory }}
+
+# Node-agent (formerly restic) runs as a DaemonSet to back up PVC data
+deployNodeAgent: {{ velero_node_agent_enabled | lower }}
+nodeAgent:
+  resources:
+    requests:
+      cpu: {{ velero_node_agent_resources_requests_cpu }}
+      memory: {{ velero_node_agent_resources_requests_memory }}
+    limits:
+      cpu: {{ velero_node_agent_resources_limits_cpu }}
+      memory: {{ velero_node_agent_resources_limits_memory }}
+
+# We manage credentials/BSL separately — disable the default secret
+credentials:
+  useSecret: false
+
+# We provision the BSL via the configuration block above.
+# For NFS, Velero writes to the filesystem mounted in the pod.
+# The NFS PV/PVC is mounted as an extra volume below.
+extraVolumes:
+  - name: nfs-backup
+    persistentVolumeClaim:
+      claimName: velero-nfs-backup
+
+extraVolumeMounts:
+  - name: nfs-backup
+    mountPath: /backups
