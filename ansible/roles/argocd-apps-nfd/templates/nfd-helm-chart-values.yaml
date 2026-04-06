@@ -1,0 +1,29 @@
+---
+# Node Feature Discovery Helm values
+
+master:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+worker:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Topology updater not needed for GPU detection
+topologyUpdater:
+  enable: false
+
+# GC cleans up stale NodeFeature objects
+gc:
+  enable: true

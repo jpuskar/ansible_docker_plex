@@ -19,6 +19,7 @@
     - alloy-application.yaml
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
+    - nfd-application.yaml
     - intel-gpu-plugin-application.yaml
     - unifi-application.yaml
     - godaddy-ddns-application.yaml
@@ -48,6 +49,7 @@
     - alloy-application.yaml
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
+    - nfd-application.yaml
     - intel-gpu-plugin-application.yaml
     - unifi-application.yaml
     - godaddy-ddns-application.yaml

@@ -6,10 +6,6 @@ intel_gpu_namespace: "intel-gpu-plugin"
 # Plugin image
 intel_gpu_plugin_image: "intel/intel-gpu-plugin:0.35.0"
 
-# Node selector — only deploy on nodes with Intel GPU
-intel_gpu_node_selector:
-  intel.feature.node.kubernetes.io/gpu: "true"
-
 # Number of containers that can share a single GPU
 # 1 = exclusive access, >1 = time-sliced sharing
 intel_gpu_shared_dev_num: 10

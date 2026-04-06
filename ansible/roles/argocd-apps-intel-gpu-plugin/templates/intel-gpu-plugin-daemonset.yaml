@@ -16,7 +16,7 @@ spec:
         app: intel-gpu-plugin
     spec:
       nodeSelector:
-{{ intel_gpu_node_selector | to_nice_yaml(indent=2) | indent(8, first=true) }}
+        feature.node.kubernetes.io/pci-0300_8086.present: "true"
       containers:
         - name: intel-gpu-plugin
           image: {{ intel_gpu_plugin_image }}

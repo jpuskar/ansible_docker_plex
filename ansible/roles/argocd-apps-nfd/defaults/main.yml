@@ -1,0 +1,7 @@
+---
+# Node Feature Discovery ArgoCD Application Role Defaults
+
+nfd_chart_repo: "https://kubernetes-sigs.github.io/node-feature-discovery/charts"
+nfd_chart_name: "node-feature-discovery"
+nfd_chart_version: "0.18.3"
+nfd_namespace: "node-feature-discovery"
