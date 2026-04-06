@@ -348,9 +348,19 @@ class BaselineTracker:
         """Feed one cycle of normal-confidence detections.
         Returns log messages. Call verify_missed() after if any promoted missed."""
         self.cycles += 1
+        return self._feed(detections, is_cycle=True)
+
+    def observe(self, detections: list[Detection]) -> list[str]:
+        """Feed observations from motion events into existing candidates.
+        Does NOT increment cycles or create new candidates — only reinforces
+        existing ones and may promote them."""
+        return self._feed(detections, is_cycle=False)
+
+    def _feed(self, detections: list[Detection], is_cycle: bool) -> list[str]:
         matched_candidates: set[int] = set()
         messages: list[str] = []
-        self._missed_promoted = []
+        if is_cycle:
+            self._missed_promoted = []
 
         for det in detections:
             best = None
@@ -366,30 +376,31 @@ class BaselineTracker:
                 if not self.candidates[best].promoted and self.candidates[best].hits >= self.add_threshold:
                     self.candidates[best].promoted = True
                     messages.append(f"promoted {self.candidates[best]}")
-            else:
+            elif is_cycle:
+                # Only create new candidates from baseline cycles, not motion
                 self.candidates.append(BaselineCandidate(det))
 
-        # Track misses — unpromoted candidates get garbage-collected,
-        # promoted ones go to _missed_promoted for low-conf verification
-        to_remove = []
-        for i, cand in enumerate(self.candidates):
-            if i not in matched_candidates:
-                cand.misses += 1
-                if cand.promoted:
-                    self._missed_promoted.append(i)
-                elif cand.misses >= 3:
-                    to_remove.append(i)
+        # Track misses — only on baseline cycles
+        if is_cycle:
+            to_remove = []
+            for i, cand in enumerate(self.candidates):
+                if i not in matched_candidates:
+                    cand.misses += 1
+                    if cand.promoted:
+                        self._missed_promoted.append(i)
+                    elif cand.misses >= 3:
+                        to_remove.append(i)
 
-        for i in reversed(to_remove):
-            self.candidates.pop(i)
-        # Re-index _missed_promoted after removals
-        if to_remove:
-            removed_set = set(to_remove)
-            shift = [sum(1 for r in to_remove if r < i) for i in self._missed_promoted]
-            self._missed_promoted = [
-                i - s for i, s in zip(self._missed_promoted, shift)
-                if i not in removed_set
-            ]
+            for i in reversed(to_remove):
+                self.candidates.pop(i)
+            # Re-index _missed_promoted after removals
+            if to_remove:
+                removed_set = set(to_remove)
+                shift = [sum(1 for r in to_remove if r < i) for i in self._missed_promoted]
+                self._missed_promoted = [
+                    i - s for i, s in zip(self._missed_promoted, shift)
+                    if i not in removed_set
+                ]
 
         return messages
 
@@ -937,6 +948,18 @@ class BaselineManager:
                     )
                 else:
                     log.debug("Motion %s: only baseline objects", camera_id)
+
+                # Feed all surviving detections into the tracker so
+                # persistent objects seen during motion events accumulate
+                # hits toward promotion (e.g. a trashcan that YOLO only
+                # detects intermittently at normal confidence).
+                obs_msgs = tracker.observe(detections)
+                for msg in obs_msgs:
+                    log.info("Baseline %s: %s (via motion observe)", camera_id, msg)
+                # If observe() caused a promotion, update cached baseline
+                # immediately so the next motion event won't re-alert.
+                if obs_msgs:
+                    self.baselines[camera_id] = tracker.get_baseline()
 
             except Exception:
                 log.warning("Motion processing error for %s", camera_id, exc_info=True)
