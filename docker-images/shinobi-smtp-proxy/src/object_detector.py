@@ -97,14 +97,15 @@ class ObjectDetector:
         self._using_openvino = resolved.endswith("_openvino_model") or resolved.endswith(".xml")
 
         # Select OpenVINO device: prefer GPU, fall back to CPU
+        # Ultralytics uses "intel:gpu" / "intel:cpu" prefix for OpenVINO devices
         if self._using_openvino:
             try:
                 import openvino as ov
                 devices = ov.Core().available_devices
                 log.info("OpenVINO available devices: %s", devices)
-                self._ov_device = "GPU" if "GPU" in devices else "CPU"
+                self._ov_device = "intel:gpu" if "GPU" in devices else "intel:cpu"
             except Exception:
-                self._ov_device = "CPU"
+                self._ov_device = "intel:cpu"
         else:
             self._ov_device = None
 
