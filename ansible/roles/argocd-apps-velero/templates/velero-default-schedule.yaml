@@ -2,14 +2,54 @@
 apiVersion: velero.io/v1
 kind: Schedule
 metadata:
-  name: daily-full-backup
+  name: daily-monitoring
   namespace: {{ velero_namespace }}
 spec:
   schedule: "{{ velero_default_schedule_cron }}"
   template:
     ttl: {{ velero_default_schedule_ttl }}
     includedNamespaces:
-      - "*"
+      - monitoring
     defaultVolumesToFsBackup: true
     snapshotMoveData: false
     storageLocation: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-loki
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "{{ velero_default_schedule_cron }}"
+  template:
+    ttl: {{ velero_default_schedule_ttl }}
+    includedNamespaces:
+      - loki
+    defaultVolumesToFsBackup: true
+    snapshotMoveData: false
+    storageLocation: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-harbor-registry
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "{{ velero_default_schedule_cron }}"
+  template:
+    ttl: {{ velero_default_schedule_ttl }}
+    includedNamespaces:
+      - harbor
+    # Only back up the registry blob store (NFS), NOT postgres data files.
+    # Harbor postgres is backed up via Percona PG Operator / pgBackRest.
+    defaultVolumesToFsBackup: false
+    snapshotMoveData: false
+    storageLocation: default
+    includedResources:
+      - "*"
+    labelSelector:
+      matchExpressions:
+        - key: app.kubernetes.io/component
+          operator: NotIn
+          values:
+            - postgresql
