@@ -538,6 +538,11 @@ class BaselineManager:
         self._metrics_task = None
         self._motion_task = None
 
+        # Reference frames for visual similarity comparison.
+        # Stored during each baseline cycle — a calm frame with no motion.
+        self._reference_frames: dict[str, np.ndarray] = {}  # camera -> grayscale numpy
+        self._scene_similarity_threshold = 0.6  # SSIM above this → "same scene"
+
         # Priority inference scheduler — all GPU access goes through here
         self._scheduler = InferenceScheduler(detector)
 
@@ -821,6 +826,56 @@ class BaselineManager:
             log.debug("Annotation failed, sending raw frame", exc_info=True)
             return jpeg_bytes
 
+    def _patch_ssim(self, camera_id: str, jpeg_bytes: bytes,
+                    det: Detection, margin: float = 0.05) -> float | None:
+        """Compute SSIM between a detection's bounding-box patch in the current
+        frame vs the stored baseline reference frame.  Returns SSIM (0-1) or
+        None if no reference is available.  A high SSIM means the scene patch
+        hasn't changed — the object was already there during the baseline frame."""
+        ref = self._reference_frames.get(camera_id)
+        if ref is None:
+            return None
+
+        # Decode current frame to grayscale
+        arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
+        cur = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+        if cur is None:
+            return None
+
+        h, w = cur.shape
+        rh, rw = ref.shape
+        if (h, w) != (rh, rw):
+            return None  # resolution mismatch, skip
+
+        # Crop patch with margin
+        x1 = max(0, int((det.cx - det.w / 2 - margin) * w))
+        y1 = max(0, int((det.cy - det.h / 2 - margin) * h))
+        x2 = min(w, int((det.cx + det.w / 2 + margin) * w))
+        y2 = min(h, int((det.cy + det.h / 2 + margin) * h))
+
+        # Need a minimum patch size for SSIM (at least 7x7)
+        if x2 - x1 < 7 or y2 - y1 < 7:
+            return None
+
+        ref_patch = ref[y1:y2, x1:x2]
+        cur_patch = cur[y1:y2, x1:x2]
+
+        # SSIM — simplified (mean-based) for speed:
+        # Full SSIM with Gaussian windows is expensive; a block mean
+        # approximation is sufficient for our needs.
+        c1 = (0.01 * 255) ** 2
+        c2 = (0.03 * 255) ** 2
+        ref_f = ref_patch.astype(np.float64)
+        cur_f = cur_patch.astype(np.float64)
+        mu_r = ref_f.mean()
+        mu_c = cur_f.mean()
+        sigma_r_sq = ref_f.var()
+        sigma_c_sq = cur_f.var()
+        sigma_rc = ((ref_f - mu_r) * (cur_f - mu_c)).mean()
+        ssim = ((2 * mu_r * mu_c + c1) * (2 * sigma_rc + c2)) / \
+               ((mu_r ** 2 + mu_c ** 2 + c1) * (sigma_r_sq + sigma_c_sq + c2))
+        return float(ssim)
+
     # ================================================================
     # Alert dispatch (Discord + Shinobi)
     # ================================================================
@@ -962,6 +1017,29 @@ class BaselineManager:
                     )
                 ] if baseline else detections
 
+                # Visual similarity filter — compare each "new" detection's
+                # patch against the stored baseline reference frame. If the
+                # scene looks the same there, the object was already present
+                # during the calm baseline frame (YOLO just didn't label it).
+                if new and camera_id in self._reference_frames:
+                    visually_new = []
+                    for d in new:
+                        ssim = self._patch_ssim(camera_id, jpeg_bytes, d)
+                        if ssim is not None and ssim >= self._scene_similarity_threshold:
+                            log.info(
+                                "Motion %s: %s@(%.2f,%.2f) suppressed (scene unchanged, SSIM=%.2f)",
+                                camera_id, d.name, d.cx, d.cy, ssim,
+                            )
+                            m.motion_filtered_total.labels(camera=camera_id, reason="scene_unchanged").inc()
+                        else:
+                            if ssim is not None:
+                                log.info(
+                                    "Motion %s: %s@(%.2f,%.2f) scene changed (SSIM=%.2f)",
+                                    camera_id, d.name, d.cx, d.cy, ssim,
+                                )
+                            visually_new.append(d)
+                    new = visually_new
+
                 # Alert cooldown — suppress repeat alerts for the same
                 # object at the same position within the cooldown window.
                 if new:
@@ -1062,6 +1140,13 @@ class BaselineManager:
             confidence_override=self.detector.confidence_threshold,
             camera_id=camera_id,
         )
+
+        # Store reference frame (grayscale) for visual similarity comparison.
+        # This is a calm frame with no motion — ideal for comparing patches later.
+        arr = np.frombuffer(jpeg, dtype=np.uint8)
+        gray = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+        if gray is not None:
+            self._reference_frames[camera_id] = gray
 
         tracker = self._trackers[camera_id]
         messages = tracker.update(detections)
