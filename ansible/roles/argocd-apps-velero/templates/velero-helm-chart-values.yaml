@@ -26,6 +26,15 @@ configuration:
 
 initContainers: []
 
+# Override the default bitnami/kubectl image — the chart defaults to
+# bitnami/kubectl:1.34 which doesn't exist as that tag on Docker Hub.
+# Use registry.k8s.io/kubectl which has proper semver tags and is
+# already proxied through Harbor via the registryk8s project.
+kubectl:
+  image:
+    repository: registry.k8s.io/kubectl
+    tag: v1.35.2
+
 # Run the Velero server as a non-root user so NFS root_squash doesn't
 # block writes. The node-agent DaemonSet stays root (needs host paths).
 podSecurityContext:
