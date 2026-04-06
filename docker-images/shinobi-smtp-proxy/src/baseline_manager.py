@@ -1072,13 +1072,54 @@ class BaselineManager:
                         [repr(d) for d in detections],
                         [repr(b) for b in baseline],
                     )
+
+                    # Best-frame selection: wait briefly for a clearer frame
+                    # where the person/object is more visible, then pick the
+                    # frame with the highest confidence for the new detections.
+                    best_jpeg = jpeg_bytes
+                    best_dets = detections
+                    best_new = new
+                    best_conf = max(d.conf for d in new)
+
+                    await asyncio.sleep(1.5)
+
+                    buf = self.buffers.get(camera_id)
+                    delayed_frames = buf.get_recent(seconds=2) if buf else []
+                    if delayed_frames:
+                        delayed_jpeg = delayed_frames[-1]
+                        delayed_dets = await self._scheduler.infer(
+                            delayed_jpeg,
+                            priority=PRIORITY_MOTION,
+                            camera_id=camera_id,
+                        )
+                        # Check only detections near the original new objects
+                        delayed_new = [
+                            d for d in delayed_dets
+                            if any(d.is_near(n, tolerance=self.position_tolerance) for n in new)
+                        ]
+                        if delayed_new:
+                            delayed_conf = max(d.conf for d in delayed_new)
+                            if delayed_conf > best_conf:
+                                log.info(
+                                    "Motion %s: using delayed frame (conf %.0f%% > %.0f%%)",
+                                    camera_id, delayed_conf * 100, best_conf * 100,
+                                )
+                                best_jpeg = delayed_jpeg
+                                best_dets = delayed_dets
+                                best_new = delayed_new
+                            else:
+                                log.debug(
+                                    "Motion %s: keeping original frame (conf %.0f%% >= delayed %.0f%%)",
+                                    camera_id, best_conf * 100, delayed_conf * 100,
+                                )
+
                     annotated = self._annotate_frame(
-                        jpeg_bytes=jpeg_bytes, detections=detections,
-                        new_detections=new,
+                        jpeg_bytes=best_jpeg, detections=best_dets,
+                        new_detections=best_new,
                     )
                     await self._send_alert(
                         camera_id=camera_id, description=f"Motion: {names}",
-                        jpeg_bytes=annotated, detections=new,
+                        jpeg_bytes=annotated, detections=best_new,
                     )
                     # Record alerted detections for cooldown
                     now = time.monotonic()
