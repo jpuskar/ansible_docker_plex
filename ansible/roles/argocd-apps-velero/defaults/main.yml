@@ -21,6 +21,19 @@ velero_nfs_path: /tank0/k8s2-velero
 # ── Backup Storage Location ────────────────────────────────────────
 velero_bsl_bucket: "velero"
 
+# ── MinIO (S3-compatible gateway for BSL) ──────────────────────────
+# MinIO runs as a single pod backed by the NFS PVC.  Velero talks
+# to it via the velero-plugin-for-aws.  Credentials are auto-generated
+# by kubernetes-secret-generator (StringSecret).
+velero_minio_resources_requests_cpu: "50m"
+velero_minio_resources_requests_memory: "128Mi"
+velero_minio_resources_limits_cpu: "500m"
+velero_minio_resources_limits_memory: "512Mi"
+
+# ── Velero AWS plugin (provides the velero.io/aws object store) ────
+velero_aws_plugin_image: "velero/velero-plugin-for-aws"
+velero_aws_plugin_tag: "v1.14.0"
+
 # ── Snapshot / CSI ─────────────────────────────────────────────────
 # Enable CSI snapshotting for PVC backups
 velero_features: "EnableCSI"

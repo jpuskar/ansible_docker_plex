@@ -37,6 +37,11 @@
     src: velero-nfs-pv-pvc.yaml
     dest: "{{ output_dir_path }}/velero-nfs-pv-pvc.yaml"
 
+- name: Template out MinIO deployment, service, and credentials secret
+  copy:
+    content: "{{ lookup('template', 'velero-minio.yaml') | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/velero-minio.yaml"
+
 - name: Template out default backup schedule
   template:
     src: velero-default-schedule.yaml

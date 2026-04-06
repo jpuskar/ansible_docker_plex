@@ -12,8 +12,7 @@ configuration:
       config:
         region: minio
         s3ForcePathStyle: "true"
-        s3Url: ""
-        publicUrl: ""
+        s3Url: "http://minio.{{ velero_namespace }}.svc:9000"
       default: true
 
   volumeSnapshotLocation: []
@@ -21,7 +20,32 @@ configuration:
   # Per-schedule opt-in for FS backup — don't blanket-enable for all backups
   defaultVolumesToFsBackup: false
 
-initContainers: []
+  # Velero reads MinIO creds via env vars (AWS SDK); no cloud file needed.
+  extraEnvVars:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: velero-minio-credentials
+          key: access-key
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: velero-minio-credentials
+          key: secret-key
+
+# velero-plugin-for-aws provides the velero.io/aws object store plugin
+# that the BSL needs to talk to MinIO.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: {{ velero_aws_plugin_image }}:{{ velero_aws_plugin_tag }}
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# Ensure the MinIO "velero" bucket exists before Velero tries to use it.
+backupsEnabled: true
+snapshotsEnabled: false
 
 # ArgoCD manages CRDs from the chart's crds/ directory natively.
 # Disable the chart's CRD upgrade job to avoid conflicts and the
@@ -60,18 +84,8 @@ nodeAgent:
       cpu: {{ velero_node_agent_resources_limits_cpu }}
       memory: {{ velero_node_agent_resources_limits_memory }}
 
-# We manage credentials/BSL separately — disable the default secret
+# Velero reads MinIO creds via env vars (AWS SDK); no cloud file needed.
 credentials:
   useSecret: false
 
-# We provision the BSL via the configuration block above.
-# For NFS, Velero writes to the filesystem mounted in the pod.
-# The NFS PV/PVC is mounted as an extra volume below.
-extraVolumes:
-  - name: nfs-backup
-    persistentVolumeClaim:
-      claimName: velero-nfs-backup
-
-extraVolumeMounts:
-  - name: nfs-backup
-    mountPath: /backups
+# NFS PV/PVC is mounted by MinIO, not the Velero server pod.
