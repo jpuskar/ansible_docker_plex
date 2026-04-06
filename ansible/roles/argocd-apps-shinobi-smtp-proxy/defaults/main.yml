@@ -186,12 +186,6 @@ shinobi_smtp_proxy_detection_zones:
   camwesttosouth:
     - [[0.0, 0.997], [0.0, 0.225], [0.425, 0.225], [0.438, 0.228], [0.464, 0.256], [0.602, 0.4], [0.886, 0.7], [0.991, 0.811], [0.998, 0.822], [0.998, 0.989], [0.988, 0.997]]
 
-# Cameras that require 2-frame confirmation before alerting
-# (driveway cams with parked vehicles that get headlight hallucinations)
-shinobi_smtp_proxy_confirm_cameras:
-  - camfrontdoor
-  - camfrontsoutheast
-
 # Minimum detection bbox area — discard tiny YOLO hallucinations
 # 0.003 = 0.3% of frame (roughly 15x15 px at 704x480)
 shinobi_smtp_proxy_min_detection_area: 0.003

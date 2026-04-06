@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 
+from inference_scheduler import PRIORITY_BASELINE, PRIORITY_MOTION, InferenceScheduler
 from object_detector import Detection
 
 if TYPE_CHECKING:
@@ -268,7 +269,6 @@ class BaselineManager:
         motion_threshold: int = MOTION_THRESHOLD,
         motion_min_area: int = MOTION_MIN_AREA,
         detection_zones: dict[str, list[list[list[float]]]] | None = None,
-        confirm_cameras: list[str] | None = None,
         min_detection_area: float = 0.003,
         static_baselines: dict[str, list[dict[str, str | float]]] | None = None,
         shinobi_notifier: ShinobiNotifier | None = None,
@@ -347,20 +347,15 @@ class BaselineManager:
         self._metrics_task = None
         self._motion_task = None
 
+        # Priority inference scheduler — all GPU access goes through here
+        self._scheduler = InferenceScheduler(detector)
+
         # Motion event queue: (camera_id, jpeg_bytes) from RTSP threads
         self._motion_queue = queue.Queue(maxsize=50) if motion_detection else None
 
-        # Pending alerts: require new objects to appear in 2 consecutive motion frames
-        # before firing a Discord alert (filters single-frame YOLO hallucinations)
-        # Only applies to cameras listed in confirm_cameras
-        # {camera_id: {'names': str, 'jpeg': bytes, 'time': float}}
-        self._pending_alerts = {}
-        self._confirm_cameras = set(confirm_cameras or [])
-        if self._confirm_cameras:
-            log.info(
-                "Confirmation required for: %s",
-                ", ".join(sorted(self._confirm_cameras)),
-            )
+        # Track when each camera last had motion, so baseline skips active cameras
+        self._last_motion_time: dict[str, float] = {}
+        self._motion_grace_period = 10.0  # seconds to suppress baseline after motion
 
         # Minimum detection bounding box area (fraction of frame, 0.0-1.0)
         # Detections smaller than this are discarded as noise/hallucinations
@@ -426,12 +421,14 @@ class BaselineManager:
                 self.baseline_interval,
                 SNAPSHOT_PATH,
             )
+        await self._scheduler.start()
         self._baseline_task = asyncio.create_task(self._baseline_loop())
         self._metrics_task = asyncio.create_task(self._metrics_loop())
         if self.motion_detection:
             self._motion_task = asyncio.create_task(self._motion_loop())
 
     async def stop(self) -> None:
+        await self._scheduler.stop()
         for task in (
             self._snapshot_task,
             self._baseline_task,
@@ -662,7 +659,10 @@ class BaselineManager:
                 continue
 
             try:
-                detections = await self.detector.get_detections(jpeg_bytes)
+                self._last_motion_time[camera_id] = time.monotonic()
+                detections = await self._scheduler.infer(
+                    jpeg_bytes, priority=PRIORITY_MOTION, camera_id=camera_id,
+                )
                 if not detections:
                     log.info("Motion %s: YOLO returned 0 detections", camera_id)
                     continue
@@ -717,37 +717,12 @@ class BaselineManager:
                         )
                         continue
                     names = ", ".join(d.name for d in detections)
-                    if camera_id in self._confirm_cameras:
-                        now = time.monotonic()
-                        pending = self._pending_alerts.get(camera_id)
-                        if pending and now - pending["time"] < 5.0:
-                            del self._pending_alerts[camera_id]
-                            log.info(
-                                "Motion %s: CONFIRMED %s (no baseline)",
-                                camera_id,
-                                names,
-                            )
-                            annotated = self._annotate_frame(jpeg_bytes=jpeg_bytes, detections=detections)
-                            await self._send_alert(
-                                camera_id=camera_id, description=f"Motion: {names}",
-                                jpeg_bytes=annotated, detections=detections,
-                            )
-                        else:
-                            self._pending_alerts[camera_id] = {
-                                "names": names,
-                                "jpeg": jpeg_bytes,
-                                "time": now,
-                            }
-                            log.info(
-                                "Motion %s: pending %s (no baseline)", camera_id, names
-                            )
-                    else:
-                        log.info("Motion %s: %s (no baseline)", camera_id, names)
-                        annotated = self._annotate_frame(jpeg_bytes=jpeg_bytes, detections=detections)
-                        await self._send_alert(
-                            camera_id=camera_id, description=f"Motion: {names}",
-                            jpeg_bytes=annotated, detections=detections,
-                        )
+                    log.info("Motion %s: %s (no baseline)", camera_id, names)
+                    annotated = self._annotate_frame(jpeg_bytes=jpeg_bytes, detections=detections)
+                    await self._send_alert(
+                        camera_id=camera_id, description=f"Motion: {names}",
+                        jpeg_bytes=annotated, detections=detections,
+                    )
                     continue
 
                 new = [
@@ -760,68 +735,22 @@ class BaselineManager:
                 ]
                 if new:
                     names = ", ".join(sorted(set(d.name for d in new)))
-                    # Cameras with parked vehicles need 2-frame confirmation
-                    # to filter single-frame YOLO hallucinations from headlight flashes
-                    if camera_id in self._confirm_cameras:
-                        now = time.monotonic()
-                        pending = self._pending_alerts.get(camera_id)
-                        if (
-                            pending
-                            and pending["names"] == names
-                            and now - pending["time"] < 5.0
-                        ):
-                            del self._pending_alerts[camera_id]
-                            log.info(
-                                "Motion %s: CONFIRMED new objects: %s (det=%s, base=%s)",
-                                camera_id,
-                                names,
-                                [repr(d) for d in detections],
-                                [repr(b) for b in baseline],
-                            )
-                            annotated = self._annotate_frame(
-                                jpeg_bytes=jpeg_bytes, detections=detections,
-                                new_detections=new,
-                            )
-                            await self._send_alert(
-                                camera_id=camera_id, description=f"Motion: {names}",
-                                jpeg_bytes=annotated, detections=new,
-                            )
-                        elif (
-                            not pending
-                            or pending["names"] != names
-                            or now - pending["time"] >= 5.0
-                        ):
-                            self._pending_alerts[camera_id] = {
-                                "names": names,
-                                "jpeg": jpeg_bytes,
-                                "time": now,
-                            }
-                            log.info(
-                                "Motion %s: pending confirmation: %s (det=%s, base=%s)",
-                                camera_id,
-                                names,
-                                [repr(d) for d in detections],
-                                [repr(b) for b in baseline],
-                            )
-                    else:
-                        log.info(
-                            "Motion %s: new objects: %s (det=%s, base=%s)",
-                            camera_id,
-                            names,
-                            [repr(d) for d in detections],
-                            [repr(b) for b in baseline],
-                        )
-                        annotated = self._annotate_frame(
-                            jpeg_bytes=jpeg_bytes, detections=detections,
-                            new_detections=new,
-                        )
-                        await self._send_alert(
-                            camera_id=camera_id, description=f"Motion: {names}",
-                            jpeg_bytes=annotated, detections=new,
-                        )
+                    log.info(
+                        "Motion %s: new objects: %s (det=%s, base=%s)",
+                        camera_id,
+                        names,
+                        [repr(d) for d in detections],
+                        [repr(b) for b in baseline],
+                    )
+                    annotated = self._annotate_frame(
+                        jpeg_bytes=jpeg_bytes, detections=detections,
+                        new_detections=new,
+                    )
+                    await self._send_alert(
+                        camera_id=camera_id, description=f"Motion: {names}",
+                        jpeg_bytes=annotated, detections=new,
+                    )
                 else:
-                    # No new objects — clear any pending alert for this camera
-                    self._pending_alerts.pop(camera_id, None)
                     log.debug("Motion %s: only baseline objects", camera_id)
 
             except Exception:
@@ -842,6 +771,17 @@ class BaselineManager:
             )
 
             for camera_id in self.cameras:
+                # Skip cameras with recent motion to avoid absorbing
+                # transient objects (e.g. person walking) into baseline
+                last_motion = self._last_motion_time.get(camera_id, 0)
+                if time.monotonic() - last_motion < self._motion_grace_period:
+                    log.debug(
+                        "Baseline skipped for %s: motion active %.1fs ago",
+                        camera_id,
+                        time.monotonic() - last_motion,
+                    )
+                    continue
+
                 try:
                     await self._update_baseline(camera_id, probe=is_probe_cycle)
                 except Exception:
@@ -863,8 +803,11 @@ class BaselineManager:
             return
 
         jpeg = recent[-1]
-        detections = await self.detector.get_detections(
-            jpeg, confidence_override=self.detector.confidence_threshold
+        detections = await self._scheduler.infer(
+            jpeg,
+            priority=PRIORITY_BASELINE,
+            confidence_override=self.detector.confidence_threshold,
+            camera_id=camera_id,
         )
 
         # Sticky static baseline probe: periodically run at low confidence
@@ -872,8 +815,11 @@ class BaselineManager:
         static = self._static_baselines.get(camera_id, [])
         if static:
             if probe:
-                low_conf_dets = await self.detector.get_detections(
-                    jpeg, confidence_override=self._sticky_probe_confidence
+                low_conf_dets = await self._scheduler.infer(
+                    jpeg,
+                    priority=PRIORITY_BASELINE,
+                    confidence_override=self._sticky_probe_confidence,
+                    camera_id=camera_id,
                 )
                 confirmed = set()
                 for i, s in enumerate(static):
@@ -955,7 +901,12 @@ class BaselineManager:
 
         for batch_start in range(0, len(check_order), batch_size):
             batch_indices = check_order[batch_start : batch_start + batch_size]
-            tasks = [self.detector.get_detections(frames[i]) for i in batch_indices]
+            tasks = [
+                self._scheduler.infer(
+                    frames[i], priority=PRIORITY_MOTION, camera_id=camera_id,
+                )
+                for i in batch_indices
+            ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for idx, detections in zip(batch_indices, results):

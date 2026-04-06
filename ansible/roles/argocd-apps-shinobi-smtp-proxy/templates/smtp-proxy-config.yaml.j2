@@ -72,15 +72,6 @@ detection_zones:
 {{ shinobi_smtp_proxy_detection_zones | to_nice_yaml(indent=2) | indent(2, true) }}
 {% endif %}
 
-# Cameras requiring 2-frame confirmation before alerting
-# (filters headlight-induced YOLO hallucinations on driveway cams)
-{% if shinobi_smtp_proxy_confirm_cameras is defined %}
-confirm_cameras:
-{% for cam_id in shinobi_smtp_proxy_confirm_cameras %}
-  - {{ cam_id }}
-{% endfor %}
-{% endif %}
-
 # Minimum detection bounding box area (fraction of frame, 0-1)
 # Detections smaller than this are discarded as noise
 min_detection_area: {{ shinobi_smtp_proxy_min_detection_area | default(0.003) }}
