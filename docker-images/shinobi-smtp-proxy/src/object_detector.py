@@ -65,11 +65,11 @@ class Detection:
 
 
 class ObjectDetector:
-    """Runs YOLOv8l with OpenVINO on Intel GPU (falls back to CPU)."""
+    """Runs YOLO11x with OpenVINO on Intel GPU (falls back to CPU)."""
 
     # OpenVINO model directory exported during Docker build
-    _OPENVINO_MODEL = "yolov8l_openvino_model"
-    _PYTORCH_MODEL = "yolov8l.pt"
+    _OPENVINO_MODEL = "yolo11x_openvino_model"
+    _PYTORCH_MODEL = "yolo11x.pt"
 
     def __init__(
         self,
@@ -87,7 +87,7 @@ class ObjectDetector:
         ov_path = pathlib.Path(self._OPENVINO_MODEL)
         if model_path:
             resolved = model_path
-        elif ov_path.is_dir() and (ov_path / "yolov8l.xml").exists():
+        elif ov_path.is_dir() and (ov_path / "yolo11x.xml").exists():
             resolved = str(ov_path)
         else:
             resolved = self._PYTORCH_MODEL

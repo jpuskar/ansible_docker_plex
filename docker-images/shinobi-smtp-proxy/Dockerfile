@@ -44,8 +44,8 @@ RUN pip install --no-cache-dir torch torchvision --index-url https://download.py
 
 # Download YOLO model and export to OpenVINO IR format during build
 # The exported model is used at runtime for GPU-accelerated inference
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8l.pt')" && \
-    python -c "from ultralytics import YOLO; YOLO('yolov8l.pt').export(format='openvino', imgsz=640, half=False)"
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11x.pt')" && \
+    python -c "from ultralytics import YOLO; YOLO('yolo11x.pt').export(format='openvino', imgsz=640, half=False)"
 
 # Copy application source
 COPY src/ ./src/
