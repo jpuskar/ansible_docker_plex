@@ -26,14 +26,10 @@ configuration:
 
 initContainers: []
 
-# Override the default kubectl image — the chart defaults to
-# bitnami/kubectl:1.34 which doesn't exist as that tag on Docker Hub.
-# bitnami/kubectl:latest includes a shell (required by the upgrade-crds job).
-# registry.k8s.io/kubectl is distroless (no /bin/sh) and can't be used here.
-kubectl:
-  image:
-    repository: docker.io/bitnami/kubectl
-    tag: latest
+# ArgoCD manages CRDs from the chart's crds/ directory natively.
+# Disable the chart's CRD upgrade job to avoid conflicts and the
+# bitnami/kubectl image mess (see vmware-tanzu/helm-charts#698).
+upgradeCRDs: false
 
 # Run the Velero server as a non-root user so NFS root_squash doesn't
 # block writes. The node-agent DaemonSet stays root (needs host paths).
