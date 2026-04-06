@@ -212,7 +212,7 @@ class ObjectDetector:
                 lambda: self.model.predict(img, **predict_kwargs),
             )
             elapsed_ms = (time.monotonic() - t0) * 1000
-            log.info("YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)
+            log.debug("YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)
 
             detections = []
             for result in results:

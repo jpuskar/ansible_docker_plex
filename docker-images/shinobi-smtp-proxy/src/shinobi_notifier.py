@@ -183,7 +183,7 @@ class ShinobiNotifier:
                 url, params=params, timeout=aiohttp.ClientTimeout(total=5)
             ) as resp:
                 if resp.status == 200:
-                    log.debug("Shinobi event sent for %s/%s", camera_id, monitor_id)
+                    log.info("Shinobi event sent for %s/%s", camera_id, monitor_id)
                     return True
                 else:
                     body = await resp.text()
