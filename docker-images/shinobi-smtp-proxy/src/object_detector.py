@@ -103,7 +103,24 @@ class ObjectDetector:
                 import openvino as ov
                 devices = ov.Core().available_devices
                 log.info("OpenVINO available devices: %s", devices)
-                self._ov_device = "intel:gpu" if "GPU" in devices else "intel:cpu"
+                if "GPU" in devices:
+                    self._ov_device = "intel:gpu"
+                    # Gen9 iGPUs (Skylake/Coffee Lake) produce NaN with Winograd convolution.
+                    # Ultralytics doesn't pass GPU config properties, so monkey-patch
+                    # ov.Core.compile_model to inject the fix automatically.
+                    _orig_compile = ov.Core.compile_model
+
+                    def _patched_compile(self_core, model, device_name="", config=None, **kw):
+                        if config is None:
+                            config = {}
+                        if isinstance(device_name, str) and "GPU" in device_name.upper():
+                            config.setdefault("GPU_DISABLE_WINOGRAD_CONVOLUTION", "YES")
+                        return _orig_compile(self_core, model, device_name=device_name, config=config, **kw)
+
+                    ov.Core.compile_model = _patched_compile
+                    log.info("Patched ov.Core.compile_model with GPU_DISABLE_WINOGRAD_CONVOLUTION=YES")
+                else:
+                    self._ov_device = "intel:cpu"
             except Exception:
                 self._ov_device = "intel:cpu"
         else:
