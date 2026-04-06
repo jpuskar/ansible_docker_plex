@@ -16,6 +16,10 @@ spec:
   nfs:
     server: {{ velero_nfs_server }}
     path: {{ velero_nfs_path }}
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+    - noatime
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

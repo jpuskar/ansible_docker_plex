@@ -26,6 +26,19 @@ configuration:
 
 initContainers: []
 
+# Run the Velero server as a non-root user so NFS root_squash doesn't
+# block writes. The node-agent DaemonSet stays root (needs host paths).
+podSecurityContext:
+  runAsUser: {{ velero_run_as_user }}
+  runAsGroup: {{ velero_run_as_group }}
+  runAsNonRoot: true
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: false
+
 resources:
   requests:
     cpu: {{ velero_resources_requests_cpu }}

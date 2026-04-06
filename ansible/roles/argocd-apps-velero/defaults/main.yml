@@ -9,8 +9,8 @@ velero_namespace: "velero"
 
 # ── NFS backup location ────────────────────────────────────────────
 # The NFS server and export path for the backup storage location.
-velero_nfs_server: "CHANGEME"
-velero_nfs_path: "/mnt/backups/velero"
+velero_nfs_server: "CHANGEME"   # vault-encrypt this (see harbor role for example)
+velero_nfs_path: /tank0/k8s2-velero
 
 # ── Backup Storage Location ────────────────────────────────────────
 velero_bsl_bucket: "velero"
@@ -23,6 +23,13 @@ velero_features: "EnableCSI"
 velero_default_schedule_enabled: true
 velero_default_schedule_cron: "0 2 * * *"
 velero_default_schedule_ttl: "168h"
+
+# ── UID/GID for the Velero server pod ──────────────────────────────
+# NFS uses root_squash by default, so the server pod must run as a
+# non-root user whose UID:GID owns the NFS export directory.
+# chown this UID:GID on the ZFS server and chmod 0770.
+velero_run_as_user: 2020
+velero_run_as_group: 2020
 
 # ── Resource requests/limits for the Velero server ─────────────────
 velero_resources_requests_cpu: "100m"
