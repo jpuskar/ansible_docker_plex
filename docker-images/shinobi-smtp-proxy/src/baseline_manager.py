@@ -664,12 +664,21 @@ class BaselineManager:
             try:
                 detections = await self.detector.get_detections(jpeg_bytes)
                 if not detections:
+                    log.info("Motion %s: YOLO returned 0 detections", camera_id)
                     continue
 
+                log.info(
+                    "Motion %s: YOLO found %d detections: %s",
+                    camera_id,
+                    len(detections),
+                    [(d.name, f"{d.conf:.2f}", f"{d.cx:.2f},{d.cy:.2f}", f"{d.w:.3f}x{d.h:.3f}") for d in detections],
+                )
+
                 # Zone filter — ignore detections outside configured regions
+                before_zone = len(detections)
                 detections = self._filter_by_zone(camera_id=camera_id, detections=detections)
                 if not detections:
-                    log.debug("Motion %s: detections outside zone", camera_id)
+                    log.info("Motion %s: all %d detections outside zone", camera_id, before_zone)
                     continue
 
                 # Motion co-location filter — only keep detections that overlap
@@ -682,7 +691,7 @@ class BaselineManager:
                 ]
                 if not detections:
                     if before_count > 0:
-                        log.debug(
+                        log.info(
                             "Motion %s: %d detections filtered (no motion at their position)",
                             camera_id, before_count,
                         )
@@ -690,11 +699,12 @@ class BaselineManager:
 
                 # Min area filter — discard tiny hallucinations from light flashes
                 if self._min_detection_area > 0:
+                    before_area = len(detections)
                     detections = [
                         d for d in detections if d.w * d.h >= self._min_detection_area
                     ]
                     if not detections:
-                        log.debug("Motion %s: detections below min area", camera_id)
+                        log.info("Motion %s: %d detections below min area %.4f", camera_id, before_area, self._min_detection_area)
                         continue
 
                 baseline = self.baselines.get(camera_id, [])
