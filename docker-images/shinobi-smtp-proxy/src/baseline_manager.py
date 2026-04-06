@@ -541,7 +541,7 @@ class BaselineManager:
         # Reference frames for visual similarity comparison.
         # Stored during each baseline cycle — a calm frame with no motion.
         self._reference_frames: dict[str, np.ndarray] = {}  # camera -> grayscale numpy
-        self._scene_change_threshold = 0.05  # fraction of edge pixels that must differ
+        self._scene_change_threshold = 0.15  # fraction of current edges that must be new
 
         # Priority inference scheduler — all GPU access goes through here
         self._scheduler = InferenceScheduler(detector)
@@ -831,12 +831,12 @@ class BaselineManager:
         """Compare edge maps (Canny) of a detection's patch between the
         baseline reference frame and the current frame.
 
-        Returns 0.0-1.0: fraction of edge pixels that are new (present in
-        current but not in reference).  Edges are lighting-invariant — a
-        cloud passing or dusk shift changes brightness but not object
-        contours.  A static trashcan has the same edges in both frames
-        (≈ 0%).  A person standing where there was none before introduces
-        many new edge pixels (10-40%)."""
+        Returns 0.0-1.0: fraction of *current* edge pixels that are new
+        (present in current but not in dilated reference).  Edges are
+        lighting-invariant — a cloud passing or dusk shift changes brightness
+        but not object contours.  A static trashcan has the same edges in
+        both frames (≈ 0%).  A person standing where there was none before
+        introduces many new contour edges (40-80%)."""
         ref = self._reference_frames.get(camera_id)
         if ref is None:
             return None
@@ -874,9 +874,30 @@ class BaselineManager:
         ref_dilated = cv2.dilate(ref_edges, kernel, iterations=1)
         new_edges = cv2.bitwise_and(cur_edges, cv2.bitwise_not(ref_dilated))
 
-        total_pixels = ref_patch.size
+        ref_edge_count = np.count_nonzero(ref_edges)
+        ref_dilated_count = np.count_nonzero(ref_dilated)
+        cur_edge_count = np.count_nonzero(cur_edges)
         new_edge_count = np.count_nonzero(new_edges)
-        return new_edge_count / total_pixels if total_pixels > 0 else 0.0
+        total_pixels = ref_patch.size
+        patch_size = (x2 - x1, y2 - y1)
+
+        # Fraction of *current* edges that are genuinely new (not in
+        # the dilated reference).  A static object has the same edges
+        # → 0%.  A person standing where grass was has mostly new
+        # contour edges → 40-80%.
+        frac = new_edge_count / cur_edge_count if cur_edge_count > 0 else 0.0
+
+        log.info(
+            "EdgeCmp %s %s@(%.2f,%.2f): patch=%dx%d total_px=%d "
+            "ref_edges=%d ref_dilated=%d cur_edges=%d new_edges=%d "
+            "frac=%.4f (new/cur_edges)",
+            camera_id, det.name, det.cx, det.cy,
+            patch_size[0], patch_size[1], total_pixels,
+            ref_edge_count, ref_dilated_count, cur_edge_count,
+            new_edge_count, frac,
+        )
+
+        return frac
 
     # ================================================================
     # Alert dispatch (Discord + Shinobi)
@@ -1023,8 +1044,9 @@ class BaselineManager:
                 # each "new" detection's patch against the baseline reference.
                 # Edges are lighting-invariant: a cloud or dusk shift changes
                 # brightness but not object contours.  A static trashcan has
-                # the same edges in both frames (~0% new edges).  A person
-                # introduces many new edge pixels (5-30%).
+                # the same edges in both frames (~0% new-edge fraction).  A
+                # person introduces many new contour edges (40-80% of current
+                # edges are new).
                 if new and camera_id in self._reference_frames:
                     visually_new = []
                     for d in new:
