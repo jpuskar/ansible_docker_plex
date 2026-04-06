@@ -1,0 +1,8 @@
+---
+# Intel GPU Device Plugin Helm values
+
+sharedDevNum: {{ intel_gpu_shared_dev_num }}
+logLevel: {{ intel_gpu_log_level }}
+enableMonitoring: {{ intel_gpu_enable_monitoring | lower }}
+
+nodeFeatureRule: {{ intel_gpu_node_feature_rule | lower }}

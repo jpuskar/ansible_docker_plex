@@ -1,0 +1,21 @@
+---
+- name: Template out GPU plugin Helm values to temp dir
+  template:
+    src: gpu-plugin-helm-values.yaml
+    dest: "{{ temp_dir_path }}/gpu-plugin-values.yaml"
+
+- name: Generate Intel GPU Plugin manifests using helm template
+  shell:
+    executable: /usr/bin/bash
+    cmd: |-
+      set -euo pipefail
+      helm template intel-gpu-plugin intel/{{ intel_gpu_chart_name }} \
+        --version {{ intel_gpu_chart_version }} \
+        --namespace {{ intel_gpu_namespace }} \
+        --values {{ temp_dir_path }}/gpu-plugin-values.yaml
+  register: helm_template_gpu
+
+- name: write output manifests for GPU plugin helm template
+  copy:
+    content: "{{ helm_template_gpu.stdout }}"
+    dest: "{{ output_dir_path }}/intel-gpu-plugin-helm-manifests.yaml"

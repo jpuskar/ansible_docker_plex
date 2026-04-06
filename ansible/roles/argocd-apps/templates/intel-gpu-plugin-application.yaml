@@ -22,7 +22,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: {{ intel_gpu_namespace | default('intel-gpu-plugin') }}
+    namespace: {{ intel_gpu_namespace | default('inteldeviceplugins-system') }}
 
   syncPolicy:
     syncOptions:
