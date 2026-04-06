@@ -29,9 +29,15 @@ class Detection:
         self.h = h  # height (0-1)
         self.conf = conf
 
+    # Vehicle class group — car/bus/truck/motorcycle are often confused
+    _VEHICLE_CLASSES = frozenset({2, 3, 5, 7})
+
     def is_near(self, other: Detection, tolerance: float = 0.15) -> bool:
-        """Check if another detection of the same class is nearby."""
-        if self.cls_id != other.cls_id:
+        """Check if another detection of the same class group is nearby."""
+        same_class = (self.cls_id == other.cls_id
+                      or (self.cls_id in self._VEHICLE_CLASSES
+                          and other.cls_id in self._VEHICLE_CLASSES))
+        if not same_class:
             return False
         return (
             abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance

@@ -284,6 +284,17 @@ class RTSPReader(threading.Thread):
                     cap.release()
 
 
+# COCO vehicle class IDs that YOLO frequently confuses with each other.
+# Treat as equivalent for baseline matching so a robot mower detected as
+# car/bus/truck interchangeably can still accumulate hits.
+VEHICLE_CLASSES = frozenset({2, 3, 5, 7})  # car, motorcycle, bus, truck
+
+
+def _same_class_group(a_cls: int, b_cls: int) -> bool:
+    """True if both class IDs are identical or both are vehicles."""
+    return a_cls == b_cls or (a_cls in VEHICLE_CLASSES and b_cls in VEHICLE_CLASSES)
+
+
 class BaselineCandidate:
     """Tracks a single detected object across multiple baseline cycles."""
 
@@ -307,6 +318,9 @@ class BaselineCandidate:
         self.cy = self.cy * (1 - alpha) + det.cy * alpha
         self.w = self.w * (1 - alpha) + det.w * alpha
         self.h = self.h * (1 - alpha) + det.h * alpha
+        # Update class to latest detection (handles car/bus/truck flip-flop)
+        self.cls_id = det.cls_id
+        self.name = det.name
         self.hits += 1
         self.misses = 0
 
@@ -340,7 +354,7 @@ class BaselineTracker:
         return self.cycles >= self.add_threshold
 
     def _match(self, det: Detection, cand: BaselineCandidate) -> bool:
-        return (cand.cls_id == det.cls_id
+        return (_same_class_group(cand.cls_id, det.cls_id)
                 and abs(cand.cx - det.cx) < self.tolerance
                 and abs(cand.cy - det.cy) < self.tolerance)
 
@@ -351,9 +365,10 @@ class BaselineTracker:
         return self._feed(detections, is_cycle=True)
 
     def observe(self, detections: list[Detection]) -> list[str]:
-        """Feed observations from motion events into existing candidates.
-        Does NOT increment cycles or create new candidates — only reinforces
-        existing ones and may promote them."""
+        """Feed observations from motion events into the tracker.
+        Does NOT increment cycles or count misses. Creates new candidates
+        for objects not yet tracked (so static objects only visible during
+        motion can eventually accumulate hits and get promoted)."""
         return self._feed(detections, is_cycle=False)
 
     def _feed(self, detections: list[Detection], is_cycle: bool) -> list[str]:
@@ -376,8 +391,7 @@ class BaselineTracker:
                 if not self.candidates[best].promoted and self.candidates[best].hits >= self.add_threshold:
                     self.candidates[best].promoted = True
                     messages.append(f"promoted {self.candidates[best]}")
-            elif is_cycle:
-                # Only create new candidates from baseline cycles, not motion
+            else:
                 self.candidates.append(BaselineCandidate(det))
 
         # Track misses — only on baseline cycles
@@ -541,6 +555,12 @@ class BaselineManager:
         # Minimum motion novelty score for a detection to be considered
         # genuinely moving (vs environmental: wind, shadows, tree sway)
         self._min_motion_novelty = min_motion_novelty
+
+        # Alert cooldown: suppress repeat alerts for the same object at the
+        # same position within this window. Gives observe() time to promote
+        # persistent static objects into the baseline.
+        self._alert_cooldown = 300.0  # seconds (5 minutes)
+        self._recent_alerts: dict[str, list[tuple[float, Detection]]] = {}  # camera -> [(time, det)]
 
         # RTSP readers (strategy='rtsp')
         self._readers = {}
@@ -908,6 +928,18 @@ class BaselineManager:
 
                 baseline = self.baselines.get(camera_id, [])
                 tracker = self._trackers[camera_id]
+
+                # Feed all surviving detections into the tracker FIRST so
+                # persistent objects seen during motion events accumulate
+                # hits toward promotion. If a promotion happens, the
+                # baseline comparison below will already include it.
+                obs_msgs = tracker.observe(detections)
+                for msg in obs_msgs:
+                    log.info("Baseline %s: %s (via motion observe)", camera_id, msg)
+                if obs_msgs:
+                    baseline = tracker.get_baseline()
+                    self.baselines[camera_id] = baseline
+
                 if not baseline:
                     # Before first baseline cycle: suppress all
                     if camera_id not in self._baseline_initialized:
@@ -929,6 +961,30 @@ class BaselineManager:
                         for b in baseline
                     )
                 ] if baseline else detections
+
+                # Alert cooldown — suppress repeat alerts for the same
+                # object at the same position within the cooldown window.
+                if new:
+                    now = time.monotonic()
+                    recent = self._recent_alerts.get(camera_id, [])
+                    # Purge expired entries
+                    recent = [(t, d) for t, d in recent if now - t < self._alert_cooldown]
+                    truly_new = [
+                        d for d in new
+                        if not any(
+                            d.is_near(prev_d, tolerance=self.position_tolerance)
+                            for _, prev_d in recent
+                        )
+                    ]
+                    if truly_new != new:
+                        suppressed = len(new) - len(truly_new)
+                        log.info(
+                            "Motion %s: %d detections suppressed (alert cooldown)",
+                            camera_id, suppressed,
+                        )
+                        m.motion_filtered_total.labels(camera=camera_id, reason="alert_cooldown").inc()
+                    new = truly_new
+
                 if new:
                     names = ", ".join(sorted(set(d.name for d in new)))
                     log.info(
@@ -946,20 +1002,14 @@ class BaselineManager:
                         camera_id=camera_id, description=f"Motion: {names}",
                         jpeg_bytes=annotated, detections=new,
                     )
+                    # Record alerted detections for cooldown
+                    now = time.monotonic()
+                    recent = self._recent_alerts.get(camera_id, [])
+                    recent = [(t, d) for t, d in recent if now - t < self._alert_cooldown]
+                    recent.extend((now, d) for d in new)
+                    self._recent_alerts[camera_id] = recent
                 else:
                     log.debug("Motion %s: only baseline objects", camera_id)
-
-                # Feed all surviving detections into the tracker so
-                # persistent objects seen during motion events accumulate
-                # hits toward promotion (e.g. a trashcan that YOLO only
-                # detects intermittently at normal confidence).
-                obs_msgs = tracker.observe(detections)
-                for msg in obs_msgs:
-                    log.info("Baseline %s: %s (via motion observe)", camera_id, msg)
-                # If observe() caused a promotion, update cached baseline
-                # immediately so the next motion event won't re-alert.
-                if obs_msgs:
-                    self.baselines[camera_id] = tracker.get_baseline()
 
             except Exception:
                 log.warning("Motion processing error for %s", camera_id, exc_info=True)
