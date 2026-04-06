@@ -14,6 +14,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from inference_scheduler import PRIORITY_BASELINE, PRIORITY_MOTION, InferenceScheduler
+import metrics as m
 from object_detector import Detection
 
 if TYPE_CHECKING:
@@ -164,6 +165,7 @@ class RTSPReader(threading.Thread):
                         f"Cannot open RTSP stream for {self.camera_id}"
                     )
                 self.connected = True
+                m.camera_connected.labels(camera=self.camera_id).set(1)
                 if self._backoff > 0:
                     log.info(
                         "%s RTSP reconnected (was backed off %ds)",
@@ -196,6 +198,8 @@ class RTSPReader(threading.Thread):
                     self.buf.add(jpeg_bytes)
                     self.frames_ok += 1
                     self.bytes_total += len(jpeg_bytes)
+                    m.camera_frames_total.labels(camera=self.camera_id, status="ok").inc()
+                    m.camera_bytes_total.labels(camera=self.camera_id).inc(len(jpeg_bytes))
 
                     # Motion detection (if enabled)
                     if self._motion_queue is not None:
@@ -207,6 +211,7 @@ class RTSPReader(threading.Thread):
                                 if now - self._last_motion >= MOTION_COOLDOWN:
                                     self._last_motion = now
                                     self.motion_events += 1
+                                    m.motion_events_total.labels(camera=self.camera_id).inc()
                                     try:
                                         self._motion_queue.put_nowait(
                                             (self.camera_id, jpeg_bytes, motion_rects)
@@ -217,6 +222,8 @@ class RTSPReader(threading.Thread):
             except Exception as exc:
                 self.connected = False
                 self.frames_fail += 1
+                m.camera_frames_total.labels(camera=self.camera_id, status="fail").inc()
+                m.camera_connected.labels(camera=self.camera_id).set(0)
                 self._backoff = min(max(self._backoff * 2, 1), 30)
                 log.info(
                     "%s RTSP error, reconnect in %ds: %s",
@@ -631,10 +638,12 @@ class BaselineManager:
             await self.discord_notifier.send_alert(
                 camera_id=camera_id, description=description, jpeg_bytes=jpeg_bytes,
             )
+            m.alerts_total.labels(camera=camera_id, destination="discord").inc()
         if self.shinobi_notifier:
             await self.shinobi_notifier.trigger_event(
                 camera_id=camera_id, detections=detections,
             )
+            m.alerts_total.labels(camera=camera_id, destination="shinobi").inc()
 
     # ================================================================
     # Motion detection loop (strategy='rtsp', motion_detection=True)
@@ -665,7 +674,11 @@ class BaselineManager:
                 )
                 if not detections:
                     log.info("Motion %s: YOLO returned 0 detections", camera_id)
+                    m.motion_filtered_total.labels(camera=camera_id, reason="no_detections").inc()
                     continue
+
+                for d in detections:
+                    m.detections_total.labels(camera=camera_id, class_name=d.name).inc()
 
                 log.info(
                     "Motion %s: YOLO found %d detections: %s",
@@ -679,6 +692,7 @@ class BaselineManager:
                 detections = self._filter_by_zone(camera_id=camera_id, detections=detections)
                 if not detections:
                     log.info("Motion %s: all %d detections outside zone", camera_id, before_zone)
+                    m.motion_filtered_total.labels(camera=camera_id, reason="outside_zone").inc()
                     continue
 
                 # Motion co-location filter — only keep detections that overlap
@@ -695,6 +709,7 @@ class BaselineManager:
                             "Motion %s: %d detections filtered (no motion at their position)",
                             camera_id, before_count,
                         )
+                    m.motion_filtered_total.labels(camera=camera_id, reason="no_motion_overlap").inc()
                     continue
 
                 # Min area filter — discard tiny hallucinations from light flashes
@@ -705,6 +720,7 @@ class BaselineManager:
                     ]
                     if not detections:
                         log.info("Motion %s: %d detections below min area %.4f", camera_id, before_area, self._min_detection_area)
+                        m.motion_filtered_total.labels(camera=camera_id, reason="below_min_area").inc()
                         continue
 
                 baseline = self.baselines.get(camera_id, [])
@@ -780,6 +796,7 @@ class BaselineManager:
                         camera_id,
                         time.monotonic() - last_motion,
                     )
+                    m.baseline_skipped_total.labels(camera=camera_id).inc()
                     continue
 
                 try:
@@ -851,6 +868,7 @@ class BaselineManager:
 
         self.baselines[camera_id] = detections
         self._baseline_initialized.add(camera_id)
+        m.baseline_objects.labels(camera=camera_id).set(len(detections))
         if detections:
             log.info("Baseline %s: %s", camera_id, [repr(d) for d in detections])
         log.debug(

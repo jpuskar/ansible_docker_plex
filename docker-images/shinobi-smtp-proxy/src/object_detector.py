@@ -9,6 +9,8 @@ import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
+import metrics as m
+
 log = logging.getLogger("smtp-proxy")
 
 
@@ -127,6 +129,11 @@ class ObjectDetector:
             self._ov_device = None
 
         log.info("YOLO model loaded (OpenVINO=%s, device=%s)", self._using_openvino, self._ov_device)
+        m.model_info.info({
+            "model": resolved,
+            "openvino": str(self._using_openvino),
+            "device": str(self._ov_device or "pytorch"),
+        })
 
     async def detect(self, image_data: bytes) -> bool:
         """Returns True if any target object is found in the image bytes."""

@@ -23,3 +23,8 @@
   template:
     src: smtp-proxy-statefulset.yaml
     dest: "{{ output_dir_path }}/smtp-proxy-statefulset.yaml"
+
+- name: Template out smtp-proxy podmonitor
+  template:
+    src: smtp-proxy-podmonitor.yaml
+    dest: "{{ output_dir_path }}/smtp-proxy-podmonitor.yaml"

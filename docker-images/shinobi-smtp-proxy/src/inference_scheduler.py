@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from object_detector import Detection, ObjectDetector
 
+import metrics as m
+
 log = logging.getLogger("smtp-proxy")
 
 # Priority levels (lower = higher priority)
@@ -105,6 +107,7 @@ class InferenceScheduler:
             pending = self._pending_baseline.pop(camera_id, None)
             if pending and pending.future and not pending.future.done():
                 pending.future.set_result([])
+                m.inference_preemptions.inc()
                 log.debug("Preempted queued baseline for %s", camera_id)
 
         # Track baseline requests for potential preemption
@@ -112,6 +115,7 @@ class InferenceScheduler:
             self._pending_baseline[camera_id] = req
 
         await self._queue.put(req)
+        m.inference_queue_depth.set(self._queue.qsize())
         return await future
 
     async def _worker(self) -> None:
@@ -129,17 +133,21 @@ class InferenceScheduler:
                 self._pending_baseline.pop(req.camera_id, None)
 
             try:
+                priority_label = "motion" if req.priority == PRIORITY_MOTION else "baseline"
                 t0 = time.monotonic()
                 detections = await self.detector.get_detections(
                     req.image_data,
                     confidence_override=req.confidence_override,
                 )
-                elapsed = (time.monotonic() - t0) * 1000
+                elapsed_s = time.monotonic() - t0
                 if not req.future.done():
                     req.future.set_result(detections)
+                m.inference_duration.labels(priority=priority_label).observe(elapsed_s)
+                m.inference_total.labels(priority=priority_label, camera=req.camera_id).inc()
+                m.inference_queue_depth.set(self._queue.qsize())
                 log.debug(
                     "Inference done: priority=%d camera=%s %.0fms %d dets",
-                    req.priority, req.camera_id, elapsed, len(detections),
+                    req.priority, req.camera_id, elapsed_s * 1000, len(detections),
                 )
             except Exception as exc:
                 if not req.future.done():

@@ -143,10 +143,15 @@ async def main() -> None:
     else:
         log.info("SMTP disabled — running as standalone motion detector")
 
-    # Health check so k8s probes don't poke the SMTP port
+    # Health check + Prometheus metrics endpoint
     health_port = config.get("health_port", 8080)
     app = web.Application()
     app.router.add_get("/healthz", lambda _: web.Response(text="ok"))
+
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    app.router.add_get("/metrics", lambda _: web.Response(
+        body=generate_latest(), content_type=CONTENT_TYPE_LATEST,
+    ))
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     await web.TCPSite(runner, "0.0.0.0", health_port).start()
