@@ -11,6 +11,12 @@ plex_puid: "2020"
 plex_pgid: "2020"
 plex_version: docker
 
+# Resource requests and limits
+plex_resources_requests_cpu: "2"
+plex_resources_requests_memory: "6Gi"
+plex_resources_limits_cpu: "4"
+plex_resources_limits_memory: "10Gi"
+
 # Intel GPU resource limit
 plex_intel_gpu: true
 

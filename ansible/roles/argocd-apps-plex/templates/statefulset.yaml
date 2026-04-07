@@ -79,9 +79,14 @@ spec:
           env:
             - name: VERSION
               value: "{{ plex_version }}"
-{% if plex_intel_gpu %}
           resources:
+            requests:
+              cpu: "{{ plex_resources_requests_cpu }}"
+              memory: "{{ plex_resources_requests_memory }}"
             limits:
+              cpu: "{{ plex_resources_limits_cpu }}"
+              memory: "{{ plex_resources_limits_memory }}"
+{% if plex_intel_gpu %}
               gpu.intel.com/i915: "1"
 {% endif %}
           volumeMounts:
