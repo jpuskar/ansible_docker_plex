@@ -10,6 +10,7 @@
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
     - percona-postgres-operator-application.yaml
+    - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
@@ -42,6 +43,7 @@
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
     - percona-postgres-operator-application.yaml
+    - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml

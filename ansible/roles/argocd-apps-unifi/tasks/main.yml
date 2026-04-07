@@ -14,6 +14,11 @@
     src: unifi-nfs-pv.yaml
     dest: "{{ output_dir_path }}/unifi-nfs-pv.yaml"
 
+# - name: Template out mongo-tools helper pod
+#   template:
+#     src: mongo-tools-pod.yaml
+#     dest: "{{ output_dir_path }}/mongo-tools-pod.yaml"
+
 - name: Include MongoDB tasks
   include_tasks: mongodb.yml
 

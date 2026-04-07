@@ -1,0 +1,30 @@
+---
+# percona-mongodb ArgoCD Application Role Defaults
+
+# Percona MongoDB Operator Helm chart configuration
+percona_mongodb_chart_repo: "https://percona.github.io/percona-helm-charts/"
+percona_mongodb_chart_name: "psmdb-operator"
+percona_mongodb_chart_version: "1.22.0"
+percona_mongodb_namespace: "percona-mongodb"
+
+# Operator configuration
+percona_mongodb_watch_all_namespaces: true
+percona_mongodb_replica_count: 1
+percona_mongodb_log_level: "INFO"
+percona_mongodb_log_structured: false
+percona_mongodb_disable_telemetry: false
+
+# Tolerations
+percona_mongodb_tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# Resource limits for operator
+percona_mongodb_resources:
+  limits:
+    cpu: 200m
+    memory: 500Mi
+  requests:
+    cpu: 100m
+    memory: 20Mi
