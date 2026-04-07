@@ -8,12 +8,21 @@ unifi_namespace: "unifi"
 unifi_chart_oci: "oci://ghcr.io/mkilchhofer/unifi-chart/unifi"
 unifi_chart_version: "1.16.0"
 
-# MongoDB Helm chart (bitnami)
-unifi_mongodb_chart_repo: "https://charts.bitnami.com/bitnami"
-unifi_mongodb_chart_name: "mongodb"
-unifi_mongodb_chart_version: "16.4.3"
-unifi_mongodb_storage_class: "openebs-rawfile"
-unifi_mongodb_storage_size: "10Gi"
+# Percona MongoDB cluster (psmdb-db chart) for Unifi
+unifi_psmdb_chart_name: "psmdb-db"
+unifi_psmdb_chart_version: "1.22.0"
+unifi_psmdb_cluster_name: "unifi-mongodb"
+unifi_psmdb_image: "percona/percona-server-mongodb:7.0.31-17"
+unifi_psmdb_backup_image: "percona/percona-backup-mongodb:2.12.0"
+unifi_psmdb_replset_size: 3
+unifi_psmdb_storage_class: "openebs-rawfile"
+unifi_psmdb_storage_size: "8Gi"
+
+# Percona MongoDB resource limits — sized small for Unifi workload
+unifi_psmdb_resources_requests_cpu: "100m"
+unifi_psmdb_resources_requests_memory: "256Mi"
+unifi_psmdb_resources_limits_cpu: "300m"
+unifi_psmdb_resources_limits_memory: "512Mi"
 
 # Unifi NFS storage for application data
 unifi_data_nfs_server:  !vault |
@@ -46,8 +55,3 @@ unifi_resources_requests_cpu: "100m"
 unifi_resources_requests_memory: "512Mi"
 unifi_resources_limits_cpu: "500m"
 unifi_resources_limits_memory: "768Mi"
-
-unifi_mongodb_resources_requests_cpu: "100m"
-unifi_mongodb_resources_requests_memory: "256Mi"
-unifi_mongodb_resources_limits_cpu: "250m"
-unifi_mongodb_resources_limits_memory: "512Mi"

@@ -1,0 +1,72 @@
+---
+# Palworld Server Library Role
+# This is a library role - key variables must be provided by the calling role
+
+# Required variables (must be set by caller):
+# - palworld_instance_name: Unique name for this instance (e.g. "palworld1")
+# - palworld_namespace: Kubernetes namespace (e.g. "palworld1")
+
+# Container image
+palworld_image: "docker.io/jpuskar/palworld-server:main.01162025-1"
+palworld_image_pull_policy: "Always"
+
+# Sidecar (rcon/backup)
+palworld_rcon_image: "docker.io/jpuskar/palworld-rcon-backup:latest"
+palworld_rcon_enabled: false
+
+# User/group IDs (matches Dockerfile USER 2020)
+palworld_uid: 2020
+palworld_gid: 2020
+
+# Game server port
+palworld_game_port: 8211
+
+# RCON port
+palworld_rcon_port: 25575
+
+# Service
+palworld_service_type: "LoadBalancer"
+palworld_service_annotations: {}
+# palworld_load_balancer_ip: ""  # Set in cluster vars
+
+# Storage
+palworld_storage_class: "openebs-rawfile"
+palworld_storage_size: "10Gi"
+
+# Resources
+palworld_resources:
+  requests:
+    cpu: "2"
+    memory: "8Gi"
+  limits:
+    cpu: "4"
+    memory: "16Gi"
+
+# Node selector
+palworld_node_selector: {}
+
+# Tolerations
+palworld_tolerations: []
+
+# Game server config (merged into PalWorldSettings.ini via configure.py)
+palworld_server_config:
+  CollectionDropRate: 1.000000
+  DeathPenalty: None
+  EnemyDropItemRate: 1.000000
+  ExpRate: 1.000000
+  PalCaptureRate: 1.000000
+  PalEggDefaultHatchingTime: 0.100000
+  PalSpawnNumRate: 1.200000
+  PlayerDamageRateAttack: 1.000000
+  PlayerDamageRateDefense: 1.000000
+  RCONEnabled: "True"
+  bActiveUNKO: "False"
+  bEnableInvaderEnemy: "False"
+  bEnableNonLoginPenalty: "False"
+  PalStomachDecreaceRate: 0.400000
+  PlayerStomachDecreaceRate: 0.400000
+  BaseCampMaxNumInGuild: 6
+
+# Passwords (vault-encrypt these in cluster vars)
+palworld_server_password: "CHANGEME_VAULT_ENCRYPT"
+palworld_admin_password: "CHANGEME_VAULT_ENCRYPT"

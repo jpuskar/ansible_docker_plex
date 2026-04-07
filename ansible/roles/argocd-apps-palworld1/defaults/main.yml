@@ -1,0 +1,64 @@
+---
+# Palworld Server Instance 1
+
+# Instance identity
+palworld1_instance_name: "palworld1"
+palworld1_namespace: "palworld1"
+
+# Container image
+palworld1_image: "docker.io/jpuskar/palworld-server:main.01162025-1"
+palworld1_image_pull_policy: "Always"
+
+# Sidecar
+palworld1_rcon_image: "docker.io/jpuskar/palworld-rcon-backup:latest"
+palworld1_rcon_enabled: false
+
+# Service
+palworld1_service_type: "LoadBalancer"
+palworld1_service_annotations: {}
+# palworld1_load_balancer_ip: ""  # Set in cluster vars
+
+# Game server port
+palworld1_game_port: 8211
+
+# Storage
+palworld1_storage_class: "openebs-rawfile"
+palworld1_storage_size: "10Gi"
+
+# Resources
+palworld1_resources:
+  requests:
+    cpu: "2"
+    memory: "8Gi"
+  limits:
+    cpu: "4"
+    memory: "16Gi"
+
+# Node selector
+palworld1_node_selector: {}
+
+# Tolerations
+palworld1_tolerations: []
+
+# Game server config
+palworld1_server_config:
+  CollectionDropRate: 1.000000
+  DeathPenalty: None
+  EnemyDropItemRate: 1.000000
+  ExpRate: 1.000000
+  PalCaptureRate: 1.000000
+  PalEggDefaultHatchingTime: 0.100000
+  PalSpawnNumRate: 1.200000
+  PlayerDamageRateAttack: 1.000000
+  PlayerDamageRateDefense: 1.000000
+  RCONEnabled: "True"
+  bActiveUNKO: "False"
+  bEnableInvaderEnemy: "False"
+  bEnableNonLoginPenalty: "False"
+  PalStomachDecreaceRate: 0.400000
+  PlayerStomachDecreaceRate: 0.400000
+  BaseCampMaxNumInGuild: 6
+
+# Passwords (vault-encrypt these in cluster vars)
+palworld1_server_password: "CHANGEME_VAULT_ENCRYPT"
+palworld1_admin_password: "CHANGEME_VAULT_ENCRYPT"

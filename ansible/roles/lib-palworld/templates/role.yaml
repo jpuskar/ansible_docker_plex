@@ -1,0 +1,15 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ palworld_instance_name }}-secret-reader
+  namespace: {{ palworld_namespace }}
+  labels:
+    app: palworld
+    app.kubernetes.io/name: palworld
+    app.kubernetes.io/instance: {{ palworld_instance_name }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["server-password"]
+    verbs: ["get"]

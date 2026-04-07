@@ -1,0 +1,75 @@
+# Percona Server for MongoDB cluster values — Unifi
+# 3-node replica set, no sharding, sized small
+
+fullnameOverride: "{{ unifi_psmdb_cluster_name }}"
+crVersion: "{{ unifi_psmdb_chart_version }}"
+
+image:
+  repository: {{ unifi_psmdb_image.split(':')[0] }}
+  tag: "{{ unifi_psmdb_image.split(':')[1] }}"
+
+imagePullPolicy: IfNotPresent
+pause: false
+unmanaged: false
+
+unsafeFlags:
+  tls: true
+  replsetSize: false
+  mongosSize: false
+  terminationGracePeriod: false
+  backupIfUnhealthy: false
+
+# Use pre-created secrets with vault-encrypted passwords
+secrets:
+  users: {{ unifi_psmdb_cluster_name }}-secrets
+
+# Disable sharding — simple replica set is sufficient for Unifi
+sharding:
+  enabled: false
+
+# Disable PMM monitoring
+pmm:
+  enabled: false
+
+# Replica set configuration
+replsets:
+  rs0:
+    name: rs0
+    size: {{ unifi_psmdb_replset_size }}
+    affinity:
+      antiAffinityTopologyKey: "kubernetes.io/hostname"
+    podDisruptionBudget:
+      maxUnavailable: 1
+    resources:
+      requests:
+        cpu: "{{ unifi_psmdb_resources_requests_cpu }}"
+        memory: "{{ unifi_psmdb_resources_requests_memory }}"
+      limits:
+        cpu: "{{ unifi_psmdb_resources_limits_cpu }}"
+        memory: "{{ unifi_psmdb_resources_limits_memory }}"
+    volumeSpec:
+      pvc:
+        storageClassName: "{{ unifi_psmdb_storage_class }}"
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ unifi_psmdb_storage_size }}
+    # Hidden and nonvoting replicas disabled
+    hidden:
+      enabled: false
+    nonvoting:
+      enabled: false
+    arbiter:
+      enabled: false
+
+# Backup agent (required by operator, storage config TBD)
+backup:
+  enabled: true
+  image: "{{ unifi_psmdb_backup_image }}"
+  storages: {}
+  tasks: []
+
+# Log collector
+logcollector:
+  enabled: false

@@ -10,11 +10,11 @@ runAsRoot: {{ unifi_run_as_root | lower }}
 UID: {{ unifi_uid }}
 GID: {{ unifi_gid }}
 
-# External MongoDB (deployed separately via bitnami/mongodb)
+# External MongoDB — Percona Server for MongoDB replica set
 mongodb:
   enabled: true
-  dbUri: "mongodb://unifi-mongodb.{{ unifi_namespace }}.svc:27017/unifi"
-  statDbUri: "mongodb://unifi-mongodb.{{ unifi_namespace }}.svc:27017/unifi_stat"
+  dbUri: "mongodb://databaseAdmin:{{ unifi_psmdb_database_admin_password }}@{{ unifi_psmdb_cluster_name }}-rs0.{{ unifi_namespace }}.svc.cluster.local/unifi?replicaSet=rs0&authSource=admin&tls=false"
+  statDbUri: "mongodb://databaseAdmin:{{ unifi_psmdb_database_admin_password }}@{{ unifi_psmdb_cluster_name }}-rs0.{{ unifi_namespace }}.svc.cluster.local/unifi_stat?replicaSet=rs0&authSource=admin&tls=false"
   databaseName: "unifi"
 
 # Persistence — NFS-backed storage
