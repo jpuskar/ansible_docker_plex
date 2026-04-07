@@ -24,6 +24,7 @@
     - unifi-application.yaml
     - godaddy-ddns-application.yaml
     - velero-application.yaml
+    - plex-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -55,6 +56,7 @@
     - unifi-application.yaml
     - godaddy-ddns-application.yaml
     - velero-application.yaml
+    - plex-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

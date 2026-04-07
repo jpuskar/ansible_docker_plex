@@ -1,0 +1,45 @@
+---
+# Plex namespace
+plex_namespace: plex
+
+# Container image
+plex_image: lscr.io/linuxserver/plex:latest
+plex_image_pull_policy: Always
+
+# User/group IDs
+plex_puid: "2020"
+plex_pgid: "2020"
+plex_version: docker
+
+# Resource requests and limits
+plex_resources_requests_cpu: "4"
+plex_resources_requests_memory: "8Gi"
+plex_resources_limits_cpu: "6"
+plex_resources_limits_memory: "12Gi"
+
+# Intel GPU resource limit
+plex_intel_gpu: true
+
+# LoadBalancer IP for the plex service
+plex_load_balancer_ip: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  34356131643638393363616536393732313766366662363232313137356166333365613366623537
+  3330663331386230623033386638363439383435346336650a393739643137653237333965623463
+  31653631353738343138303531396461393665656539353234643165383034363866653364356131
+  3964646462373838640a613131333732346339336465343931346561643862623061633333313131
+  3331
+
+# NFS server for all volumes
+plex_nfs_server: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  62353462613637646630653733303865393939643362363337666465346637646333303330393864
+  3837396163393630333166323139353739633532383361320a313338336464346565323034316366
+  35613134636138663133376132656563356335323363626264313339313464643266306433666137
+  3837366630313066300a663466323234363936623339336165393666646165396336613832656265
+  3232
+
+# NFS paths
+plex_nfs_config_path: /tank0/plex/config
+plex_nfs_movies_path: /tank0/plex/movies
+plex_nfs_tvshows_path: /tank0/plex/tvshows
+plex_nfs_music_path: /tank0/plex/music

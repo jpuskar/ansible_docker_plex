@@ -1,0 +1,102 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: plex
+  namespace: {{ plex_namespace }}
+  labels:
+    app: plex
+spec:
+  serviceName: plex
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+    spec:
+      securityContext:
+        runAsUser: {{ plex_puid }}
+        runAsGroup: {{ plex_pgid }}
+        runAsNonRoot: true
+      volumes:
+        - name: run
+          emptyDir:
+            medium: Memory
+        - name: config
+          nfs:
+            server: {{ plex_nfs_server }}
+            path: {{ plex_nfs_config_path }}
+        - name: movies
+          nfs:
+            server: {{ plex_nfs_server }}
+            path: {{ plex_nfs_movies_path }}
+        - name: tvshows
+          nfs:
+            server: {{ plex_nfs_server }}
+            path: {{ plex_nfs_tvshows_path }}
+        - name: music
+          nfs:
+            server: {{ plex_nfs_server }}
+            path: {{ plex_nfs_music_path }}
+      containers:
+        - name: plex
+          image: {{ plex_image }}
+          imagePullPolicy: {{ plex_image_pull_policy }}
+          ports:
+            - name: pms-web
+              containerPort: 32400
+              protocol: TCP
+            - name: dlna-tcp
+              containerPort: 32469
+              protocol: TCP
+            - name: dlna-udp
+              containerPort: 1900
+              protocol: UDP
+            - name: plex-companion
+              containerPort: 3005
+              protocol: TCP
+            - name: discovery-udp
+              containerPort: 5353
+              protocol: UDP
+            - name: plex-roku
+              containerPort: 8324
+              protocol: TCP
+            - name: gdm-32410
+              containerPort: 32410
+              protocol: UDP
+            - name: gdm-32412
+              containerPort: 32412
+              protocol: UDP
+            - name: gdm-32413
+              containerPort: 32413
+              protocol: UDP
+            - name: gdm-32414
+              containerPort: 32414
+              protocol: UDP
+          env:
+            - name: VERSION
+              value: "{{ plex_version }}"
+          resources:
+            requests:
+              cpu: "{{ plex_resources_requests_cpu }}"
+              memory: "{{ plex_resources_requests_memory }}"
+            limits:
+              cpu: "{{ plex_resources_limits_cpu }}"
+              memory: "{{ plex_resources_limits_memory }}"
+{% if plex_intel_gpu %}
+              gpu.intel.com/i915: "1"
+{% endif %}
+          volumeMounts:
+            - name: run
+              mountPath: /run
+            - name: config
+              mountPath: /config
+            - name: movies
+              mountPath: /movies
+            - name: tvshows
+              mountPath: /tvshows
+            - name: music
+              mountPath: /music
