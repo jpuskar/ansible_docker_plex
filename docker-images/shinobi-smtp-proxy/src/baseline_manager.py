@@ -146,6 +146,12 @@ class BaselineManager:
         self._alert_cooldown = 300.0  # seconds (5 minutes)
         self._recent_alerts: dict[str, list[tuple[float, Detection]]] = {}  # camera -> [(time, det)]
 
+        # Follow-up scan: after an alert, periodically re-check the camera
+        # for additional arrivals (e.g. kid walking behind parent).
+        self._followup_interval = 3.0   # seconds between follow-up scans
+        self._followup_duration = 15.0  # total follow-up window after alert
+        self._active_followups: set[str] = set()  # cameras with running follow-up tasks
+
         # RTSP readers (strategy='rtsp')
         self._readers = {}
         if strategy == "rtsp":
@@ -409,6 +415,11 @@ class BaselineManager:
                     [(d.name, f"{d.conf:.2f}", f"{d.cx:.2f},{d.cy:.2f}", f"{d.w:.3f}x{d.h:.3f}") for d in detections],
                 )
 
+                # Keep a snapshot of ALL YOLO detections before any filtering.
+                # Used later by annotate_frame so baseline/filtered objects
+                # still appear (gray boxes) even when they don't trigger alerts.
+                all_yolo_detections = list(detections)
+
                 # Zone filter — ignore detections outside configured regions
                 before_zone = len(detections)
                 detections = filter_by_zone(camera_id=camera_id, detections=detections, zones=self._zones)
@@ -560,7 +571,7 @@ class BaselineManager:
                     # where the person/object is more visible, then pick the
                     # frame with the highest confidence for the new detections.
                     best_jpeg = jpeg_bytes
-                    best_dets = detections
+                    best_all_dets = all_yolo_detections
                     best_new = new
                     best_conf = max(d.conf for d in new)
 
@@ -588,7 +599,7 @@ class BaselineManager:
                                     camera_id, delayed_conf * 100, best_conf * 100,
                                 )
                                 best_jpeg = delayed_jpeg
-                                best_dets = delayed_dets
+                                best_all_dets = delayed_dets
                                 best_new = delayed_new
                             else:
                                 log.debug(
@@ -597,7 +608,7 @@ class BaselineManager:
                                 )
 
                     annotated = annotate_frame(
-                        jpeg_bytes=best_jpeg, detections=best_dets,
+                        jpeg_bytes=best_jpeg, detections=best_all_dets,
                         new_detections=best_new,
                     )
                     await self._send_alert(
@@ -610,11 +621,173 @@ class BaselineManager:
                     recent = [(t, d) for t, d in recent if now - t < self._alert_cooldown]
                     recent.extend((now, d) for d in new)
                     self._recent_alerts[camera_id] = recent
+
+                    # Kick off follow-up scans to catch additional arrivals
+                    # (e.g. kid walking behind parent, second car pulling in).
+                    if camera_id not in self._active_followups:
+                        asyncio.create_task(self._follow_up_scan(camera_id))
                 else:
                     log.debug("Motion %s: no new objects after all filters", camera_id)
 
             except Exception:
                 log.warning("Motion processing error for %s", camera_id, exc_info=True)
+
+    # ================================================================
+    # Follow-up scan — catch additional arrivals after an alert
+    # ================================================================
+
+    async def _follow_up_scan(self, camera_id: str) -> None:
+        """After an alert, periodically re-scan the camera for new objects.
+
+        Runs every _followup_interval seconds for _followup_duration seconds.
+        Grabs the latest buffered frame, runs YOLO, and checks for detections
+        that aren't in the cooldown list (already alerted) and aren't baseline.
+        Skips novelty and edge filters — the scene is actively changing.
+        """
+        self._active_followups.add(camera_id)
+        deadline = time.monotonic() + self._followup_duration
+        scan_num = 0
+        try:
+            while time.monotonic() < deadline:
+                await asyncio.sleep(self._followup_interval)
+                if time.monotonic() >= deadline:
+                    break
+                scan_num += 1
+                buf = self.buffers.get(camera_id)
+                if not buf:
+                    break
+                recent_frames = buf.get_recent(seconds=1.0)
+                if not recent_frames:
+                    continue
+                jpeg_bytes = recent_frames[-1]
+
+                detections = await self._scheduler.infer(
+                    jpeg_bytes, priority=PRIORITY_MOTION, camera_id=camera_id,
+                )
+                if not detections:
+                    log.debug("FollowUp %s scan %d: no detections", camera_id, scan_num)
+                    continue
+
+                # Zone filter
+                detections = filter_by_zone(
+                    camera_id=camera_id, detections=detections, zones=self._zones,
+                )
+                if not detections:
+                    continue
+
+                # Min area filter
+                if self._min_detection_area > 0:
+                    detections = [
+                        d for d in detections if d.w * d.h >= self._min_detection_area
+                    ]
+                    if not detections:
+                        continue
+
+                # Baseline comparison
+                baseline = self.baselines.get(camera_id, [])
+                tracker = self._trackers[camera_id]
+                if not baseline and not tracker.is_warm:
+                    baseline = tracker.get_all_seen()
+                new = [
+                    d for d in detections
+                    if not any(
+                        d.is_near(b, tolerance=self.position_tolerance) for b in baseline
+                    )
+                ] if baseline else detections
+
+                if not new:
+                    log.debug(
+                        "FollowUp %s scan %d: %d detections all matched baseline",
+                        camera_id, scan_num, len(detections),
+                    )
+                    continue
+
+                # Cooldown comparison — filter out already-alerted positions
+                now = time.monotonic()
+                recent_alerts = self._recent_alerts.get(camera_id, [])
+                recent_alerts = [
+                    (t, d) for t, d in recent_alerts if now - t < self._alert_cooldown
+                ]
+                truly_new = [
+                    d for d in new
+                    if not any(
+                        d.is_near(prev_d, tolerance=self.position_tolerance)
+                        for _, prev_d in recent_alerts
+                    )
+                ]
+                if not truly_new:
+                    log.debug(
+                        "FollowUp %s scan %d: %d new detections suppressed by cooldown",
+                        camera_id, scan_num, len(new),
+                    )
+                    continue
+
+                # Found genuinely new arrivals — best-frame selection
+                names = ", ".join(sorted(set(d.name for d in truly_new)))
+                log.info(
+                    "FollowUp %s scan %d: new arrivals: %s",
+                    camera_id, scan_num, names,
+                )
+
+                best_jpeg = jpeg_bytes
+                best_dets = detections
+                best_new = truly_new
+                best_conf = max(d.conf for d in truly_new)
+
+                await asyncio.sleep(1.5)
+
+                delayed_frames = buf.get_recent(seconds=2)
+                if delayed_frames:
+                    delayed_jpeg = delayed_frames[-1]
+                    delayed_dets = await self._scheduler.infer(
+                        delayed_jpeg, priority=PRIORITY_MOTION, camera_id=camera_id,
+                    )
+                    delayed_new = [
+                        d for d in delayed_dets
+                        if any(
+                            d.is_near(n, tolerance=self.position_tolerance)
+                            for n in truly_new
+                        )
+                    ]
+                    if delayed_new:
+                        delayed_conf = max(d.conf for d in delayed_new)
+                        if delayed_conf > best_conf:
+                            log.info(
+                                "FollowUp %s: using delayed frame (conf %.0f%% > %.0f%%)",
+                                camera_id, delayed_conf * 100, best_conf * 100,
+                            )
+                            best_jpeg = delayed_jpeg
+                            best_dets = delayed_dets
+                            best_new = delayed_new
+
+                annotated = annotate_frame(
+                    jpeg_bytes=best_jpeg, detections=best_dets,
+                    new_detections=best_new,
+                )
+                await self._send_alert(
+                    camera_id=camera_id,
+                    description=f"FollowUp: {names}",
+                    jpeg_bytes=annotated,
+                    detections=best_new,
+                )
+
+                # Record for cooldown + extend deadline so further arrivals
+                # still get caught (e.g. third person walking up)
+                now = time.monotonic()
+                recent_alerts = self._recent_alerts.get(camera_id, [])
+                recent_alerts = [
+                    (t, d) for t, d in recent_alerts if now - t < self._alert_cooldown
+                ]
+                recent_alerts.extend((now, d) for d in truly_new)
+                self._recent_alerts[camera_id] = recent_alerts
+                deadline = now + self._followup_duration
+                m.alerts_total.labels(camera=camera_id, destination="followup").inc()
+
+        except Exception:
+            log.warning("FollowUp scan error for %s", camera_id, exc_info=True)
+        finally:
+            self._active_followups.discard(camera_id)
+            log.debug("FollowUp %s: finished after %d scans", camera_id, scan_num)
 
     # ================================================================
     # Baseline loop (works with both strategies)
