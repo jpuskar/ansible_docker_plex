@@ -887,7 +887,7 @@ class BaselineManager:
         # contour edges → 40-80%.
         frac = new_edge_count / cur_edge_count if cur_edge_count > 0 else 0.0
 
-        log.info(
+        log.debug(
             "EdgeCmp %s %s@(%.2f,%.2f): patch=%dx%d total_px=%d "
             "ref_edges=%d ref_dilated=%d cur_edges=%d new_edges=%d "
             "frac=%.4f (new/cur_edges)",
@@ -980,8 +980,8 @@ class BaselineManager:
                         novel_detections.append(d)
                     else:
                         log.debug(
-                            "Motion %s: %s novelty=%.3f < %.3f (environmental)",
-                            camera_id, d.name, novelty, self._min_motion_novelty,
+                            "Motion %s: %s@(%.2f,%.2f) novelty=%.3f < %.3f (filtered as environmental)",
+                            camera_id, d.name, d.cx, d.cy, novelty, self._min_motion_novelty,
                         )
                 detections = novel_detections
                 if not detections:
@@ -1022,8 +1022,8 @@ class BaselineManager:
                     # Before first baseline cycle: suppress all
                     if camera_id not in self._baseline_initialized:
                         log.debug(
-                            "Motion %s: ignoring (baseline not yet initialized)",
-                            camera_id,
+                            "Motion %s: ignoring %d detections (baseline not yet initialized)",
+                            camera_id, len(detections),
                         )
                         continue
                     # During warmup: use all candidates seen so far
@@ -1039,6 +1039,14 @@ class BaselineManager:
                         for b in baseline
                     )
                 ] if baseline else detections
+
+                if not new and detections:
+                    log.debug(
+                        "Motion %s: all %d detections matched baseline (base=%s)",
+                        camera_id, len(detections),
+                        [repr(b) for b in baseline],
+                    )
+                    continue
 
                 # Visual similarity filter — compare edge maps (Canny) of
                 # each "new" detection's patch against the baseline reference.
@@ -1154,7 +1162,7 @@ class BaselineManager:
                     recent.extend((now, d) for d in new)
                     self._recent_alerts[camera_id] = recent
                 else:
-                    log.debug("Motion %s: only baseline objects", camera_id)
+                    log.debug("Motion %s: no new objects after all filters", camera_id)
 
             except Exception:
                 log.warning("Motion processing error for %s", camera_id, exc_info=True)
