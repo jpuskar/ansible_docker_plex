@@ -76,11 +76,11 @@ spec:
               value: "{{ plex_puid }}"
             - name: VERSION
               value: "{{ plex_version }}"
+{% if plex_intel_gpu %}
           resources:
             limits:
-{{ % if plex_intel_gpu % }}
               gpu.intel.com/i915: "1"
-{{ % endif % }}
+{% endif %}
           volumeMounts:
             - name: config
               mountPath: /config
