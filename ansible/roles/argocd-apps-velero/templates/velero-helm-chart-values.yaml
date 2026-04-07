@@ -88,4 +88,12 @@ nodeAgent:
 credentials:
   useSecret: false
 
-# NFS PV/PVC is mounted by MinIO, not the Velero server pod.
+# /udmrepo is where Velero/kopia caches the backup repository index.
+# Must be writable by the non-root UID. emptyDir solves this.
+extraVolumes:
+  - name: udmrepo
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: udmrepo
+    mountPath: /udmrepo
