@@ -1,21 +1,26 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import logging
 import queue
-import threading
 import time
-from collections import deque
 from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw
 
+from baseline_tracker import BaselineTracker
 from inference_scheduler import PRIORITY_BASELINE, PRIORITY_MOTION, InferenceScheduler
 import metrics as m
 from object_detector import Detection
+from rtsp_reader import (
+    MOTION_MIN_AREA,
+    MOTION_THRESHOLD,
+    RTSP_SUBSTREAM,
+    CameraBuffer,
+    RTSPReader,
+)
+from scene_compare import annotate_frame, filter_by_zone, patch_edge_change
 
 if TYPE_CHECKING:
     from discord_notifier import DiscordNotifier
@@ -24,434 +29,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("smtp-proxy")
 
-# RTSP sub-stream template — MJPEG at 704x480 2fps
-RTSP_SUBSTREAM = "rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subtype=1"
-
 # HTTP snapshot fallback (not used by default)
 SNAPSHOT_PATH = "/cgi-bin/snapshot.cgi?channel=1&subtype=1"
-
-# Motion detection defaults
-MOTION_THRESHOLD = 25  # pixel difference threshold (0-255)
-MOTION_MIN_AREA = 500  # minimum contour area in pixels to count as motion
-MOTION_COOLDOWN = 2.0  # seconds between motion events per camera
-
-
-class CameraBuffer:
-    """Thread-safe ring buffer of raw JPEG snapshots for one camera."""
-
-    def __init__(self, maxlen: int) -> None:
-        self.frames: deque[tuple[float, bytes]] = deque(maxlen=maxlen)
-        self._lock = threading.Lock()
-
-    def add(self, jpeg_bytes: bytes) -> None:
-        with self._lock:
-            self.frames.append((time.monotonic(), jpeg_bytes))
-
-    def get_recent(self, seconds: float | None = None) -> list[bytes]:
-        with self._lock:
-            if seconds is None or not self.frames:
-                return [f[1] for f in self.frames]
-            cutoff = time.monotonic() - seconds
-            return [data for ts, data in self.frames if ts >= cutoff]
-
-    def evict_stale(self, max_age: float) -> None:
-        with self._lock:
-            cutoff = time.monotonic() - max_age
-            while self.frames and self.frames[0][0] < cutoff:
-                self.frames.popleft()
-
-    def total(self) -> int:
-        with self._lock:
-            return len(self.frames)
-
-
-class RTSPReader(threading.Thread):
-    """Background thread that reads from an RTSP stream into a CameraBuffer.
-
-    Reconnects automatically with exponential backoff (cap 30s).
-    Encodes each frame to JPEG before storing.
-    Optionally performs frame-differencing motion detection and enqueues events.
-
-    Motion heatmap: maintains an exponential moving average of per-cell motion
-    intensity. Environmental motion (wind, flickering lights) builds up in the
-    heatmap so it can be subtracted from instantaneous motion, leaving only
-    novel motion (person walking, car arriving).
-    """
-
-    # Motion heatmap grid resolution
-    _GRID_ROWS = 12
-    _GRID_COLS = 16
-    _HEATMAP_ALPHA = 0.05  # EMA factor: lower = slower adaptation
-
-    def __init__(
-        self,
-        camera_id: str,
-        rtsp_url: str,
-        buf: CameraBuffer,
-        target_fps: int = 2,
-        motion_queue: queue.Queue[tuple[str, bytes, list[tuple[float, float, float, float, float]]]] | None = None,
-        motion_threshold: int = MOTION_THRESHOLD,
-        motion_min_area: int = MOTION_MIN_AREA,
-        motion_zone_polygons: list[np.ndarray] | None = None,
-    ) -> None:
-        super().__init__(daemon=True, name=f"rtsp-{camera_id}")
-        self.camera_id = camera_id
-        self.rtsp_url = rtsp_url
-        self.buf = buf
-        self.target_fps = target_fps
-        self._stop_event = threading.Event()
-        # Counters for metrics (read from async side)
-        self.frames_ok = 0
-        self.frames_fail = 0
-        self.bytes_total = 0
-        self.connected = False
-        self._backoff = 0
-        # Motion detection
-        self._motion_queue = motion_queue
-        self._motion_threshold = motion_threshold
-        self._motion_min_area = motion_min_area
-        self._motion_zone_polygons = motion_zone_polygons  # normalized 0-1 coords
-        self._motion_mask = None  # built on first frame when we know resolution
-        self._prev_gray = None
-        self._last_motion = 0.0
-        self.motion_events = 0  # counter for metrics
-        # Motion heatmap: EMA of per-cell motion intensity (0-255 scale)
-        self._motion_heatmap = np.zeros(
-            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
-        )
-
-    def stop(self) -> None:
-        self._stop_event.set()
-
-    def _build_motion_mask(self, h: int, w: int) -> np.ndarray | None:
-        """Build a binary mask from zone polygons scaled to pixel coords."""
-        if not self._motion_zone_polygons:
-            return None
-        mask = np.zeros((h, w), dtype=np.uint8)
-        for poly in self._motion_zone_polygons:
-            pts = (poly * np.array([w, h])).astype(np.int32)
-            cv2.fillPoly(mask, [pts], 255)
-        return mask
-
-    def _detect_motion(self, frame: np.ndarray) -> list[tuple[float, float, float, float, float]]:
-        """Returns list of motion region rects with novelty scores.
-
-        Each tuple is (x, y, w, h, novelty) in normalized 0-1 coords.
-        novelty = how much the motion in this region exceeds the temporal
-        background motion (heatmap). High novelty = genuinely new motion
-        (person, car). Low novelty = environmental (wind, trees, shadows).
-        """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (21, 21), 0)
-        if self._prev_gray is None:
-            self._prev_gray = gray
-            # Build motion mask on first frame now that we know resolution
-            if self._motion_mask is None and self._motion_zone_polygons:
-                h, w = gray.shape
-                self._motion_mask = self._build_motion_mask(h, w)
-            return []
-        delta = cv2.absdiff(self._prev_gray, gray)
-        self._prev_gray = gray
-
-        # Compute per-cell mean motion intensity for heatmap update
-        fh, fw = gray.shape
-        cell_h = fh / self._GRID_ROWS
-        cell_w = fw / self._GRID_COLS
-        current_grid = np.zeros(
-            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
-        )
-        for r in range(self._GRID_ROWS):
-            for c in range(self._GRID_COLS):
-                y1 = int(r * cell_h)
-                y2 = int((r + 1) * cell_h)
-                x1 = int(c * cell_w)
-                x2 = int((c + 1) * cell_w)
-                current_grid[r, c] = delta[y1:y2, x1:x2].mean()
-
-        # Update heatmap with EMA
-        self._motion_heatmap = (
-            self._motion_heatmap * (1 - self._HEATMAP_ALPHA)
-            + current_grid * self._HEATMAP_ALPHA
-        )
-
-        thresh = cv2.threshold(delta, self._motion_threshold, 255, cv2.THRESH_BINARY)[1]
-        thresh = cv2.dilate(thresh, None, iterations=2)
-        # Mask to detection zone — ignore motion outside configured regions
-        if self._motion_mask is not None:
-            thresh = cv2.bitwise_and(thresh, self._motion_mask)
-        contours, _ = cv2.findContours(
-            thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-        motion_rects: list[tuple[float, float, float, float, float]] = []
-        for cont in contours:
-            if cv2.contourArea(cont) >= self._motion_min_area:
-                x, y, w, h = cv2.boundingRect(cont)
-                # Compute novelty: mean motion in this rect vs heatmap baseline
-                r1 = max(0, int(y / cell_h))
-                r2 = min(self._GRID_ROWS, int((y + h) / cell_h) + 1)
-                c1 = max(0, int(x / cell_w))
-                c2 = min(self._GRID_COLS, int((x + w) / cell_w) + 1)
-                current_mean = current_grid[r1:r2, c1:c2].mean()
-                heatmap_mean = self._motion_heatmap[r1:r2, c1:c2].mean()
-                # Novelty: how much instantaneous exceeds the background
-                novelty = max(0.0, current_mean - heatmap_mean) / 255.0
-                motion_rects.append((x / fw, y / fh, w / fw, h / fh, novelty))
-        return motion_rects
-
-    def run(self) -> None:
-        while not self._stop_event.is_set():
-            cap = None
-            try:
-                cap = cv2.VideoCapture()
-                cap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
-                cap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
-                cap.open(self.rtsp_url, cv2.CAP_FFMPEG)
-                if not cap.isOpened():
-                    raise ConnectionError(
-                        f"Cannot open RTSP stream for {self.camera_id}"
-                    )
-                self.connected = True
-                m.camera_connected.labels(camera=self.camera_id).set(1)
-                if self._backoff > 0:
-                    log.info(
-                        "%s RTSP reconnected (was backed off %ds)",
-                        self.camera_id,
-                        self._backoff,
-                    )
-                self._backoff = 0
-                self._prev_gray = None  # reset motion baseline on reconnect
-                self._motion_heatmap[:] = 0  # reset heatmap on reconnect
-                self._warmup_frames = 10  # skip motion detection for first N frames
-                frame_interval = 1.0 / self.target_fps
-                last_frame = 0.0
-
-                while not self._stop_event.is_set():
-                    grabbed = cap.grab()
-                    if not grabbed:
-                        raise ConnectionError(f"RTSP stream lost for {self.camera_id}")
-                    now = time.monotonic()
-                    if now - last_frame < frame_interval:
-                        continue
-                    last_frame = now
-                    ret, frame = cap.retrieve()
-                    if not ret:
-                        self.frames_fail += 1
-                        continue
-                    ok, jpeg = cv2.imencode(".jpg", frame)
-                    if not ok:
-                        self.frames_fail += 1
-                        continue
-                    jpeg_bytes = jpeg.tobytes()
-                    self.buf.add(jpeg_bytes)
-                    self.frames_ok += 1
-                    self.bytes_total += len(jpeg_bytes)
-                    m.camera_frames_total.labels(camera=self.camera_id, status="ok").inc()
-                    m.camera_bytes_total.labels(camera=self.camera_id).inc(len(jpeg_bytes))
-
-                    # Motion detection (if enabled)
-                    if self._motion_queue is not None:
-                        if self._warmup_frames > 0:
-                            self._warmup_frames -= 1
-                        else:
-                            motion_rects = self._detect_motion(frame)
-                            if motion_rects:
-                                if now - self._last_motion >= MOTION_COOLDOWN:
-                                    self._last_motion = now
-                                    self.motion_events += 1
-                                    m.motion_events_total.labels(camera=self.camera_id).inc()
-                                    try:
-                                        self._motion_queue.put_nowait(
-                                            (self.camera_id, jpeg_bytes, motion_rects)
-                                        )
-                                    except queue.Full:
-                                        pass  # drop if processing is backed up
-
-            except Exception as exc:
-                self.connected = False
-                self.frames_fail += 1
-                m.camera_frames_total.labels(camera=self.camera_id, status="fail").inc()
-                m.camera_connected.labels(camera=self.camera_id).set(0)
-                self._backoff = min(max(self._backoff * 2, 1), 30)
-                log.info(
-                    "%s RTSP error, reconnect in %ds: %s",
-                    self.camera_id,
-                    self._backoff,
-                    exc,
-                )
-                self._stop_event.wait(self._backoff)
-            finally:
-                if cap is not None:
-                    cap.release()
-
-
-# COCO vehicle class IDs that YOLO frequently confuses with each other.
-# Treat as equivalent for baseline matching so a robot mower detected as
-# car/bus/truck interchangeably can still accumulate hits.
-VEHICLE_CLASSES = frozenset({2, 3, 5, 7})  # car, motorcycle, bus, truck
-
-
-def _same_class_group(a_cls: int, b_cls: int) -> bool:
-    """True if both class IDs are identical or both are vehicles."""
-    return a_cls == b_cls or (a_cls in VEHICLE_CLASSES and b_cls in VEHICLE_CLASSES)
-
-
-class BaselineCandidate:
-    """Tracks a single detected object across multiple baseline cycles."""
-
-    __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "hits", "misses", "promoted")
-
-    def __init__(self, det: Detection) -> None:
-        self.cls_id = det.cls_id
-        self.name = det.name
-        self.cx = det.cx
-        self.cy = det.cy
-        self.w = det.w
-        self.h = det.h
-        self.hits = 1
-        self.misses = 0
-        self.promoted = False
-
-    def update(self, det: Detection) -> None:
-        """Exponential moving average of position/size."""
-        alpha = 0.3
-        self.cx = self.cx * (1 - alpha) + det.cx * alpha
-        self.cy = self.cy * (1 - alpha) + det.cy * alpha
-        self.w = self.w * (1 - alpha) + det.w * alpha
-        self.h = self.h * (1 - alpha) + det.h * alpha
-        # Update class to latest detection (handles car/bus/truck flip-flop)
-        self.cls_id = det.cls_id
-        self.name = det.name
-        self.hits += 1
-        self.misses = 0
-
-    def as_detection(self) -> Detection:
-        return Detection(
-            cls_id=self.cls_id, name=self.name,
-            cx=self.cx, cy=self.cy, w=self.w, h=self.h,
-            conf=1.0,
-        )
-
-    def __repr__(self) -> str:
-        state = "P" if self.promoted else "c"
-        return f"{self.name}@({self.cx:.2f},{self.cy:.2f})[{state} h={self.hits} m={self.misses}]"
-
-
-class BaselineTracker:
-    """Hysteresis-based baseline: objects must appear N cycles to enter.
-    To leave, a low-confidence verification pass must also fail to find them."""
-
-    def __init__(self, add_threshold: int = 3,
-                 tolerance: float = 0.15) -> None:
-        self.add_threshold = add_threshold
-        self.tolerance = tolerance
-        self.candidates: list[BaselineCandidate] = []
-        self.cycles = 0
-        # Indices of promoted candidates that missed in the latest update()
-        self._missed_promoted: list[int] = []
-
-    @property
-    def is_warm(self) -> bool:
-        return self.cycles >= self.add_threshold
-
-    def _match(self, det: Detection, cand: BaselineCandidate) -> bool:
-        return (_same_class_group(cand.cls_id, det.cls_id)
-                and abs(cand.cx - det.cx) < self.tolerance
-                and abs(cand.cy - det.cy) < self.tolerance)
-
-    def update(self, detections: list[Detection]) -> list[str]:
-        """Feed one cycle of normal-confidence detections.
-        Returns log messages. Call verify_missed() after if any promoted missed."""
-        self.cycles += 1
-        return self._feed(detections, is_cycle=True)
-
-    def observe(self, detections: list[Detection]) -> list[str]:
-        """Feed observations from motion events into the tracker.
-        Does NOT increment cycles or count misses. Creates new candidates
-        for objects not yet tracked (so static objects only visible during
-        motion can eventually accumulate hits and get promoted)."""
-        return self._feed(detections, is_cycle=False)
-
-    def _feed(self, detections: list[Detection], is_cycle: bool) -> list[str]:
-        matched_candidates: set[int] = set()
-        messages: list[str] = []
-        if is_cycle:
-            self._missed_promoted = []
-
-        for det in detections:
-            best = None
-            for i, cand in enumerate(self.candidates):
-                if i in matched_candidates:
-                    continue
-                if self._match(det, cand):
-                    best = i
-                    break
-            if best is not None:
-                matched_candidates.add(best)
-                self.candidates[best].update(det)
-                if not self.candidates[best].promoted and self.candidates[best].hits >= self.add_threshold:
-                    self.candidates[best].promoted = True
-                    messages.append(f"promoted {self.candidates[best]}")
-            else:
-                self.candidates.append(BaselineCandidate(det))
-
-        # Track misses — only on baseline cycles
-        if is_cycle:
-            to_remove = []
-            for i, cand in enumerate(self.candidates):
-                if i not in matched_candidates:
-                    cand.misses += 1
-                    if cand.promoted:
-                        self._missed_promoted.append(i)
-                    elif cand.misses >= 3:
-                        to_remove.append(i)
-
-            for i in reversed(to_remove):
-                self.candidates.pop(i)
-            # Re-index _missed_promoted after removals
-            if to_remove:
-                removed_set = set(to_remove)
-                shift = [sum(1 for r in to_remove if r < i) for i in self._missed_promoted]
-                self._missed_promoted = [
-                    i - s for i, s in zip(self._missed_promoted, shift)
-                    if i not in removed_set
-                ]
-
-        return messages
-
-    @property
-    def has_missed_promoted(self) -> bool:
-        return len(self._missed_promoted) > 0
-
-    def verify_missed(self, low_conf_detections: list[Detection]) -> list[str]:
-        """Check missed promoted candidates against a low-confidence detection pass.
-        Found → keep (reset misses). Not found → demote and remove."""
-        messages: list[str] = []
-        to_remove = []
-
-        for i in self._missed_promoted:
-            cand = self.candidates[i]
-            found = any(self._match(d, cand) for d in low_conf_detections)
-            if found:
-                cand.misses = 0
-                messages.append(f"verified at low-conf {cand}")
-            else:
-                messages.append(f"demoted (gone) {cand}")
-                cand.promoted = False
-                to_remove.append(i)
-
-        for i in reversed(sorted(to_remove)):
-            self.candidates.pop(i)
-
-        self._missed_promoted = []
-        return messages
-
-    def get_baseline(self) -> list[Detection]:
-        """Promoted candidates only — the stable baseline."""
-        return [c.as_detection() for c in self.candidates if c.promoted]
-
-    def get_all_seen(self) -> list[Detection]:
-        """All candidates seen at least once — used during warmup."""
-        return [c.as_detection() for c in self.candidates if c.hits > 0]
 
 
 class BaselineManager:
@@ -770,136 +349,6 @@ class BaselineManager:
             reader.bytes_total = 0
 
     # ================================================================
-    # Zone filtering
-    # ================================================================
-
-    def _filter_by_zone(self, camera_id: str, detections: list[Detection]) -> list[Detection]:
-        """Return only detections whose center falls inside a configured zone.
-        If no zones are configured for this camera, all detections pass through."""
-        zones = self._zones.get(camera_id)
-        if not zones:
-            return detections
-        result = []
-        for d in detections:
-            pt = (d.cx, d.cy)
-            for poly in zones:
-                if cv2.pointPolygonTest(poly, pt, False) >= 0:
-                    result.append(d)
-                    break
-        return result
-
-    # ================================================================
-    # Image annotation
-    # ================================================================
-
-    @staticmethod
-    def _annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
-                        new_detections: list[Detection] | None = None) -> bytes:
-        """Draw bounding boxes and labels on a JPEG frame. Returns annotated JPEG bytes.
-        Green boxes for new/alerting detections, gray for baseline-matched ones."""
-        try:
-            img = Image.open(io.BytesIO(jpeg_bytes))
-            draw = ImageDraw.Draw(img)
-            w, h = img.size
-            new_set = set(id(d) for d in (new_detections or detections))
-
-            for d in detections:
-                x1 = int((d.cx - d.w / 2) * w)
-                y1 = int((d.cy - d.h / 2) * h)
-                x2 = int((d.cx + d.w / 2) * w)
-                y2 = int((d.cy + d.h / 2) * h)
-                is_new = id(d) in new_set
-                color = (0, 255, 0) if is_new else (128, 128, 128)
-                draw.rectangle([x1, y1, x2, y2], outline=color, width=2)
-                label = f"{d.name} {d.conf:.0%}"
-                # Label background
-                bbox = draw.textbbox((x1, y1 - 14), label)
-                draw.rectangle(
-                    [bbox[0] - 1, bbox[1] - 1, bbox[2] + 1, bbox[3] + 1], fill=color
-                )
-                draw.text((x1, y1 - 14), label, fill=(0, 0, 0))
-
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=85)
-            return buf.getvalue()
-        except Exception:
-            log.debug("Annotation failed, sending raw frame", exc_info=True)
-            return jpeg_bytes
-
-    def _patch_edge_change(self, camera_id: str, jpeg_bytes: bytes,
-                           det: Detection, margin: float = 0.03) -> float | None:
-        """Compare edge maps (Canny) of a detection's patch between the
-        baseline reference frame and the current frame.
-
-        Returns 0.0-1.0: fraction of *current* edge pixels that are new
-        (present in current but not in dilated reference).  Edges are
-        lighting-invariant — a cloud passing or dusk shift changes brightness
-        but not object contours.  A static trashcan has the same edges in
-        both frames (≈ 0%).  A person standing where there was none before
-        introduces many new contour edges (40-80%)."""
-        ref = self._reference_frames.get(camera_id)
-        if ref is None:
-            return None
-
-        arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
-        cur = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
-        if cur is None:
-            return None
-
-        h, w = cur.shape
-        rh, rw = ref.shape
-        if (h, w) != (rh, rw):
-            return None
-
-        # Crop patch with small margin
-        x1 = max(0, int((det.cx - det.w / 2 - margin) * w))
-        y1 = max(0, int((det.cy - det.h / 2 - margin) * h))
-        x2 = min(w, int((det.cx + det.w / 2 + margin) * w))
-        y2 = min(h, int((det.cy + det.h / 2 + margin) * h))
-
-        if x2 - x1 < 8 or y2 - y1 < 8:
-            return None
-
-        ref_patch = ref[y1:y2, x1:x2]
-        cur_patch = cur[y1:y2, x1:x2]
-
-        # Canny edge detection on both patches
-        ref_edges = cv2.Canny(ref_patch, 50, 150)
-        cur_edges = cv2.Canny(cur_patch, 50, 150)
-
-        # New edges = present in current but not in reference.
-        # Dilate reference edges slightly so minor alignment jitter
-        # (compression artifacts, sub-pixel shifts) doesn't count.
-        kernel = np.ones((3, 3), dtype=np.uint8)
-        ref_dilated = cv2.dilate(ref_edges, kernel, iterations=1)
-        new_edges = cv2.bitwise_and(cur_edges, cv2.bitwise_not(ref_dilated))
-
-        ref_edge_count = np.count_nonzero(ref_edges)
-        ref_dilated_count = np.count_nonzero(ref_dilated)
-        cur_edge_count = np.count_nonzero(cur_edges)
-        new_edge_count = np.count_nonzero(new_edges)
-        total_pixels = ref_patch.size
-        patch_size = (x2 - x1, y2 - y1)
-
-        # Fraction of *current* edges that are genuinely new (not in
-        # the dilated reference).  A static object has the same edges
-        # → 0%.  A person standing where grass was has mostly new
-        # contour edges → 40-80%.
-        frac = new_edge_count / cur_edge_count if cur_edge_count > 0 else 0.0
-
-        log.debug(
-            "EdgeCmp %s %s@(%.2f,%.2f): patch=%dx%d total_px=%d "
-            "ref_edges=%d ref_dilated=%d cur_edges=%d new_edges=%d "
-            "frac=%.4f (new/cur_edges)",
-            camera_id, det.name, det.cx, det.cy,
-            patch_size[0], patch_size[1], total_pixels,
-            ref_edge_count, ref_dilated_count, cur_edge_count,
-            new_edge_count, frac,
-        )
-
-        return frac
-
-    # ================================================================
     # Alert dispatch (Discord + Shinobi)
     # ================================================================
 
@@ -962,7 +411,7 @@ class BaselineManager:
 
                 # Zone filter — ignore detections outside configured regions
                 before_zone = len(detections)
-                detections = self._filter_by_zone(camera_id=camera_id, detections=detections)
+                detections = filter_by_zone(camera_id=camera_id, detections=detections, zones=self._zones)
                 if not detections:
                     log.info("Motion %s: all %d detections outside zone", camera_id, before_zone)
                     m.motion_filtered_total.labels(camera=camera_id, reason="outside_zone").inc()
@@ -1058,7 +507,7 @@ class BaselineManager:
                 if new and camera_id in self._reference_frames:
                     visually_new = []
                     for d in new:
-                        edge_frac = self._patch_edge_change(camera_id, jpeg_bytes, d)
+                        edge_frac = patch_edge_change(camera_id, jpeg_bytes, d, self._reference_frames)
                         if edge_frac is not None and edge_frac < self._scene_change_threshold:
                             log.info(
                                 "Motion %s: %s@(%.2f,%.2f) suppressed (edges unchanged, %.2f%% new edges)",
@@ -1147,7 +596,7 @@ class BaselineManager:
                                     camera_id, best_conf * 100, delayed_conf * 100,
                                 )
 
-                    annotated = self._annotate_frame(
+                    annotated = annotate_frame(
                         jpeg_bytes=best_jpeg, detections=best_dets,
                         new_detections=best_new,
                     )
@@ -1312,7 +761,7 @@ class BaselineManager:
                     continue
 
                 # Zone filter
-                detections = self._filter_by_zone(camera_id=camera_id, detections=detections)
+                detections = filter_by_zone(camera_id=camera_id, detections=detections, zones=self._zones)
                 if not detections:
                     continue
 
@@ -1321,7 +770,7 @@ class BaselineManager:
                     log.info(
                         "Frame %d/%d: detected %s (no baseline)", idx + 1, n, names
                     )
-                    annotated = self._annotate_frame(jpeg_bytes=frames[idx], detections=detections)
+                    annotated = annotate_frame(jpeg_bytes=frames[idx], detections=detections)
                     return True, f"new objects (no baseline): {names}", annotated
 
                 new = [
@@ -1335,7 +784,7 @@ class BaselineManager:
                 if new:
                     names = ", ".join(d.name for d in new)
                     log.info("Frame %d/%d: new objects: %s", idx + 1, n, names)
-                    annotated = self._annotate_frame(
+                    annotated = annotate_frame(
                         jpeg_bytes=frames[idx], detections=detections,
                         new_detections=new,
                     )
