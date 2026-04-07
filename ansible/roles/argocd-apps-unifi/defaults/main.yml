@@ -13,7 +13,6 @@ unifi_psmdb_chart_name: "psmdb-db"
 unifi_psmdb_chart_version: "1.22.0"
 unifi_psmdb_cluster_name: "unifi-mongodb"
 unifi_psmdb_image: "percona/percona-server-mongodb:7.0.31-17"
-unifi_psmdb_backup_image: "percona/percona-backup-mongodb:2.12.0"
 unifi_psmdb_replset_size: 3
 unifi_psmdb_storage_class: "openebs-rawfile"
 unifi_psmdb_storage_size: "8Gi"
