@@ -187,7 +187,8 @@ class ObjectDetector:
         return Image.fromarray(enhanced)
 
     async def get_detections(self, image_data: bytes,
-                             confidence_override: float | None = None) -> list[Detection]:
+                             confidence_override: float | None = None,
+                             camera_id: str | None = None) -> list[Detection]:
         """Returns list of Detection objects for target classes found in image.
         If confidence_override is set, it is used instead of the dynamic IR/day threshold.
         """
@@ -220,7 +221,7 @@ class ObjectDetector:
                 lambda: self.model.predict(img, **predict_kwargs),
             )
             elapsed_ms = (time.monotonic() - t0) * 1000
-            log.debug("YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)
+            log.log(5, "YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)  # TRACE
 
             detections = []
             for result in results:
@@ -243,7 +244,8 @@ class ObjectDetector:
                     )
                     detections.append(d)
                     log.debug(
-                        "Detected %s (%.0f%%) at (%.2f, %.2f)",
+                        "Detected %s %s (%.0f%%) at (%.2f, %.2f)",
+                        camera_id or "?",
                         d.name,
                         conf * 100,
                         d.cx,

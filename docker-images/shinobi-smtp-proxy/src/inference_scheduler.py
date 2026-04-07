@@ -138,6 +138,7 @@ class InferenceScheduler:
                 detections = await self.detector.get_detections(
                     req.image_data,
                     confidence_override=req.confidence_override,
+                    camera_id=req.camera_id,
                 )
                 elapsed_s = time.monotonic() - t0
                 if not req.future.done():
@@ -145,7 +146,8 @@ class InferenceScheduler:
                 m.inference_duration.labels(priority=priority_label).observe(elapsed_s)
                 m.inference_total.labels(priority=priority_label, camera=req.camera_id).inc()
                 m.inference_queue_depth.set(self._queue.qsize())
-                log.debug(
+                log.log(
+                    5,  # TRACE
                     "Inference done: priority=%d camera=%s %.0fms %d dets",
                     req.priority, req.camera_id, elapsed_s * 1000, len(detections),
                 )

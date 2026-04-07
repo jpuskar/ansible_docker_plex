@@ -27,6 +27,12 @@ logging.captureWarnings(True)
 with open("/config/config.yaml") as f:
     config = yaml.safe_load(f)
 
+# Custom TRACE level (below DEBUG) for high-frequency per-inference timing logs.
+# These are already captured as Prometheus metrics; TRACE keeps them out of
+# normal DEBUG output but available via log_level: "TRACE" when needed.
+TRACE = 5
+logging.addLevelName(TRACE, "TRACE")
+
 logging.basicConfig(
     level=config.get("log_level", "INFO"),
     format="%(asctime)s - %(levelname)s - %(message)s",
