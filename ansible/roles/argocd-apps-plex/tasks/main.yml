@@ -1,0 +1,15 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/plex-namespace.yaml"
+
+- name: Template out statefulset manifest
+  template:
+    src: statefulset.yaml
+    dest: "{{ output_dir_path }}/plex-statefulset.yaml"
+
+- name: Template out service manifest
+  template:
+    src: service.yaml
+    dest: "{{ output_dir_path }}/plex-service.yaml"
