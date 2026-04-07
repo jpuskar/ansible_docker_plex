@@ -88,12 +88,16 @@ nodeAgent:
 credentials:
   useSecret: false
 
-# /udmrepo is where Velero/kopia caches the backup repository index.
-# Must be writable by the non-root UID. emptyDir solves this.
+# /udmrepo and /.cache are where Velero/kopia writes repository index
+# and cache data. Must be writable by the non-root UID.
 extraVolumes:
   - name: udmrepo
+    emptyDir: {}
+  - name: kopia-cache
     emptyDir: {}
 
 extraVolumeMounts:
   - name: udmrepo
     mountPath: /udmrepo
+  - name: kopia-cache
+    mountPath: /.cache
