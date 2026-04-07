@@ -161,6 +161,8 @@ spec:
               mc mb --ignore-existing velero/{{ velero_bsl_bucket }}
               echo "Bucket ready."
           env:
+            - name: MC_CONFIG_DIR
+              value: /tmp/.mc
             - name: MINIO_ROOT_USER
               valueFrom:
                 secretKeyRef:
