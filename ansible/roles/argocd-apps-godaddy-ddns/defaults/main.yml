@@ -5,7 +5,7 @@
 godaddy_ddns_namespace: "godaddy-ddns"
 
 # Container image
-godaddy_ddns_image: "{{ (harbor_external_url ~ '/dockerhub/') if (harbor_proxy_images_enabled | default(false)) else '' }}jpuskar/godaddy-ddns:latest"
+godaddy_ddns_image: "{{ harbor_external_url }}/library/godaddy-ddns:latest"
 
 # The godaddy-config secret is created manually — see docs/godaddy-config-secret.yaml
 
