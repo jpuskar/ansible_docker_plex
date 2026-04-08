@@ -31,8 +31,9 @@ log = logging.getLogger(prog)
 BACKOFF_INITIAL = 60
 BACKOFF_MAX = 3600
 
-# GoDaddy's authoritative nameservers — bypass cluster/ISP DNS caching
-GODADDY_NS = ["ns73.domaincontrol.com", "ns74.domaincontrol.com"]
+# External DNS servers — bypass cluster/ISP DNS caching.
+# Google DNS is more up-to-date than GoDaddy's own authoritative NS.
+DNS_SERVERS = ["8.8.8.8", "8.8.4.4"]
 
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -139,15 +140,14 @@ def _parse_dns_response(data: bytes) -> str | None:
     return None
 
 
-def resolve_via_godaddy(hostname: str) -> str | None:
-    """Resolve hostname by querying GoDaddy's authoritative nameservers directly.
+def resolve_external(hostname: str) -> str | None:
+    """Resolve hostname by querying external DNS (Google 8.8.8.8/8.8.4.4).
 
     Uses raw UDP DNS queries to bypass all local/cluster DNS caching.
     """
     query = _build_dns_query(hostname)
-    for ns in GODADDY_NS:
+    for ns_ip in DNS_SERVERS:
         try:
-            ns_ip = socket.gethostbyname(ns)
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(5)
             try:
@@ -159,7 +159,7 @@ def resolve_via_godaddy(hostname: str) -> str | None:
             finally:
                 sock.close()
         except (socket.error, OSError) as e:
-            log.warning("DNS query to %s failed: %s", ns, e)
+            log.warning("DNS query to %s failed: %s", ns_ip, e)
             continue
     return None
 
@@ -206,26 +206,26 @@ def update_dns(
         )
         return True, last_ip
 
-    # Step 3: What does GoDaddy's authoritative DNS say?
+    # Step 3: What does external DNS say?
     record_name = hostnames[0]
     domain = ".".join(hostnames[1:])
-    dns_ip = resolve_via_godaddy(hostname)
+    dns_ip = resolve_external(hostname)
     if dns_ip:
-        log.info("GoDaddy DNS returns %s for %s.", dns_ip, hostname)
+        log.info("External DNS returns %s for %s.", dns_ip, hostname)
         if dns_ip == ip:
             log.info(
-                "GoDaddy authoritative DNS already has %s — no update needed. Recording as last written IP.",
+                "External DNS already has %s — no update needed. Recording as last written IP.",
                 ip,
             )
             return True, ip
         log.info(
-            "GoDaddy authoritative DNS has %s but public IP is %s — update required.",
+            "External DNS has %s but public IP is %s — update required.",
             dns_ip,
             ip,
         )
     else:
         log.warning(
-            "Could not resolve %s via GoDaddy nameservers. Will attempt update.",
+            "Could not resolve %s via external DNS. Will attempt update.",
             hostname,
         )
 

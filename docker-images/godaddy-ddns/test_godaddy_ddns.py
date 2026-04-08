@@ -58,11 +58,10 @@ class TestParseDnsResponse(unittest.TestCase):
         self.assertIsNone(godaddy_ddns._parse_dns_response(b"\x00" * 11))
 
 
-class TestResolveViaGodaddy(unittest.TestCase):
+class TestResolveExternal(unittest.TestCase):
     @patch("godaddy_ddns.socket.socket")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="216.69.185.1")
     def test_returns_ip_on_success(
-        self, mock_ghbn: MagicMock, mock_sock_cls: MagicMock
+        self, mock_sock_cls: MagicMock
     ) -> None:
         # Build a fake DNS response
         header = struct.pack(">HHHHHH", 0xABCD, 0x8180, 1, 1, 0, 0)
@@ -75,18 +74,17 @@ class TestResolveViaGodaddy(unittest.TestCase):
         mock_sock.recvfrom.return_value = (response, ("216.69.185.1", 53))
         mock_sock_cls.return_value = mock_sock
 
-        result = godaddy_ddns.resolve_via_godaddy("site.example.com")
+        result = godaddy_ddns.resolve_external("site.example.com")
         self.assertEqual(result, "203.0.113.42")
 
     @patch("godaddy_ddns.socket.socket")
-    @patch(
-        "godaddy_ddns.socket.gethostbyname",
-        side_effect=socket.gaierror("no resolve"),
-    )
     def test_returns_none_on_all_failures(
-        self, mock_ghbn: MagicMock, mock_sock_cls: MagicMock
+        self, mock_sock_cls: MagicMock
     ) -> None:
-        result = godaddy_ddns.resolve_via_godaddy("site.example.com")
+        mock_sock = MagicMock()
+        mock_sock.sendto.side_effect = socket.error("timeout")
+        mock_sock_cls.return_value = mock_sock
+        result = godaddy_ddns.resolve_external("site.example.com")
         self.assertIsNone(result)
 
 
@@ -144,7 +142,7 @@ class TestUpdateDns(unittest.TestCase):
         self.assertEqual(last, "203.0.113.42")
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="203.0.113.1")
+    @patch("godaddy_ddns.resolve_external", return_value="203.0.113.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
     def test_updates_when_public_ip_differs_from_last_written(
         self,
@@ -161,9 +159,9 @@ class TestUpdateDns(unittest.TestCase):
 
     # --- GoDaddy authoritative DNS check ---
 
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="203.0.113.42")
+    @patch("godaddy_ddns.resolve_external", return_value="203.0.113.42")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    def test_no_update_when_godaddy_dns_matches(
+    def test_no_update_when_external_dns_matches(
         self, mock_ip: MagicMock, mock_resolve: MagicMock
     ) -> None:
         ok, last = godaddy_ddns.update_dns(
@@ -173,9 +171,9 @@ class TestUpdateDns(unittest.TestCase):
         self.assertEqual(last, "203.0.113.42")
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value=None)
+    @patch("godaddy_ddns.resolve_external", return_value=None)
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    def test_updates_when_godaddy_dns_returns_none(
+    def test_updates_when_external_dns_returns_none(
         self,
         mock_ip: MagicMock,
         mock_resolve: MagicMock,
@@ -191,7 +189,7 @@ class TestUpdateDns(unittest.TestCase):
     # --- Successful update ---
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
+    @patch("godaddy_ddns.resolve_external", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
     def test_successful_update_records_ip(
         self,
@@ -228,7 +226,7 @@ class TestUpdateDns(unittest.TestCase):
         self.assertFalse(ok)
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
+    @patch("godaddy_ddns.resolve_external", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
     def test_http_403_returns_false(
         self,
@@ -248,7 +246,7 @@ class TestUpdateDns(unittest.TestCase):
         self.assertEqual(last, "")
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
+    @patch("godaddy_ddns.resolve_external", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
     def test_http_429_returns_false(
         self,
@@ -269,7 +267,7 @@ class TestUpdateDns(unittest.TestCase):
     # --- @ record for bare domain ---
 
     @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
+    @patch("godaddy_ddns.resolve_external", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
     def test_domain_only_inserts_at_record(
         self,
