@@ -25,10 +25,13 @@ securityContext:
   readOnlyRootFilesystem: false
 
 # External MongoDB — Percona Server for MongoDB replica set
+# DB_URI and STATDB_URI are patched at render time by the
+# patch_unifi_mongodb_env filter to use secretKeyRef from the
+# ESO-managed unifi-mongodb-uri secret.
 mongodb:
   enabled: true
-  dbUri: "mongodb://databaseAdmin:{{ unifi_psmdb_database_admin_password }}@{{ unifi_psmdb_cluster_name }}-rs0.{{ unifi_namespace }}.svc.cluster.local/unifi?replicaSet=rs0&authSource=admin&tls=false"
-  statDbUri: "mongodb://databaseAdmin:{{ unifi_psmdb_database_admin_password }}@{{ unifi_psmdb_cluster_name }}-rs0.{{ unifi_namespace }}.svc.cluster.local/unifi_stat?replicaSet=rs0&authSource=admin&tls=false"
+  dbUri: "mongodb://placeholder/unifi"
+  statDbUri: "mongodb://placeholder/unifi_stat"
   databaseName: "unifi"
 
 # Persistence — openebs-rawfile backed storage

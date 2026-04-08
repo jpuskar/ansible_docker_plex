@@ -14,7 +14,7 @@
         --include-crds
   register: helm_template_command
 
-- name: Write output manifests for Unifi helm template
+- name: Write output manifests for Unifi helm template (with MongoDB env patched)
   copy:
-    content: "{{ helm_template_command.stdout }}"
+    content: "{{ helm_template_command.stdout | patch_unifi_mongodb_env('unifi-mongodb-uri') }}"
     dest: "{{ output_dir_path }}/unifi-helm-manifests.yaml"

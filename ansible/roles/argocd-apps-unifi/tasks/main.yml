@@ -9,6 +9,16 @@
     src: mongo-tools-pod.yaml
     dest: "{{ output_dir_path }}/mongo-tools-pod.yaml"
 
+- name: Template out ESO SecretStore and RBAC
+  template:
+    src: eso-secretstore.yaml
+    dest: "{{ output_dir_path }}/eso-secretstore.yaml"
+
+- name: Template out ESO ExternalSecret for MongoDB URIs
+  template:
+    src: eso-external-secret.yaml
+    dest: "{{ output_dir_path }}/eso-external-secret.yaml"
+
 - name: Include MongoDB tasks
   include_tasks: mongodb.yml
 
