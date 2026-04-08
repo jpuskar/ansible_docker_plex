@@ -19,6 +19,11 @@
     src: eso-external-secret.yaml
     dest: "{{ output_dir_path }}/eso-external-secret.yaml"
 
+- name: Template out ULP stub ConfigMap
+  template:
+    src: ulp-stub-configmap.yaml
+    dest: "{{ output_dir_path }}/ulp-stub-configmap.yaml"
+
 - name: Include MongoDB tasks
   include_tasks: mongodb.yml
 

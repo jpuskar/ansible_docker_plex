@@ -1,16 +1,53 @@
 """
 Filter plugin to patch UniFi helm template output.
-Replaces hardcoded MongoDB env vars (DB_URI, STATDB_URI) with
-valueFrom.secretKeyRef references to the ESO-managed secret.
+
+1. Replaces hardcoded MongoDB env vars (DB_URI, STATDB_URI) with
+   valueFrom.secretKeyRef references to the ESO-managed secret.
+2. Injects a python-slim sidecar that stubs the ULP manifest endpoint
+   on 127.0.0.1:9080 to suppress log spam from UniFi >= 9.4.19.
 """
 
 import yaml
 
 
+ULP_STUB_SIDECAR = {
+    'name': 'ulp-stub',
+    'image': 'python:3.12-slim',
+    'command': ['python', '/scripts/ulp-stub.py'],
+    'volumeMounts': [
+        {
+            'name': 'ulp-stub-script',
+            'mountPath': '/scripts',
+            'readOnly': True,
+        }
+    ],
+    'resources': {
+        'requests': {'cpu': '1m', 'memory': '16Mi'},
+        'limits': {'cpu': '10m', 'memory': '32Mi'},
+    },
+    'securityContext': {
+        'runAsUser': 65534,
+        'runAsGroup': 65534,
+        'runAsNonRoot': True,
+        'allowPrivilegeEscalation': False,
+        'readOnlyRootFilesystem': True,
+    },
+}
+
+ULP_STUB_VOLUME = {
+    'name': 'ulp-stub-script',
+    'configMap': {
+        'name': 'ulp-stub-script',
+        'defaultMode': 0o444,
+    },
+}
+
+
 def patch_unifi_mongodb_env(helm_output, secret_name):
     """
-    Patch the UniFi Deployment to use secretKeyRef for DB_URI and STATDB_URI
-    instead of inline values.
+    Patch the UniFi Deployment:
+    - Replace DB_URI/STATDB_URI with secretKeyRef from ESO secret
+    - Inject ULP stub sidecar + volume
 
     Args:
         helm_output: String output from helm template
@@ -38,6 +75,7 @@ def patch_unifi_mongodb_env(helm_output, secret_name):
                        .get('template', {})
                        .get('spec', {}))
 
+        # Patch MongoDB env vars to use secretKeyRef
         for container in pod_spec.get('containers', []):
             env_list = container.get('env', [])
             for env_var in env_list:
@@ -50,6 +88,14 @@ def patch_unifi_mongodb_env(helm_output, secret_name):
                             'key': env_to_secret_key[name],
                         }
                     }
+
+        # Inject ULP stub sidecar
+        containers = pod_spec.setdefault('containers', [])
+        containers.append(ULP_STUB_SIDECAR.copy())
+
+        # Inject ConfigMap volume
+        volumes = pod_spec.setdefault('volumes', [])
+        volumes.append(ULP_STUB_VOLUME.copy())
 
     output_parts = []
     for doc in documents:
