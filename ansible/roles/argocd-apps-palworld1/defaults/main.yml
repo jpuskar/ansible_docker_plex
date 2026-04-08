@@ -6,11 +6,11 @@ palworld1_instance_name: "palworld1"
 palworld1_namespace: "palworld1"
 
 # Container image
-palworld1_image: "docker.io/jpuskar/palworld-server:main.01162025-1"
+palworld1_image: "{{ harbor_external_url }}/library/palworld-server:2026-04-08--1"
 palworld1_image_pull_policy: "Always"
 
 # Sidecar
-palworld1_rcon_image: "docker.io/jpuskar/palworld-rcon-backup:latest"
+palworld1_rcon_image: "{{ harbor_external_url }}/library/palworld-rcon-backup:latest"
 palworld1_rcon_enabled: false
 
 # Service
@@ -23,7 +23,7 @@ palworld1_game_port: 8211
 
 # Storage
 palworld1_storage_class: "openebs-rawfile"
-palworld1_storage_size: "10Gi"
+palworld1_storage_size: "40Gi"
 
 # Resources
 palworld1_resources:
