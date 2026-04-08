@@ -46,7 +46,7 @@ RUN mkdir -p "${APP_PATH}/steamapps" \
         validate  \
         +quit
 
-RUN wget -q https://github.com/itzg/rcon-cli/releases/download/1.6.9/rcon-cli_1.6.9_linux_amd64.tar.gz -O - | tar -xz
+RUN wget -q https://github.com/itzg/rcon-cli/releases/download/1.7.4/rcon-cli_1.7.4_linux_amd64.tar.gz -O - | tar -xz
 RUN mv rcon-cli /usr/bin/rcon-cli
 
 RUN cd /server/Pal/Saved && tar -czvf /default_config.tar.gz ./Config

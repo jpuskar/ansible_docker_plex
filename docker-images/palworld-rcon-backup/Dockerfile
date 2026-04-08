@@ -17,7 +17,7 @@ RUN python3 -m pip install \
         kubernetes \
         PyYAML
 
-RUN wget -q https://github.com/itzg/rcon-cli/releases/download/1.6.4/rcon-cli_1.6.4_linux_amd64.tar.gz -O - | tar -xz
+RUN wget -q https://github.com/itzg/rcon-cli/releases/download/1.7.4/rcon-cli_1.7.4_linux_amd64.tar.gz -O - | tar -xz
 RUN mv rcon-cli /usr/bin/rcon-cli
 
 COPY run-backup.py /run-backup.py
