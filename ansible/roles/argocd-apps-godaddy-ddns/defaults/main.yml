@@ -15,9 +15,8 @@ godaddy_ddns_resources_requests_memory: "32Mi"
 godaddy_ddns_resources_limits_cpu: "50m"
 godaddy_ddns_resources_limits_memory: "64Mi"
 
-# CronJob schedule (default every 5 minutes)
-godaddy_ddns_schedule: "*/5 * * * *"
+# Check interval in seconds (default 5 minutes)
+godaddy_ddns_interval: "300"
 
-# Keep last N successful/failed jobs for debugging
-godaddy_ddns_successful_jobs_history: 1
-godaddy_ddns_failed_jobs_history: 3
+# DNS TTL in seconds
+godaddy_ddns_ttl: "3600"

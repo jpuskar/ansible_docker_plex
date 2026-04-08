@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY godaddy_ddns.py /app/godaddy_ddns.py
 
-RUN chmod +x /app/godaddy_ddns.py
+RUN chmod +x /app/godaddy_ddns.py \
+    && sed -i 's/\r$//' /app/godaddy_ddns.py
 
 # No pip packages needed — pure stdlib
 RUN apt-get update && apt-get install -y --no-install-recommends tini \

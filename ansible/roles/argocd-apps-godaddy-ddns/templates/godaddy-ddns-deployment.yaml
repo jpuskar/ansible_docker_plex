@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: godaddy-ddns
+  namespace: {{ godaddy_ddns_namespace }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: godaddy-ddns
+  template:
+    metadata:
+      labels:
+        app: godaddy-ddns
+    spec:
+      serviceAccountName: godaddy-ddns
+      containers:
+        - name: app
+          image: {{ godaddy_ddns_image }}
+          env:
+            - name: GODADDY_SECRET_NAME
+              value: "godaddy-config"
+            - name: GODADDY_INTERVAL
+              value: "{{ godaddy_ddns_interval }}"
+            - name: GODADDY_TTL
+              value: "{{ godaddy_ddns_ttl }}"
+          resources:
+            requests:
+              cpu: "{{ godaddy_ddns_resources_requests_cpu }}"
+              memory: "{{ godaddy_ddns_resources_requests_memory }}"
+            limits:
+              cpu: "{{ godaddy_ddns_resources_limits_cpu }}"
+              memory: "{{ godaddy_ddns_resources_limits_memory }}"

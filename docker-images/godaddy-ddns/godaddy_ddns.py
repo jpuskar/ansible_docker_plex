@@ -1,165 +1,209 @@
 #!/usr/bin/env python3
-#
-# Update GoDaddy DNS "A" Record.
-#
-# Originally from https://github.com/CarlEdman/godaddy-ddns
-# License: Unlicense (public domain)
-#
-# usage: godaddy_ddns.py [-h] [--version] [--ip IP] [--key KEY]
-#                        [--secret SECRET] [--ttl TTL] [--force]
-#                        hostname
-#
-# positional arguments:
-#   hostname         DNS fully-qualified host name with an 'A' record.  If the hostname consists of only a domain name
-#                    (i.e., it contains only one period), the record for '@' is updated.
-#
-# optional arguments:
-#   -h, --help       show this help message and exit
-#   --version        show program's version number and exit
-#   --ip IP          DNS Address (defaults to public WAN address from https://checkip.amazonaws.com/)
-#   --key KEY        GoDaddy production key
-#   --secret SECRET  GoDaddy production secret
-#   --ttl TTL        DNS TTL.
-#   --force          force update of GoDaddy DNS record even if DNS query indicates that record is already correct
-#
-# GoDaddy customers can obtain values for the KEY and SECRET arguments by creating a production key at
-# https://developer.godaddy.com/keys/.
-#
-# Note that command line arguments may be specified in a FILE, one to a line, by instead giving
-# the argument "%FILE".  For security reasons, it is particularly recommended to supply the
-# KEY and SECRET arguments in such a file, rather than directly on the command line:
-#
-# Create a file named, e.g., `godaddy-ddns.config` with the content:
-#   MY.FULLY.QUALIFIED.HOSTNAME.COM
-#   --key
-#   MY-KEY-FROM-GODADDY
-#   --secret
-#   MY-SECRET-FROM-GODADDY
-#
-# Then just invoke `godaddy-ddns %godaddy-ddns.config`
+"""
+GoDaddy Dynamic DNS updater — runs as a long-lived process.
 
-prog='godaddy-ddns'
-version='0.4'
-author='Carl Edman (CarlEdman@gmail.com)'
+Originally from https://github.com/CarlEdman/godaddy-ddns (Unlicense/public domain).
+Modified to read credentials from a Kubernetes secret via the in-cluster API
+and run in a loop with exponential backoff on failure.
 
-import sys, json, argparse, socket
+Environment variables:
+  GODADDY_SECRET_NAME - K8s secret name to read (default: godaddy-config)
+  GODADDY_TTL         - DNS TTL in seconds (default: 3600)
+  GODADDY_INTERVAL    - Check interval in seconds (default: 300)
 
-if sys.version_info > (3,):
-  from urllib.request import urlopen, Request
-  from urllib.error import URLError, HTTPError
-else:
-  from urllib2 import urlopen, Request
-  from urllib2 import URLError, HTTPError
+The secret must contain keys: GODADDY_DOMAIN, GODADDY_API_KEY, GODADDY_API_SECRET
+"""
 
-parser = argparse.ArgumentParser(description='Update GoDaddy DNS "A" Record.', fromfile_prefix_chars='%', epilog= \
-'''GoDaddy customers can obtain values for the KEY and SECRET arguments by creating a production key at
-https://developer.godaddy.com/keys/.
+import base64, json, logging, os, signal, socket, ssl, sys, time
+from types import FrameType
+from urllib.request import urlopen, Request
+from urllib.error import URLError, HTTPError
 
-Note that command line arguments may be specified in a FILE, one to a line, by instead giving
-the argument "%FILE".  For security reasons, it is particularly recommended to supply the
-KEY and SECRET arguments in such a file, rather than directly on the command line.''')
+prog = "godaddy-ddns"
+version = "1.0"
 
-parser.add_argument('--version', action='version',
-  version='{} {}'.format(prog, version))
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s %(message)s",
+    level=logging.INFO,
+)
+log = logging.getLogger(prog)
 
-parser.add_argument('hostname', type=str,
-  help='DNS fully-qualified host name with an A record.  If the hostname consists of only a domain name (i.e., it contains only one period), the record for @ is updated.')
+BACKOFF_INITIAL = 60
+BACKOFF_MAX = 3600
 
-parser.add_argument('--ip', type=str, default=None,
-  help='IPv4 address to write to DNS record (defaults to public WAN address from https://checkip.amazonaws.com/)')
+SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+SA_NS_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
-parser.add_argument('--key', type=str, default='',
-  help='GoDaddy production key')
+shutdown = False
 
-parser.add_argument('--secret', type=str, default='',
-  help='GoDaddy production secret')
 
-parser.add_argument('--ttl', type=int, default=3600,
-  help='DNS TTL.')
+def handle_signal(signum: int, frame: FrameType | None) -> None:
+    global shutdown
+    log.info("Received signal %d, shutting down.", signum)
+    shutdown = True
 
-parser.add_argument('--force', type=bool, default=False,
-  help='force update of GoDaddy DNS record even if DNS query indicates that record is already correct.')
 
-args = parser.parse_args()
+signal.signal(signal.SIGTERM, handle_signal)
+signal.signal(signal.SIGINT, handle_signal)
 
-def main():
-  hostnames = args.hostname.split('.')
-  if len(hostnames)<2:
-    msg = 'Hostname "{}" is not a fully-qualified host name of form "HOST.DOMAIN.TOP".'.format(args.hostname)
-    raise Exception(msg)
-  elif len(hostnames)<3:
-    hostnames.insert(0,'@')
 
-  if not args.ip:
+def read_k8s_secret(secret_name: str) -> dict[str, str]:
+    """Read a secret from the Kubernetes API using in-cluster service account."""
+    with open(SA_TOKEN_PATH) as f:
+        token = f.read().strip()
+    with open(SA_NS_PATH) as f:
+        namespace = f.read().strip()
+
+    ctx = ssl.create_default_context(cafile=SA_CA_PATH)
+    url = "https://kubernetes.default.svc/api/v1/namespaces/{}/secrets/{}".format(
+        namespace, secret_name
+    )
+    req = Request(url)
+    req.add_header("Authorization", "Bearer {}".format(token))
+    req.add_header("Accept", "application/json")
+
+    with urlopen(req, context=ctx) as f:
+        body = json.loads(f.read().decode("utf-8"))
+
+    data = body.get("data", {})
+    return {k: base64.b64decode(v).decode("utf-8") for k, v in data.items()}
+
+
+def get_public_ip() -> str:
+    with urlopen(
+        Request("https://checkip.amazonaws.com/", headers={"User-Agent": "Mozilla"})
+    ) as f:
+        return f.read().decode("utf-8").strip()
+
+
+def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int) -> bool:
+    """Check and update GoDaddy DNS. Returns True on success/no-op, False on failure."""
+    log.info("Checking DNS for %s", hostname)
+
+    hostnames = hostname.split(".")
+    if len(hostnames) < 2:
+        log.error('Hostname "%s" is not a fully-qualified host name.', hostname)
+        return False
+    elif len(hostnames) < 3:
+        hostnames.insert(0, "@")
+
     try:
-      with urlopen(Request("https://checkip.amazonaws.com/", headers={'User-Agent': 'Mozilla'})) as f: resp=f.read()
-      if sys.version_info > (3,): resp = resp.decode('utf-8')
-      args.ip = resp.strip()
-    except URLError:
-      msg = 'Unable to automatically obtain IP address from https://checkip.amazonaws.com/.'
-      raise Exception(msg)
+        ip = get_public_ip()
+        log.info("Detected public IP: %s", ip)
+    except (URLError, OSError) as e:
+        log.error("Unable to obtain public IP: %s", e)
+        return False
 
-  ipslist = args.ip.split(",")
-  for ipsiter in ipslist:
-    ips = ipsiter.split('.')
-    if len(ips)!=4 or \
-      not ips[0].isdigit() or not ips[1].isdigit() or not ips[2].isdigit() or not ips[3].isdigit() or \
-      int(ips[0])>255 or int(ips[1])>255 or int(ips[2])>255 or int(ips[3])>255:
-      msg = '"{}" is not valid IP address.'.format(ips)
-      raise Exception(msg)
+    octets = ip.split(".")
+    if len(octets) != 4 or not all(o.isdigit() and 0 <= int(o) <= 255 for o in octets):
+        log.error('"%s" is not a valid IPv4 address.', ip)
+        return False
 
-  if not args.force and len(ipslist)==1:
     try:
-      dnsaddr = socket.gethostbyname(args.hostname)
-      if ipslist[0] == dnsaddr:
-        msg = '{} already has IP address {}.'.format(args.hostname, dnsaddr)
-        raise Exception(msg)
-    except:
-      pass
+        dnsaddr = socket.gethostbyname(hostname)
+        if ip == dnsaddr:
+            log.info("%s already has IP %s — no update needed.", hostname, dnsaddr)
+            return True
+        log.info("DNS has %s, public IP is %s — updating.", dnsaddr, ip)
+    except socket.gaierror:
+        log.warning("DNS lookup for %s failed, proceeding with update.", hostname)
 
-  url = 'https://api.godaddy.com/v1/domains/{}/records/A/{}'.format('.'.join(hostnames[1:]),hostnames[0])
-  data = json.dumps([ { "data": ip, "ttl": args.ttl, "name": hostnames[0], "type": "A" } for ip in  ipslist])
-  if sys.version_info > (3,):  data = data.encode('utf-8')
-  req = Request(url, method='PUT', data=data)
+    record_name = hostnames[0]
+    domain = ".".join(hostnames[1:])
+    url = "https://api.godaddy.com/v1/domains/{}/records/A/{}".format(
+        domain, record_name
+    )
+    data = json.dumps(
+        [{"data": ip, "ttl": ttl, "name": record_name, "type": "A"}]
+    ).encode("utf-8")
+    req = Request(url, method="PUT", data=data)
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+    req.add_header("Authorization", "sso-key {}:{}".format(api_key, api_secret))
 
-  req.add_header("Content-Type","application/json")
-  req.add_header("Accept","application/json")
-  if args.key and args.secret:
-    req.add_header("Authorization", "sso-key {}:{}".format(args.key,args.secret))
+    try:
+        with urlopen(req) as f:
+            f.read()
+    except HTTPError as e:
+        messages = {
+            400: "GoDaddy API URL ({}) was malformed.".format(url),
+            401: "GoDaddy API: key or secret incorrect.",
+            403: "GoDaddy API: access denied (403). Requires 10+ domains or Premium Discount Domain Club.",
+            404: "GoDaddy API: {} not found.".format(hostname),
+            422: 'GoDaddy API: "{}" has invalid domain or lacks A record.'.format(
+                hostname
+            ),
+            429: "GoDaddy API: rate limited (429). Too many requests.",
+            503: "GoDaddy API: service unavailable (503).",
+        }
+        log.error(
+            messages.get(
+                e.code, "GoDaddy API failure: HTTP {} {}".format(e.code, e.reason)
+            )
+        )
+        return False
+    except URLError as e:
+        log.error("GoDaddy API connection failure: %s", e.reason)
+        return False
 
-  try:
-    with urlopen(req) as f: resp = f.read()
-    if sys.version_info > (3,):  resp = resp.decode('utf-8')
-    # resp = json.loads(resp)
-  except HTTPError as e:
-    if e.code==400:
-      msg = 'Unable to set IP address: GoDaddy API URL ({}) was malformed.'.format(req.full_url)
-    elif e.code==401:
-      if args.key and args.secret:
-        msg = '''Unable to set IP address: --key or --secret option incorrect.
-Correct values can be obtained from from https://developer.godaddy.com/keys/ and are ideally placed in a % file.'''
-      else:
-        msg = '''Unable to set IP address: --key or --secret option missing.
-Correct values can be obtained from from https://developer.godaddy.com/keys/ and are ideally placed in a % file.'''
-    elif e.code==403:
-        msg = '''Unable to set IP address: customer identified by --key and --secret options denied permission.
-Correct values can be obtained from from https://developer.godaddy.com/keys/ and are ideally placed in a % file.'''
-    elif e.code==404:
-        msg = 'Unable to set IP address: {} not found at GoDaddy.'.format(args.hostname)
-    elif e.code==422:
-        msg = 'Unable to set IP address: "{}" has invalid domain or lacks A record.'.format(args.hostname)
-    elif e.code==429:
-        msg = 'Unable to set IP address: too many requests to GoDaddy within brief period.'
-    elif e.code==503:
-        msg = 'Unable to set IP address: "{}" is unavailable.'.format(args.hostname)
-    else:
-      msg = 'Unable to set IP address: GoDaddy API failure because "{}".'.format(e.reason)
-    raise Exception(msg)
-  except URLError as e:
-    msg = 'Unable to set IP address: GoDaddy API failure because "{}".'.format(e.reason)
-    raise Exception(msg)
+    log.info("IP address for %s set to %s.", hostname, ip)
+    return True
 
-  print('IP address for {} set to {}.'.format(args.hostname,args.ip))
 
-if __name__ == '__main__':
-  main()
+def main() -> int:
+    secret_name = os.environ.get("GODADDY_SECRET_NAME", "godaddy-config")
+    ttl = int(os.environ.get("GODADDY_TTL", "3600"))
+    interval = int(os.environ.get("GODADDY_INTERVAL", "300"))
+
+    log.info(
+        "Starting %s v%s — secret=%s interval=%ds ttl=%ds",
+        prog,
+        version,
+        secret_name,
+        interval,
+        ttl,
+    )
+
+    # Read credentials from K8s secret
+    try:
+        secret_data = read_k8s_secret(secret_name)
+    except Exception as e:
+        log.error('Failed to read K8s secret "%s": %s', secret_name, e)
+        return 1
+
+    domain = secret_data.get("GODADDY_DOMAIN", "").strip()
+    api_key = secret_data.get("GODADDY_API_KEY", "").strip()
+    api_secret = secret_data.get("GODADDY_API_SECRET", "").strip()
+
+    if not domain or not api_key or not api_secret:
+        log.error(
+            'Secret "%s" must contain GODADDY_DOMAIN, GODADDY_API_KEY, and GODADDY_API_SECRET.',
+            secret_name,
+        )
+        return 1
+
+    log.info("Loaded credentials for domain=%s", domain)
+
+    backoff = BACKOFF_INITIAL
+    while not shutdown:
+        ok = update_dns(domain, api_key, api_secret, ttl)
+        if ok:
+            backoff = BACKOFF_INITIAL
+            sleep_time = interval
+        else:
+            sleep_time = backoff
+            log.warning("Backing off — next attempt in %ds.", backoff)
+            backoff = min(backoff * 2, BACKOFF_MAX)
+
+        for _ in range(sleep_time):
+            if shutdown:
+                break
+            time.sleep(1)
+
+    log.info("Shut down cleanly.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
