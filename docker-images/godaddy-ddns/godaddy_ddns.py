@@ -198,25 +198,14 @@ def update_dns(
         log.error('"%s" is not a valid IPv4 address.', ip)
         return False, last_ip
 
-    # Step 2: Did we already push this IP? If so, skip — DNS may not have propagated yet.
-    if ip == last_ip:
-        log.info(
-            "Public IP %s matches last written IP. Skipping update (waiting for DNS propagation).",
-            ip,
-        )
-        return True, last_ip
-
-    # Step 3: What does external DNS say?
+    # Step 2: What does external DNS say?
     record_name = hostnames[0]
     domain = ".".join(hostnames[1:])
     dns_ip = resolve_external(hostname)
     if dns_ip:
         log.info("External DNS returns %s for %s.", dns_ip, hostname)
         if dns_ip == ip:
-            log.info(
-                "External DNS already has %s — no update needed. Recording as last written IP.",
-                ip,
-            )
+            log.info("DNS is correct. Nothing to do.")
             return True, ip
         log.info(
             "External DNS has %s but public IP is %s — update required.",
@@ -225,11 +214,17 @@ def update_dns(
         )
     else:
         log.warning(
-            "Could not resolve %s via external DNS. Will attempt update.",
-            hostname,
+            "Could not resolve %s via external DNS.", hostname,
         )
+        if ip == last_ip:
+            log.info(
+                "Public IP %s matches last written IP — assuming DNS is correct despite lookup failure.",
+                ip,
+            )
+            return True, last_ip
+        log.info("Will attempt update.")
 
-    # Step 4: Push the update to GoDaddy API
+    # Step 3: Push the update to GoDaddy API
     url = "https://api.godaddy.com/v1/domains/{}/records/A/{}".format(
         domain, record_name
     )

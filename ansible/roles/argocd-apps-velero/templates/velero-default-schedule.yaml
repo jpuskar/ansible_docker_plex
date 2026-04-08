@@ -70,3 +70,50 @@ spec:
           operator: NotIn
           values:
             - postgresql
+---
+# ── Palworld backup schedules ──────────────────────────────────────
+# Hourly saves for 48 h, daily for 3 weeks, monthly for 3 months.
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: hourly-palworld1
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "0 * * * *"
+  template:
+    ttl: "48h"
+    includedNamespaces:
+      - palworld1
+    defaultVolumesToFsBackup: true
+    snapshotMoveData: false
+    storageLocation: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-palworld1
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "0 2 * * *"
+  template:
+    ttl: "504h"
+    includedNamespaces:
+      - palworld1
+    defaultVolumesToFsBackup: true
+    snapshotMoveData: false
+    storageLocation: default
+---
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: monthly-palworld1
+  namespace: {{ velero_namespace }}
+spec:
+  schedule: "0 3 1 * *"
+  template:
+    ttl: "2160h"
+    includedNamespaces:
+      - palworld1
+    defaultVolumesToFsBackup: true
+    snapshotMoveData: false
+    storageLocation: default

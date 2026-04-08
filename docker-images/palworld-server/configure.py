@@ -19,6 +19,42 @@ parser.add_argument('--secret-admin-password-key', type=str, default='admin-pass
 header = '[/Script/Pal.PalGameWorldSettings]'
 
 
+def parse_option_settings(option_settings_str):
+    """Parse the OptionSettings INI value into a dict.
+
+    Splits on commas at the top level only, respecting nested parentheses
+    like CrossplayPlatforms=(Steam,Xbox,PS5,Mac).
+    """
+    option_settings_str = str(option_settings_str)
+    if option_settings_str.startswith('(') and option_settings_str.endswith(')'):
+        option_settings_str = option_settings_str[1:-1]
+
+    parts = []
+    depth = 0
+    current = []
+    for ch in option_settings_str:
+        if ch == '(':
+            depth += 1
+            current.append(ch)
+        elif ch == ')':
+            depth -= 1
+            current.append(ch)
+        elif ch == ',' and depth == 0:
+            parts.append(''.join(current))
+            current = []
+        else:
+            current.append(ch)
+    if current:
+        parts.append(''.join(current))
+
+    options_dict = {}
+    for part in parts:
+        if part and '=' in part:
+            key, value = part.split('=', 1)
+            options_dict[key] = value
+    return options_dict
+
+
 def configure():
 
     with open(CONFIGMAP_FILE_PATH, 'r') as file:
@@ -32,17 +68,8 @@ def configure():
     else:
         palworld_config.read(PALWORLD_CONFIG_TEMPLATE_FILE_PATH)
     option_settings_str = palworld_config['/Script/Pal.PalGameWorldSettings']['OptionSettings']
-    option_settings_str = str(option_settings_str).lstrip('(').rstrip(')')
-    # option_settings_str = option_settings_str.replace(',', '\n')
-    # pprint(option_settings_str)
 
-    options_dict = {}
-    # TODO: use csv parser just in case
-    for line in option_settings_str.split(','):
-        # TODO: assert '=' in line
-        if line:
-            key, value = line.split('=', 1)
-            options_dict[key] = value
+    options_dict = parse_option_settings(option_settings_str)
 
     for key in configmap_data.keys():
         # TODO: make sure my override value is a string

@@ -129,11 +129,25 @@ class TestUpdateDns(unittest.TestCase):
         mock_resp.__exit__ = MagicMock(return_value=False)
         mock_urlopen.return_value = mock_resp
 
-    # --- IP-based cooldown (last_ip tracking) ---
+    # --- Steady state: DNS confirms correct IP ---
 
+    @patch("godaddy_ddns.resolve_external", return_value="203.0.113.42")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    def test_skips_update_when_public_ip_matches_last_written(
-        self, mock_ip: MagicMock
+    def test_no_op_when_dns_already_correct(
+        self, mock_ip: MagicMock, mock_resolve: MagicMock
+    ) -> None:
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, "203.0.113.42"
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+    # --- DNS lookup fails but last_ip matches — trust last write ---
+
+    @patch("godaddy_ddns.resolve_external", return_value=None)
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_trusts_last_ip_when_dns_fails(
+        self, mock_ip: MagicMock, mock_resolve: MagicMock
     ) -> None:
         ok, last = godaddy_ddns.update_dns(
             "home.example.com", "key", "secret", 3600, "203.0.113.42"
