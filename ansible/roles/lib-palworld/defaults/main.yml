@@ -70,3 +70,5 @@ palworld_server_config:
 # Passwords (vault-encrypt these in cluster vars)
 palworld_server_password: "CHANGEME_VAULT_ENCRYPT"
 palworld_admin_password: "CHANGEME_VAULT_ENCRYPT"
+
+palworld_set_statefulset_zero: false

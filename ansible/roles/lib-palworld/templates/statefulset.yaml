@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/instance: {{ palworld_instance_name }}
 spec:
   serviceName: {{ palworld_instance_name }}
-  replicas: 1
+  replicas: {{ 0 if palworld_set_statefulset_zero else 1 }}
   persistentVolumeClaimRetentionPolicy:
     whenDeleted: Retain
     whenScaled: Retain

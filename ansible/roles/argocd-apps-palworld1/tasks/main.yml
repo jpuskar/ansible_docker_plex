@@ -21,3 +21,4 @@
     palworld_server_config: "{{ palworld1_server_config }}"
     palworld_server_password: "{{ palworld1_server_password }}"
     palworld_admin_password: "{{ palworld1_admin_password }}"
+    palworld_set_statefulset_zero: true
