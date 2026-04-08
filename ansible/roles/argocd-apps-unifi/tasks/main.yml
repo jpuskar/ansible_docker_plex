@@ -9,11 +9,6 @@
     src: cilium-lb-pool.yaml
     dest: "{{ output_dir_path }}/cilium-lb-pool.yaml"
 
-- name: Template out mongo-tools helper pod
-  template:
-    src: mongo-tools-pod.yaml
-    dest: "{{ output_dir_path }}/mongo-tools-pod.yaml"
-
 - name: Template out ESO SecretStore and RBAC
   template:
     src: eso-secretstore.yaml
