@@ -14,13 +14,13 @@ Environment variables:
 The secret must contain keys: GODADDY_DOMAIN, GODADDY_API_KEY, GODADDY_API_SECRET
 """
 
-import base64, json, logging, os, signal, socket, ssl, sys, time
+import base64, json, logging, os, signal, socket, ssl, struct, sys, time
 from types import FrameType
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 
 prog = "godaddy-ddns"
-version = "1.0"
+version = "2.0"
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -30,7 +30,9 @@ log = logging.getLogger(prog)
 
 BACKOFF_INITIAL = 60
 BACKOFF_MAX = 3600
-UPDATE_COOLDOWN = 600  # minimum seconds between actual API writes
+
+# GoDaddy's authoritative nameservers — bypass cluster/ISP DNS caching
+GODADDY_NS = ["ns73.domaincontrol.com", "ns74.domaincontrol.com"]
 
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -72,57 +74,162 @@ def read_k8s_secret(secret_name: str) -> dict[str, str]:
 
 
 def get_public_ip() -> str:
+    """Get our current public IP from an external service."""
     with urlopen(
         Request("https://checkip.amazonaws.com/", headers={"User-Agent": "Mozilla"})
     ) as f:
         return f.read().decode("utf-8").strip()
 
 
-def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int, last_update: float) -> tuple[bool, float]:
+def _build_dns_query(hostname: str) -> bytes:
+    """Build a minimal DNS A-record query packet."""
+    # Header: ID=0xABCD, flags=0x0100 (standard query, recursion desired),
+    # QDCOUNT=1, ANCOUNT=0, NSCOUNT=0, ARCOUNT=0
+    header = struct.pack(">HHHHHH", 0xABCD, 0x0100, 1, 0, 0, 0)
+    # Question section: encode hostname labels
+    question = b""
+    for label in hostname.split("."):
+        encoded = label.encode("ascii")
+        question += struct.pack("B", len(encoded)) + encoded
+    question += b"\x00"  # root label
+    question += struct.pack(">HH", 1, 1)  # QTYPE=A, QCLASS=IN
+    return header + question
+
+
+def _parse_dns_response(data: bytes) -> str | None:
+    """Parse a DNS response and return the first A-record IP, or None."""
+    if len(data) < 12:
+        return None
+    ancount = struct.unpack(">H", data[6:8])[0]
+    # Skip header (12 bytes) and question section
+    offset = 12
+    # Skip question: labels then QTYPE+QCLASS
+    while offset < len(data):
+        length = data[offset]
+        if length == 0:
+            offset += 1
+            break
+        if length >= 0xC0:  # pointer
+            offset += 2
+            break
+        offset += 1 + length
+    offset += 4  # QTYPE + QCLASS
+    # Parse answer records
+    for _ in range(ancount):
+        if offset + 12 > len(data):
+            break
+        # Name (could be pointer or labels)
+        if data[offset] >= 0xC0:
+            offset += 2
+        else:
+            while offset < len(data) and data[offset] != 0:
+                if data[offset] >= 0xC0:
+                    offset += 2
+                    break
+                offset += 1 + data[offset]
+            else:
+                offset += 1
+        if offset + 10 > len(data):
+            break
+        rtype, rclass, _, rdlength = struct.unpack(">HHIH", data[offset : offset + 10])
+        offset += 10
+        if rtype == 1 and rclass == 1 and rdlength == 4:  # A record
+            return "{}.{}.{}.{}".format(*data[offset : offset + 4])
+        offset += rdlength
+    return None
+
+
+def resolve_via_godaddy(hostname: str) -> str | None:
+    """Resolve hostname by querying GoDaddy's authoritative nameservers directly.
+
+    Uses raw UDP DNS queries to bypass all local/cluster DNS caching.
+    """
+    query = _build_dns_query(hostname)
+    for ns in GODADDY_NS:
+        try:
+            ns_ip = socket.gethostbyname(ns)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.settimeout(5)
+            try:
+                sock.sendto(query, (ns_ip, 53))
+                data, _ = sock.recvfrom(512)
+                result = _parse_dns_response(data)
+                if result:
+                    return result
+            finally:
+                sock.close()
+        except (socket.error, OSError) as e:
+            log.warning("DNS query to %s failed: %s", ns, e)
+            continue
+    return None
+
+
+def update_dns(
+    hostname: str,
+    api_key: str,
+    api_secret: str,
+    ttl: int,
+    last_ip: str,
+) -> tuple[bool, str]:
     """Check and update GoDaddy DNS.
 
-    Returns (success, last_update_time). last_update_time is updated only
-    when an actual API write occurs, so the cooldown tracks real writes.
+    Returns (success, last_written_ip). last_written_ip is updated only
+    when an actual API write occurs.
     """
-    log.info("Checking DNS for %s", hostname)
+    log.info("--- Check cycle start for %s ---", hostname)
 
     hostnames = hostname.split(".")
     if len(hostnames) < 2:
         log.error('Hostname "%s" is not a fully-qualified host name.', hostname)
-        return False, last_update
+        return False, last_ip
     elif len(hostnames) < 3:
         hostnames.insert(0, "@")
 
+    # Step 1: What is our public IP?
     try:
         ip = get_public_ip()
-        log.info("Detected public IP: %s", ip)
+        log.info("Public IP: %s", ip)
     except (URLError, OSError) as e:
-        log.error("Unable to obtain public IP: %s", e)
-        return False, last_update
+        log.error("Failed to detect public IP: %s", e)
+        return False, last_ip
 
     octets = ip.split(".")
     if len(octets) != 4 or not all(o.isdigit() and 0 <= int(o) <= 255 for o in octets):
         log.error('"%s" is not a valid IPv4 address.', ip)
-        return False, last_update
+        return False, last_ip
 
-    try:
-        dnsaddr = socket.gethostbyname(hostname)
-        if ip == dnsaddr:
-            log.info("%s already has IP %s — no update needed.", hostname, dnsaddr)
-            return True, last_update
-        log.info("DNS has %s, public IP is %s — updating.", dnsaddr, ip)
-    except socket.gaierror:
-        log.warning("DNS lookup for %s failed, proceeding with update.", hostname)
+    # Step 2: Did we already push this IP? If so, skip — DNS may not have propagated yet.
+    if ip == last_ip:
+        log.info(
+            "Public IP %s matches last written IP. Skipping update (waiting for DNS propagation).",
+            ip,
+        )
+        return True, last_ip
 
-    # Enforce cooldown — never write to the API more often than UPDATE_COOLDOWN
-    elapsed = time.time() - last_update
-    if elapsed < UPDATE_COOLDOWN:
-        remaining = int(UPDATE_COOLDOWN - elapsed)
-        log.warning("Update cooldown active — %ds remaining. Skipping API write.", remaining)
-        return False, last_update
-
+    # Step 3: What does GoDaddy's authoritative DNS say?
     record_name = hostnames[0]
     domain = ".".join(hostnames[1:])
+    dns_ip = resolve_via_godaddy(hostname)
+    if dns_ip:
+        log.info("GoDaddy DNS returns %s for %s.", dns_ip, hostname)
+        if dns_ip == ip:
+            log.info(
+                "GoDaddy authoritative DNS already has %s — no update needed. Recording as last written IP.",
+                ip,
+            )
+            return True, ip
+        log.info(
+            "GoDaddy authoritative DNS has %s but public IP is %s — update required.",
+            dns_ip,
+            ip,
+        )
+    else:
+        log.warning(
+            "Could not resolve %s via GoDaddy nameservers. Will attempt update.",
+            hostname,
+        )
+
+    # Step 4: Push the update to GoDaddy API
     url = "https://api.godaddy.com/v1/domains/{}/records/A/{}".format(
         domain, record_name
     )
@@ -134,6 +241,7 @@ def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int, last_upda
     req.add_header("Accept", "application/json")
     req.add_header("Authorization", "sso-key {}:{}".format(api_key, api_secret))
 
+    log.info("Sending PUT to GoDaddy API: %s -> %s", hostname, ip)
     try:
         with urlopen(req) as f:
             f.read()
@@ -150,17 +258,22 @@ def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int, last_upda
             503: "GoDaddy API: service unavailable (503).",
         }
         log.error(
+            "UPDATE FAILED: %s",
             messages.get(
                 e.code, "GoDaddy API failure: HTTP {} {}".format(e.code, e.reason)
-            )
+            ),
         )
-        return False, last_update
+        return False, last_ip
     except URLError as e:
-        log.error("GoDaddy API connection failure: %s", e.reason)
-        return False, last_update
+        log.error("UPDATE FAILED: GoDaddy API connection failure: %s", e.reason)
+        return False, last_ip
 
-    log.info("IP address for %s set to %s.", hostname, ip)
-    return True, time.time()
+    log.info(
+        "UPDATE SUCCESS: %s set to %s. Will not re-push this IP until it changes.",
+        hostname,
+        ip,
+    )
+    return True, ip
 
 
 def main() -> int:
@@ -198,9 +311,9 @@ def main() -> int:
     log.info("Loaded credentials for domain=%s", domain)
 
     backoff = BACKOFF_INITIAL
-    last_update = 0.0
+    last_ip = ""
     while not shutdown:
-        ok, last_update = update_dns(domain, api_key, api_secret, ttl, last_update)
+        ok, last_ip = update_dns(domain, api_key, api_secret, ttl, last_ip)
         if ok:
             backoff = BACKOFF_INITIAL
             sleep_time = interval

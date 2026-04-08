@@ -5,10 +5,9 @@ import base64
 import io
 import json
 import socket
-import time
+import struct
 import unittest
-from types import FrameType
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
 import godaddy_ddns
 
@@ -23,6 +22,72 @@ class TestGetPublicIp(unittest.TestCase):
         mock_urlopen.return_value = mock_resp
 
         self.assertEqual(godaddy_ddns.get_public_ip(), "203.0.113.42")
+
+
+class TestBuildDnsQuery(unittest.TestCase):
+    def test_builds_valid_query(self) -> None:
+        pkt = godaddy_ddns._build_dns_query("site.example.com")
+        # Header is 12 bytes, then labels, then null, then QTYPE+QCLASS (4 bytes)
+        self.assertTrue(len(pkt) > 12)
+        # Check header: QDCOUNT=1
+        qdcount = struct.unpack(">H", pkt[4:6])[0]
+        self.assertEqual(qdcount, 1)
+
+
+class TestParseDnsResponse(unittest.TestCase):
+    def _make_response(self, ip_bytes: bytes) -> bytes:
+        """Build a minimal DNS response with one A record."""
+        # Header: ID, flags=0x8180 (response), QDCOUNT=1, ANCOUNT=1
+        header = struct.pack(">HHHHHH", 0xABCD, 0x8180, 1, 1, 0, 0)
+        # Question: site.example.com A IN
+        question = b"\x04site\x07example\x03com\x00" + struct.pack(">HH", 1, 1)
+        # Answer: pointer to name, TYPE=A, CLASS=IN, TTL=3600, RDLENGTH=4, RDATA
+        answer = struct.pack(">H", 0xC00C)  # pointer to offset 12
+        answer += struct.pack(">HHIH", 1, 1, 3600, 4)
+        answer += ip_bytes
+        return header + question + answer
+
+    def test_parses_a_record(self) -> None:
+        data = self._make_response(bytes([203, 0, 113, 42]))
+        self.assertEqual(godaddy_ddns._parse_dns_response(data), "203.0.113.42")
+
+    def test_returns_none_on_empty(self) -> None:
+        self.assertIsNone(godaddy_ddns._parse_dns_response(b""))
+
+    def test_returns_none_on_truncated(self) -> None:
+        self.assertIsNone(godaddy_ddns._parse_dns_response(b"\x00" * 11))
+
+
+class TestResolveViaGodaddy(unittest.TestCase):
+    @patch("godaddy_ddns.socket.socket")
+    @patch("godaddy_ddns.socket.gethostbyname", return_value="216.69.185.1")
+    def test_returns_ip_on_success(
+        self, mock_ghbn: MagicMock, mock_sock_cls: MagicMock
+    ) -> None:
+        # Build a fake DNS response
+        header = struct.pack(">HHHHHH", 0xABCD, 0x8180, 1, 1, 0, 0)
+        question = b"\x04site\x07example\x03com\x00" + struct.pack(">HH", 1, 1)
+        answer = struct.pack(">H", 0xC00C) + struct.pack(">HHIH", 1, 1, 3600, 4)
+        answer += bytes([203, 0, 113, 42])
+        response = header + question + answer
+
+        mock_sock = MagicMock()
+        mock_sock.recvfrom.return_value = (response, ("216.69.185.1", 53))
+        mock_sock_cls.return_value = mock_sock
+
+        result = godaddy_ddns.resolve_via_godaddy("site.example.com")
+        self.assertEqual(result, "203.0.113.42")
+
+    @patch("godaddy_ddns.socket.socket")
+    @patch(
+        "godaddy_ddns.socket.gethostbyname",
+        side_effect=socket.gaierror("no resolve"),
+    )
+    def test_returns_none_on_all_failures(
+        self, mock_ghbn: MagicMock, mock_sock_cls: MagicMock
+    ) -> None:
+        result = godaddy_ddns.resolve_via_godaddy("site.example.com")
+        self.assertIsNone(result)
 
 
 class TestReadK8sSecret(unittest.TestCase):
@@ -59,154 +124,165 @@ class TestReadK8sSecret(unittest.TestCase):
 
 
 class TestUpdateDns(unittest.TestCase):
-    @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
-    def test_successful_update(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
+    def _mock_urlopen_ok(self, mock_urlopen: MagicMock) -> None:
         mock_resp = MagicMock()
         mock_resp.read.return_value = b""
         mock_resp.__enter__ = lambda s: s
         mock_resp.__exit__ = MagicMock(return_value=False)
         mock_urlopen.return_value = mock_resp
 
-        ok, last = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
-        self.assertTrue(ok)
-        self.assertGreater(last, 0.0)
+    # --- IP-based cooldown (last_ip tracking) ---
 
-        # Verify the API was called with PUT
-        call_args = mock_urlopen.call_args
-        req = call_args[0][0]
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_skips_update_when_public_ip_matches_last_written(
+        self, mock_ip: MagicMock
+    ) -> None:
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, "203.0.113.42"
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+    @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="203.0.113.1")
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_updates_when_public_ip_differs_from_last_written(
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
+    ) -> None:
+        self._mock_urlopen_ok(mock_urlopen)
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, "10.0.0.1"
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+    # --- GoDaddy authoritative DNS check ---
+
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="203.0.113.42")
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_no_update_when_godaddy_dns_matches(
+        self, mock_ip: MagicMock, mock_resolve: MagicMock
+    ) -> None:
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, ""
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+    @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value=None)
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_updates_when_godaddy_dns_returns_none(
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
+    ) -> None:
+        self._mock_urlopen_ok(mock_urlopen)
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, ""
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+    # --- Successful update ---
+
+    @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
+    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
+    def test_successful_update_records_ip(
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
+    ) -> None:
+        self._mock_urlopen_ok(mock_urlopen)
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, ""
+        )
+        self.assertTrue(ok)
+        self.assertEqual(last, "203.0.113.42")
+
+        req = mock_urlopen.call_args[0][0]
         self.assertEqual(req.get_method(), "PUT")
         self.assertIn("example.com", req.full_url)
         self.assertEqual(req.get_header("Authorization"), "sso-key key:secret")
 
-    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.42")
-    def test_no_update_when_ip_matches(
-        self, mock_dns: MagicMock, mock_ip: MagicMock
-    ) -> None:
-        ok, last = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
-        self.assertTrue(ok)
-        # last_update should NOT be updated (no API write)
-        self.assertEqual(last, 0.0)
+    # --- Error handling ---
 
     def test_invalid_hostname_single_label(self) -> None:
-        ok, _ = godaddy_ddns.update_dns("localhost", "key", "secret", 3600, 0.0)
+        ok, _ = godaddy_ddns.update_dns("localhost", "key", "secret", 3600, "")
         self.assertFalse(ok)
 
     @patch("godaddy_ddns.get_public_ip", return_value="999.0.0.1")
-    @patch(
-        "godaddy_ddns.socket.gethostbyname",
-        side_effect=socket.gaierror("not found"),
-    )
-    def test_invalid_ip_address(self, mock_dns: MagicMock, mock_ip: MagicMock) -> None:
-        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
+    def test_invalid_ip_address(self, mock_ip: MagicMock) -> None:
+        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, "")
         self.assertFalse(ok)
 
     @patch("godaddy_ddns.get_public_ip", side_effect=OSError("network down"))
     def test_public_ip_failure(self, mock_ip: MagicMock) -> None:
-        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
+        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, "")
         self.assertFalse(ok)
 
     @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
     def test_http_403_returns_false(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
     ) -> None:
         from urllib.error import HTTPError
 
         mock_urlopen.side_effect = HTTPError(
             "https://api.godaddy.com/...", 403, "Forbidden", {}, None
         )
-        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
+        ok, last = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, ""
+        )
         self.assertFalse(ok)
+        self.assertEqual(last, "")
 
     @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
     def test_http_429_returns_false(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
     ) -> None:
         from urllib.error import HTTPError
 
         mock_urlopen.side_effect = HTTPError(
             "https://api.godaddy.com/...", 429, "Too Many Requests", {}, None
         )
-        ok, _ = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
+        ok, _ = godaddy_ddns.update_dns(
+            "home.example.com", "key", "secret", 3600, ""
+        )
         self.assertFalse(ok)
 
-    @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch(
-        "godaddy_ddns.socket.gethostbyname",
-        side_effect=socket.gaierror("not found"),
-    )
-    def test_dns_lookup_failure_still_updates(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b""
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_resp
-
-        ok, last = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, 0.0)
-        self.assertTrue(ok)
-        self.assertGreater(last, 0.0)
+    # --- @ record for bare domain ---
 
     @patch("godaddy_ddns.urlopen")
+    @patch("godaddy_ddns.resolve_via_godaddy", return_value="10.0.0.1")
     @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
     def test_domain_only_inserts_at_record(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
+        self,
+        mock_ip: MagicMock,
+        mock_resolve: MagicMock,
+        mock_urlopen: MagicMock,
     ) -> None:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b""
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_resp
-
-        ok, _ = godaddy_ddns.update_dns("example.com", "key", "secret", 3600, 0.0)
+        self._mock_urlopen_ok(mock_urlopen)
+        ok, _ = godaddy_ddns.update_dns("example.com", "key", "secret", 3600, "")
         self.assertTrue(ok)
 
         req = mock_urlopen.call_args[0][0]
         self.assertIn("/records/A/@", req.full_url)
-
-    @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
-    def test_cooldown_blocks_rapid_updates(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
-        # Simulate last update was just now
-        recent = time.time()
-        ok, last = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, recent)
-        self.assertFalse(ok)
-        self.assertEqual(last, recent)
-        # urlopen should NOT have been called (cooldown blocked the write)
-        mock_urlopen.assert_not_called()
-
-    @patch("godaddy_ddns.urlopen")
-    @patch("godaddy_ddns.get_public_ip", return_value="203.0.113.42")
-    @patch("godaddy_ddns.socket.gethostbyname", return_value="203.0.113.1")
-    def test_cooldown_allows_update_after_expiry(
-        self, mock_dns: MagicMock, mock_ip: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
-        mock_resp = MagicMock()
-        mock_resp.read.return_value = b""
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        mock_urlopen.return_value = mock_resp
-
-        # Simulate last update was long ago
-        old = time.time() - godaddy_ddns.UPDATE_COOLDOWN - 1
-        ok, last = godaddy_ddns.update_dns("home.example.com", "key", "secret", 3600, old)
-        self.assertTrue(ok)
-        self.assertGreater(last, old)
-        mock_urlopen.assert_called_once()
 
 
 class TestHandleSignal(unittest.TestCase):
@@ -242,7 +318,7 @@ class TestMain(unittest.TestCase):
         {"GODADDY_SECRET_NAME": "test-secret", "GODADDY_INTERVAL": "1"},
     )
     @patch("godaddy_ddns.read_k8s_secret")
-    @patch("godaddy_ddns.update_dns", return_value=(True, 1000.0))
+    @patch("godaddy_ddns.update_dns", return_value=(True, "203.0.113.42"))
     @patch("godaddy_ddns.time.sleep")
     def test_runs_loop_and_shuts_down(
         self,
@@ -256,7 +332,6 @@ class TestMain(unittest.TestCase):
             "GODADDY_API_SECRET": "secret",
         }
 
-        # Shut down after first sleep
         def stop_after_one(*args: object) -> None:
             godaddy_ddns.shutdown = True
 
@@ -273,7 +348,7 @@ class TestMain(unittest.TestCase):
         {"GODADDY_SECRET_NAME": "test-secret", "GODADDY_INTERVAL": "1"},
     )
     @patch("godaddy_ddns.read_k8s_secret")
-    @patch("godaddy_ddns.update_dns", return_value=(False, 0.0))
+    @patch("godaddy_ddns.update_dns", return_value=(False, ""))
     @patch("godaddy_ddns.time.sleep")
     def test_backoff_increases_on_failure(
         self,
@@ -291,8 +366,6 @@ class TestMain(unittest.TestCase):
         def stop_after_two(*args: object) -> None:
             nonlocal call_count
             call_count += 1
-            # First loop sleeps BACKOFF_INITIAL times (60), second sleeps 120 times
-            # Stop during second backoff cycle
             if call_count > 60:
                 godaddy_ddns.shutdown = True
 
@@ -301,8 +374,47 @@ class TestMain(unittest.TestCase):
         godaddy_ddns.shutdown = False
         result = godaddy_ddns.main()
         self.assertEqual(result, 0)
-        # Should have called update_dns twice (first at 60s backoff, then 120s)
         self.assertEqual(mock_update.call_count, 2)
+        godaddy_ddns.shutdown = False  # reset
+
+    @patch.dict(
+        "os.environ",
+        {"GODADDY_SECRET_NAME": "test-secret", "GODADDY_INTERVAL": "1"},
+    )
+    @patch("godaddy_ddns.read_k8s_secret")
+    @patch("godaddy_ddns.update_dns")
+    @patch("godaddy_ddns.time.sleep")
+    def test_last_ip_passed_between_iterations(
+        self,
+        mock_sleep: MagicMock,
+        mock_update: MagicMock,
+        mock_read: MagicMock,
+    ) -> None:
+        mock_read.return_value = {
+            "GODADDY_DOMAIN": "example.com",
+            "GODADDY_API_KEY": "key",
+            "GODADDY_API_SECRET": "secret",
+        }
+        # First call returns new IP, second call uses it
+        mock_update.side_effect = [
+            (True, "203.0.113.42"),
+            (True, "203.0.113.42"),
+        ]
+        call_count = 0
+
+        def stop_after_second_update(*args: object) -> None:
+            nonlocal call_count
+            call_count += 1
+            if call_count > 1:
+                godaddy_ddns.shutdown = True
+
+        mock_sleep.side_effect = stop_after_second_update
+
+        godaddy_ddns.shutdown = False
+        godaddy_ddns.main()
+        # Verify second call received the IP from the first call
+        second_call = mock_update.call_args_list[1]
+        self.assertEqual(second_call[1].get("last_ip") or second_call[0][4], "203.0.113.42")
         godaddy_ddns.shutdown = False  # reset
 
 
