@@ -57,9 +57,9 @@ spec:
                   jmesPath: 'request.object.data."{{ element }}"'
             preconditions:
               all:
-                - key: "{{ element_value || '' }}"
-                  operator: Contains
-                  value: "[% kyverno_domain_placeholder %]"
+                - key: "{{ contains(element_value || '', '[% kyverno_domain_placeholder %]') }}"
+                  operator: Equals
+                  value: true
             patchesJson6902: |-
               - path: /data/{{ element }}
                 op: replace
