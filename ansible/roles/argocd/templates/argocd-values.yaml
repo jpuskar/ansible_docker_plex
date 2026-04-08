@@ -195,10 +195,13 @@ configs:
         - BackgroundScanReport
         - ClusterBackgroundScanReport
         - UpdateRequest
-      ### NOTE: Cilium secret sync namespace (cilium-secrets) was previously
-      ### excluded here, but resource.exclusions does not support namespace
-      ### filtering — only apiGroups, kinds, and clusters. The namespaces
-      ### field was silently ignored, causing ALL Secrets to be excluded.
+      ### NOTE: Cilium secret sync (cilium-secrets namespace) copies all
+      ### labels and annotations — including ArgoCD tracking IDs — onto
+      ### synced secrets. This causes phantom resources (e.g. harbor-harbor-ingress)
+      ### to appear in ArgoCD apps. resource.exclusions does not support
+      ### namespace filtering (only apiGroups, kinds, clusters), so these
+      ### phantom resources cannot be excluded. They are harmless as long as
+      ### apps don't use automated sync with prune enabled.
       ### Velero dynamically creates Backup/Restore CRs — exclude them
       ### so ArgoCD doesn't try to prune them.
       - apiGroups:

@@ -24,10 +24,28 @@ spec:
     server: https://kubernetes.default.svc
     namespace: kyverno
 
+  # Kubernetes adds 'conversion: {strategy: None}' to CRDs by default.
+  # The Helm chart doesn't include it, causing perpetual OutOfSync on CRDs.
+  # Kyverno's webhook also adds default fields to ClusterPolicy resources.
+  ignoreDifferences:
+    - group: "apiextensions.k8s.io"
+      kind: "CustomResourceDefinition"
+      jsonPointers:
+        - /spec/conversion
+    - group: "kyverno.io"
+      kind: "ClusterPolicy"
+      jqPathExpressions:
+        - .spec.admission
+        - .spec.emitWarning
+        - .spec.failurePolicy
+        - .spec.validationFailureAction
+        - .spec.rules[]?.skipBackgroundRequests
+
   syncPolicy:
     syncOptions:
       - ServerSideApply=true
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
