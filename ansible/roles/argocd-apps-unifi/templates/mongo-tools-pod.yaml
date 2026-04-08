@@ -24,6 +24,6 @@ spec:
   volumes:
   - name: nfs-data
     nfs:
-      server: {{ unifi_data_nfs_server }}
-      path: {{ unifi_data_nfs_path }}
+      server: {{ unifi_backup_nfs_server }}
+      path: {{ unifi_backup_nfs_path }}
   restartPolicy: Never

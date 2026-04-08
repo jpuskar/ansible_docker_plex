@@ -62,12 +62,33 @@ replsets:
       enabled: false
     arbiter:
       enabled: false
+    sidecarVolumes:
+    - name: backup-nfs-vol
+      nfs:
+        server: "{{ unifi_backup_nfs_server }}"
+        path: "{{ unifi_backup_nfs_path }}"
 
-# Backup agent (required by operator, storage config TBD)
+# Backup — logical backups to NFS
 backup:
   enabled: true
-  storages: {}
-  tasks: []
+  volumeMounts:
+  - mountPath: /mnt/nfs/
+    name: backup-nfs-vol
+  storages:
+    nfs-backup:
+      type: filesystem
+      filesystem:
+        path: /mnt/nfs/
+  tasks:
+  - name: daily-nfs
+    enabled: true
+    schedule: "0 3 * * *"
+    storageName: nfs-backup
+    compressionType: gzip
+    retention:
+      count: 7
+      type: count
+      deleteFromStorage: true
 
 # Log collector
 logcollector:

@@ -23,17 +23,19 @@ unifi_psmdb_resources_requests_memory: "256Mi"
 unifi_psmdb_resources_limits_cpu: "300m"
 unifi_psmdb_resources_limits_memory: "512Mi"
 
-# Unifi NFS storage for application data
-unifi_data_nfs_server:  !vault |
+# Unifi application data persistence
+unifi_data_storage_class: "openebs-rawfile"
+unifi_data_storage_size: "8Gi"
+
+# NFS backup storage for Percona MongoDB
+unifi_backup_nfs_server:  !vault |
   $ANSIBLE_VAULT;1.1;AES256
   33393961316364346230333331346530346634336130646133383866363663376237343532353564
   3965363332646237643065383064316430303835343039300a633432633465336331363136626335
   62663533656631646163636230313032386662646666303332333462356535353639663434613632
   6666366362316533390a653935316162326437653536636461323662366137663765303666666162
   3961
-unifi_data_nfs_path: "/tank0/k8s2-unifi"
-unifi_data_nfs_size: "10Gi"
-unifi_nfs_storage_class: "unifi-nfs-data"
+unifi_backup_nfs_path: "/tank0/k8s2-unifi-backups"
 
 # Unifi LoadBalancer IP (Cilium LB-IPAM)
 unifi_loadbalancer_ip: "CHANGEME_VAULT_ENCRYPT"
@@ -44,8 +46,7 @@ unifi_timezone: "America/New_York"
 # Java heap — 256M is plenty for a small (<10 device) site
 unifi_jvm_max_heap_size: "256M"
 
-# Run as non-root
-unifi_run_as_root: false
+# Run as non-root (UID/GID 999 = unifi user in container)
 unifi_uid: 999
 unifi_gid: 999
 

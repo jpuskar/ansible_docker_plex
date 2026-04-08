@@ -6,9 +6,23 @@ timezone: "{{ unifi_timezone }}"
 
 jvmMaxHeapSize: "{{ unifi_jvm_max_heap_size }}"
 
-runAsRoot: {{ unifi_run_as_root | lower }}
+runAsRoot: false
 UID: {{ unifi_uid }}
 GID: {{ unifi_gid }}
+
+# No privileged ports needed (lowest is 3478)
+bindPrivilegedPorts: false
+
+# Truly non-root — never start as UID 0
+podSecurityContext:
+  runAsUser: {{ unifi_uid }}
+  runAsGroup: {{ unifi_gid }}
+  fsGroup: {{ unifi_gid }}
+  runAsNonRoot: true
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
 
 # External MongoDB — Percona Server for MongoDB replica set
 mongodb:
@@ -17,15 +31,15 @@ mongodb:
   statDbUri: "mongodb://databaseAdmin:{{ unifi_psmdb_database_admin_password }}@{{ unifi_psmdb_cluster_name }}-rs0.{{ unifi_namespace }}.svc.cluster.local/unifi_stat?replicaSet=rs0&authSource=admin&tls=false"
   databaseName: "unifi"
 
-# Persistence — NFS-backed storage
+# Persistence — openebs-rawfile backed storage
 persistence:
   enabled: true
-  storageClass: "{{ unifi_nfs_storage_class }}"
-  size: "{{ unifi_data_nfs_size }}"
+  storageClass: "{{ unifi_data_storage_class }}"
+  size: "{{ unifi_data_storage_size }}"
   accessMode: ReadWriteOnce
   skipuninstall: true
 
-# Strategy — Recreate (single replica, NFS-backed)
+# Strategy — Recreate (single replica)
 strategyType: Recreate
 
 # Unified LoadBalancer service (all ports via single LB IP)
