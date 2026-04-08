@@ -11,7 +11,7 @@ palworld1_image_pull_policy: "Always"
 
 # Sidecar
 palworld1_rcon_image: "{{ harbor_external_url }}/library/palworld-rcon-backup:latest"
-palworld1_rcon_enabled: false
+palworld1_rcon_enabled: true
 
 # Service
 palworld1_service_type: "LoadBalancer"

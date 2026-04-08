@@ -12,7 +12,7 @@ palworld_image_pull_policy: "Always"
 
 # Sidecar (rcon/backup)
 palworld_rcon_image: "docker.io/jpuskar/palworld-rcon-backup:latest"
-palworld_rcon_enabled: false
+palworld_rcon_enabled: true
 
 # User/group IDs (matches Dockerfile USER 2020)
 palworld_uid: 2020
