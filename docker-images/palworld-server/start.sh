@@ -15,8 +15,12 @@ if [[ ! -f /server/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini ]]; then
 fi
 ls -lah /server/Pal/Saved
 
+if [[ -z "${MY_NAMESPACE:-}" ]]; then
+  echo "ERROR: MY_NAMESPACE env var is not set. Exiting."
+  exit 1
+fi
 
-python3 /configure.py --secret-namespace palworld0
+python3 /configure.py --secret-namespace "$MY_NAMESPACE"
 
 echo "++++++++++++++++++++++++++++++++++++++++++++++++"
 cat /server/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini

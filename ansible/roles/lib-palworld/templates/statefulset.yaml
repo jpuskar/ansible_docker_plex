@@ -43,6 +43,11 @@ spec:
         - name: palworld
           image: {{ palworld_image }}
           imagePullPolicy: {{ palworld_image_pull_policy }}
+          env:
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           ports:
             - name: game
               containerPort: {{ palworld_game_port }}
