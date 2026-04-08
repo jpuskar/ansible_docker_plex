@@ -30,6 +30,7 @@ log = logging.getLogger(prog)
 
 BACKOFF_INITIAL = 60
 BACKOFF_MAX = 3600
+UPDATE_COOLDOWN = 600  # minimum seconds between actual API writes
 
 SA_TOKEN_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 SA_CA_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
@@ -77,14 +78,18 @@ def get_public_ip() -> str:
         return f.read().decode("utf-8").strip()
 
 
-def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int) -> bool:
-    """Check and update GoDaddy DNS. Returns True on success/no-op, False on failure."""
+def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int, last_update: float) -> tuple[bool, float]:
+    """Check and update GoDaddy DNS.
+
+    Returns (success, last_update_time). last_update_time is updated only
+    when an actual API write occurs, so the cooldown tracks real writes.
+    """
     log.info("Checking DNS for %s", hostname)
 
     hostnames = hostname.split(".")
     if len(hostnames) < 2:
         log.error('Hostname "%s" is not a fully-qualified host name.', hostname)
-        return False
+        return False, last_update
     elif len(hostnames) < 3:
         hostnames.insert(0, "@")
 
@@ -93,21 +98,28 @@ def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int) -> bool:
         log.info("Detected public IP: %s", ip)
     except (URLError, OSError) as e:
         log.error("Unable to obtain public IP: %s", e)
-        return False
+        return False, last_update
 
     octets = ip.split(".")
     if len(octets) != 4 or not all(o.isdigit() and 0 <= int(o) <= 255 for o in octets):
         log.error('"%s" is not a valid IPv4 address.', ip)
-        return False
+        return False, last_update
 
     try:
         dnsaddr = socket.gethostbyname(hostname)
         if ip == dnsaddr:
             log.info("%s already has IP %s — no update needed.", hostname, dnsaddr)
-            return True
+            return True, last_update
         log.info("DNS has %s, public IP is %s — updating.", dnsaddr, ip)
     except socket.gaierror:
         log.warning("DNS lookup for %s failed, proceeding with update.", hostname)
+
+    # Enforce cooldown — never write to the API more often than UPDATE_COOLDOWN
+    elapsed = time.time() - last_update
+    if elapsed < UPDATE_COOLDOWN:
+        remaining = int(UPDATE_COOLDOWN - elapsed)
+        log.warning("Update cooldown active — %ds remaining. Skipping API write.", remaining)
+        return False, last_update
 
     record_name = hostnames[0]
     domain = ".".join(hostnames[1:])
@@ -142,13 +154,13 @@ def update_dns(hostname: str, api_key: str, api_secret: str, ttl: int) -> bool:
                 e.code, "GoDaddy API failure: HTTP {} {}".format(e.code, e.reason)
             )
         )
-        return False
+        return False, last_update
     except URLError as e:
         log.error("GoDaddy API connection failure: %s", e.reason)
-        return False
+        return False, last_update
 
     log.info("IP address for %s set to %s.", hostname, ip)
-    return True
+    return True, time.time()
 
 
 def main() -> int:
@@ -186,11 +198,13 @@ def main() -> int:
     log.info("Loaded credentials for domain=%s", domain)
 
     backoff = BACKOFF_INITIAL
+    last_update = 0.0
     while not shutdown:
-        ok = update_dns(domain, api_key, api_secret, ttl)
+        ok, last_update = update_dns(domain, api_key, api_secret, ttl, last_update)
         if ok:
             backoff = BACKOFF_INITIAL
             sleep_time = interval
+            log.info("Next check in %ds.", interval)
         else:
             sleep_time = backoff
             log.warning("Backing off — next attempt in %ds.", backoff)
