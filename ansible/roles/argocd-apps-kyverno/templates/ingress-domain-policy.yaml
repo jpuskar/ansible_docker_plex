@@ -50,12 +50,17 @@ spec:
                 - harbor
       mutate:
         foreach:
-          - list: "request.object.data | keys(@)"
-            patchesJson6902: |-
-              - path: /data/{{ element }}
-                op: replace
-                value: {{ regex_replace_all('[% kyverno_domain_placeholder %]', element_value, '[% kyverno_domain_actual %]') }}
+          - list: "(request.object.data || `{}`) | keys(@)"
             context:
               - name: element_value
                 variable:
                   jmesPath: 'request.object.data."{{ element }}"'
+            preconditions:
+              all:
+                - key: "{{ element_value || '' }}"
+                  operator: Contains
+                  value: "[% kyverno_domain_placeholder %]"
+            patchesJson6902: |-
+              - path: /data/{{ element }}
+                op: replace
+                value: "{{ regex_replace_all('[% kyverno_domain_placeholder %]', element_value, '[% kyverno_domain_actual %]') }}"
