@@ -41,6 +41,11 @@ spec:
         - /spec/template/metadata/annotations/checksum~1configmap
         - /spec/template/metadata/annotations/checksum~1secret
         - /spec/template/metadata/annotations/checksum~1tls
+    # Ignore Secret data fields — Harbor Helm generates fresh random values
+    # (CSRF_KEY, TLS certs, JOBSERVICE_SECRET, etc.) on every render
+    - kind: "Secret"
+      jsonPointers:
+        - /data
 
   syncPolicy:
     syncOptions:
