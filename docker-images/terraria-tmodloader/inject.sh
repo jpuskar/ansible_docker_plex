@@ -1,0 +1,2 @@
+#!/bin/bash
+tmux send-keys "$1" ENTER

@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ terraria_namespace }}
+  labels:
+    app.kubernetes.io/name: terraria
+    app.kubernetes.io/instance: {{ terraria_instance_name }}

@@ -1,0 +1,62 @@
+---
+# Terraria tModLoader Server Library Role
+# This is a library role - key variables must be provided by the calling role
+
+# Required variables (must be set by caller):
+# - terraria_instance_name: Unique name for this instance (e.g. "terraria1")
+# - terraria_namespace: Kubernetes namespace (e.g. "terraria1")
+
+# Container image (custom rootless image — runs as UID 10000, never root)
+terraria_image: "docker.io/jpuskar/terraria-tmodloader:latest"
+terraria_image_pull_policy: "Always"
+
+# User/group IDs (matches Dockerfile USER 10000)
+terraria_uid: 10000
+terraria_gid: 10000
+
+# Ports
+terraria_game_port: 7777
+
+# Service
+terraria_service_type: "LoadBalancer"
+terraria_service_annotations: {}
+# terraria_load_balancer_ip: ""  # Set in cluster vars
+
+# Storage — single PVC at /data
+terraria_storage_class: "openebs-rawfile"
+terraria_data_storage_size: "10Gi"
+
+# Resources
+terraria_resources: {}
+
+# Node selector
+terraria_node_selector: {}
+
+# Tolerations
+terraria_tolerations: []
+
+# Server config (env vars — passed through to prepare-config.sh)
+terraria_world_name: "Docker"
+terraria_world_size: "3"
+terraria_world_seed: ""
+terraria_difficulty: "1"
+terraria_max_players: "8"
+terraria_motd: "A tModLoader server"
+terraria_secure: "0"
+terraria_npcstream: "60"
+terraria_language: "en-US"
+
+# Mods — comma-separated Steam Workshop IDs
+terraria_autodownload: ""
+terraria_enabledmods: ""
+
+# Autosave interval in minutes
+terraria_autosave_interval: "10"
+
+# Shutdown message broadcast to chat on container stop
+terraria_shutdown_message: "Server is shutting down NOW!"
+
+# Password (vault-encrypt in cluster vars, set to "N/A" to disable)
+terraria_server_pass: "CHANGEME_VAULT_ENCRYPT"
+
+terraria_set_statefulset_zero: false
