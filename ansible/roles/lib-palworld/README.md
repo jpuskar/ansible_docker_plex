@@ -4,6 +4,10 @@ Library role for deploying a Palworld dedicated server on Kubernetes.
 
 **Do not call this role directly** — use an `argocd-apps-palworld*` role instead.
 
+## TODO:
+- backups
+
+
 ## What it creates
 
 - Namespace

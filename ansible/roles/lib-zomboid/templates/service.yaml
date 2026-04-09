@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ zomboid_instance_name }}
+  namespace: {{ zomboid_namespace }}
+  labels:
+    app: zomboid
+    app.kubernetes.io/name: zomboid
+    app.kubernetes.io/instance: {{ zomboid_instance_name }}
+{% if zomboid_service_annotations %}
+  annotations:
+{% for key, value in zomboid_service_annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ zomboid_service_type }}
+{% if zomboid_load_balancer_ip is defined and zomboid_service_type == "LoadBalancer" %}
+  loadBalancerIP: {{ zomboid_load_balancer_ip }}
+{% endif %}
+  selector:
+    app: zomboid
+    app.kubernetes.io/instance: {{ zomboid_instance_name }}
+  ports:
+    - name: game-port
+      port: {{ zomboid_game_port }}
+      targetPort: game-port
+      protocol: UDP
+    - name: direct-port
+      port: {{ zomboid_direct_port }}
+      targetPort: direct-port
+      protocol: UDP
+    - name: rcon-port
+      port: {{ zomboid_rcon_port }}
+      targetPort: rcon-port
+      protocol: TCP

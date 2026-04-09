@@ -1,0 +1,87 @@
+---
+# Zomboid Server Instance 1
+
+# Instance identity
+zomboid1_instance_name: "zomboid1"
+zomboid1_namespace: "zomboid1"
+
+# Container image
+zomboid1_image: "{{ harbor_external_url }}/library/zomboid-dedicated-server:latest"
+zomboid1_image_pull_policy: "Always"
+
+# Service
+zomboid1_service_type: "LoadBalancer"
+zomboid1_service_annotations: {}
+# zomboid1_load_balancer_ip: ""  # Set in cluster vars
+
+# Game server ports
+zomboid1_game_port: 16261
+zomboid1_direct_port: 16262
+zomboid1_rcon_port: 27015
+
+# Storage
+zomboid1_storage_class: "openebs-rawfile"
+zomboid1_server_storage_size: "50Gi"
+zomboid1_data_storage_size: "50Gi"
+
+# Resources
+zomboid1_resources:
+  requests:
+    cpu: "6"
+    memory: "12Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+# Node selector
+zomboid1_node_selector: {}
+
+# Tolerations
+zomboid1_tolerations: []
+
+# Server config (non-sensitive env vars)
+zomboid1_server_config:
+  ADMIN_USERNAME: "admin"
+  ANTI_CHEAT_TYPE21: "true"
+  AUTOSAVE_INTERVAL: "15"
+  BACKUPS_COUNT: "5"
+  BACKUPS_PERIOD: "120"
+  DIRECT_PORT: "16262"
+  GAME_PORT: "16261"
+  MAP_NAMES: "Muldraugh, KY"
+  MAX_MEMORY: "10g"
+  MAX_PLAYERS: "16"
+  PAUSE_EMPTY: "true"
+  PING_LIMIT: "400"
+  PVP: "false"
+  PUBLIC: "true"
+  RCON_PORT: "27015"
+  SERVER_NAME: "MorgPugs"
+  STEAM_VAC: "true"
+
+# Passwords (vault-encrypt these in cluster vars)
+zomboid1_admin_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000
+
+zomboid1_rcon_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000
+
+zomboid1_server_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000
+
+zomboid1_set_statefulset_zero: true

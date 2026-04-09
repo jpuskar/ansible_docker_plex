@@ -27,6 +27,7 @@
     - velero-application.yaml
     - plex-application.yaml
     - palworld1-application.yaml
+    - zomboid1-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -61,6 +62,7 @@
     - velero-application.yaml
     - plex-application.yaml
     - palworld1-application.yaml
+    - zomboid1-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

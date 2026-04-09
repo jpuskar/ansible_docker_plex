@@ -1,0 +1,116 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ zomboid_instance_name }}-server
+  namespace: {{ zomboid_namespace }}
+  labels:
+    app: zomboid
+    app.kubernetes.io/name: zomboid
+    app.kubernetes.io/instance: {{ zomboid_instance_name }}
+spec:
+  serviceName: {{ zomboid_instance_name }}
+  replicas: {{ 0 if zomboid_set_statefulset_zero else 1 }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: zomboid
+      app.kubernetes.io/instance: {{ zomboid_instance_name }}
+  template:
+    metadata:
+      labels:
+        app: zomboid
+        app.kubernetes.io/instance: {{ zomboid_instance_name }}
+    spec:
+      securityContext:
+        runAsUser: {{ zomboid_uid }}
+        runAsGroup: {{ zomboid_gid }}
+        fsGroup: {{ zomboid_gid }}
+{% if zomboid_node_selector %}
+      nodeSelector:
+{% for key, value in zomboid_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if zomboid_tolerations %}
+      tolerations:
+{{ zomboid_tolerations | to_nice_yaml(indent=2) | indent(8, first=True) }}
+{% endif %}
+      containers:
+        - name: zomboid
+          image: {{ zomboid_image }}
+          imagePullPolicy: {{ zomboid_image_pull_policy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+{% for key, value in zomboid_server_config.items() %}
+            - name: {{ key }}
+              value: "{{ value }}"
+{% endfor %}
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: server-password
+                  key: admin-password
+            - name: RCON_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: server-password
+                  key: rcon-password
+            - name: SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: server-password
+                  key: server-password
+          ports:
+            - name: game-port
+              containerPort: {{ zomboid_game_port }}
+              protocol: UDP
+            - name: direct-port
+              containerPort: {{ zomboid_direct_port }}
+              protocol: UDP
+            - name: rcon-port
+              containerPort: {{ zomboid_rcon_port }}
+              protocol: TCP
+          resources:
+{{ zomboid_resources | to_nice_yaml(indent=2) | indent(12, first=True) }}
+          volumeMounts:
+            - name: server-volume
+              mountPath: /home/steam/zomboid
+            - name: data-volume
+              mountPath: /home/steam/zomboid_data
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: server-volume
+        labels:
+          app: zomboid
+          app.kubernetes.io/instance: {{ zomboid_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if zomboid_storage_class %}
+        storageClassName: {{ zomboid_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ zomboid_server_storage_size }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data-volume
+        labels:
+          app: zomboid
+          app.kubernetes.io/instance: {{ zomboid_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if zomboid_storage_class %}
+        storageClassName: {{ zomboid_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ zomboid_data_storage_size }}
