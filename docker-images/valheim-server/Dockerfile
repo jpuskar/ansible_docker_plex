@@ -28,7 +28,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 RUN groupadd -g 10000 valheim \
     && useradd -u 10000 -g 10000 -m -d /home/valheim -s /bin/bash valheim
 
-# Create directories
+# Create directories owned by valheim user
 RUN mkdir -p "${SERVER_DIR}" "${CONFIG_DIR}" /home/valheim/.steam \
     && chown -R 10000:10000 "${SERVER_DIR}" "${CONFIG_DIR}" /home/valheim
 
@@ -39,12 +39,8 @@ RUN steamcmd \
         +login anonymous \
         +app_update ${VALHEIM_APP_ID} validate \
         +quit \
-    && ln -s "${SERVER_DIR}/linux64" /home/valheim/.steam/sdk64 \
+    && chmod +x "${SERVER_DIR}/valheim_server.x86_64" \
     && chown -R 10000:10000 "${SERVER_DIR}" /home/valheim
-
-# Symlink config into the path Valheim expects for world data
-RUN ln -s "${CONFIG_DIR}" /home/valheim/.config \
-    || true
 
 # Copy valheim-logfilter from build stage
 COPY --from=logfilter-build /valheim-logfilter /usr/local/bin/valheim-logfilter
@@ -52,6 +48,8 @@ RUN chmod 755 /usr/local/bin/valheim-logfilter
 
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
+
+ENV HOME=/home/valheim
 
 EXPOSE 2456/udp 2457/udp
 

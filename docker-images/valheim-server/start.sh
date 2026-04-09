@@ -47,6 +47,7 @@ SERVER_CMD_ARGS=(
     -port "${SERVER_PORT}"
     -world "${WORLD_NAME}"
     -public "${SERVER_PUBLIC}"
+    -savedir "${CONFIG_DIR}"
 )
 
 if [ -n "${SERVER_PASS}" ]; then
@@ -86,7 +87,6 @@ export LD_LIBRARY_PATH="${SERVER_DIR}/linux64/"
 echo "[valheim] Starting server: ${SERVER_NAME} | world: ${WORLD_NAME} | port: ${SERVER_PORT} | public: ${SERVER_PUBLIC}"
 
 cd "${SERVER_DIR}"
-chmod +x "${SERVER_DIR}/valheim_server.x86_64"
 
 # Pipe server output through valheim-logfilter for cleaner logs
 "${SERVER_DIR}/valheim_server.x86_64" "${SERVER_CMD_ARGS[@]}" \
