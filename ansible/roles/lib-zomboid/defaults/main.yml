@@ -7,7 +7,7 @@
 # - zomboid_namespace: Kubernetes namespace (e.g. "zomboid1")
 
 # Container image (upstream rootless, runs as UID 10000)
-zomboid_image: "docker.io/sknnr/project-zomboid-server:latest"
+zomboid_image: "docker.io/sknnr/zomboid-dedicated-server:latest"
 zomboid_image_pull_policy: "Always"
 
 # User/group IDs (matches upstream image USER 10000)
