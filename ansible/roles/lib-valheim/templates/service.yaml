@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ valheim_instance_name }}
+  namespace: {{ valheim_namespace }}
+  labels:
+    app: valheim
+    app.kubernetes.io/name: valheim
+    app.kubernetes.io/instance: {{ valheim_instance_name }}
+{% if valheim_service_annotations %}
+  annotations:
+{% for key, value in valheim_service_annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ valheim_service_type }}
+{% if valheim_load_balancer_ip is defined and valheim_service_type == "LoadBalancer" %}
+  loadBalancerIP: {{ valheim_load_balancer_ip }}
+{% endif %}
+  selector:
+    app: valheim
+    app.kubernetes.io/instance: {{ valheim_instance_name }}
+  ports:
+    - name: valheim
+      port: {{ valheim_game_port }}
+      targetPort: {{ valheim_game_port }}
+      protocol: UDP

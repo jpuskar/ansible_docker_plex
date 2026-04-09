@@ -1,0 +1,129 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ valheim_instance_name }}-server
+  namespace: {{ valheim_namespace }}
+  labels:
+    app: valheim
+    app.kubernetes.io/name: valheim
+    app.kubernetes.io/instance: {{ valheim_instance_name }}
+spec:
+  serviceName: {{ valheim_instance_name }}
+  replicas: {{ 0 if valheim_set_statefulset_zero else 1 }}
+  updateStrategy:
+    type: OnDelete
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: valheim
+      app.kubernetes.io/instance: {{ valheim_instance_name }}
+  template:
+    metadata:
+      labels:
+        app: valheim
+        app.kubernetes.io/instance: {{ valheim_instance_name }}
+    spec:
+      securityContext:
+        runAsUser: {{ valheim_uid }}
+        runAsGroup: {{ valheim_gid }}
+        fsGroup: {{ valheim_gid }}
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: 120
+{% if valheim_node_selector %}
+      nodeSelector:
+{% for key, value in valheim_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if valheim_tolerations %}
+      tolerations:
+{{ valheim_tolerations | to_nice_yaml(indent=2) | indent(8, first=True) }}
+{% endif %}
+      containers:
+        - name: server
+          image: {{ valheim_image }}
+          imagePullPolicy: {{ valheim_image_pull_policy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: SERVER_NAME
+              value: "{{ valheim_server_name }}"
+            - name: SERVER_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: server-password
+                  key: server-pass
+            - name: WORLD_NAME
+              value: "{{ valheim_world_name }}"
+            - name: SERVER_PUBLIC
+              value: "{{ valheim_server_public }}"
+{% if valheim_adminlist_ids %}
+            - name: ADMINLIST_IDS
+              value: "{{ valheim_adminlist_ids }}"
+{% endif %}
+{% if valheim_bannedlist_ids %}
+            - name: BANNEDLIST_IDS
+              value: "{{ valheim_bannedlist_ids }}"
+{% endif %}
+{% if valheim_permittedlist_ids %}
+            - name: PERMITTEDLIST_IDS
+              value: "{{ valheim_permittedlist_ids }}"
+{% endif %}
+          ports:
+            - name: valheim
+              containerPort: {{ valheim_game_port }}
+              protocol: UDP
+            - name: msqp
+              containerPort: {{ valheim_msqp_port }}
+              protocol: UDP
+{% if valheim_resources %}
+          resources:
+{{ valheim_resources | to_nice_yaml(indent=2) | indent(12, first=True) }}
+{% endif %}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: server-data
+              mountPath: /server
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: config
+        labels:
+          app: valheim
+          app.kubernetes.io/instance: {{ valheim_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if valheim_storage_class %}
+        storageClassName: {{ valheim_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ valheim_config_storage_size }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: server-data
+        labels:
+          app: valheim
+          app.kubernetes.io/instance: {{ valheim_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if valheim_storage_class %}
+        storageClassName: {{ valheim_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ valheim_server_storage_size }}
+        resources:
+          requests:
+            storage: {{ valheim_backups_storage_size }}

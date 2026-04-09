@@ -1,0 +1,20 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/{{ valheim_instance_name }}-namespace.yaml"
+
+- name: Template out server password Secret
+  template:
+    src: server-password-secret.yaml
+    dest: "{{ output_dir_path }}/{{ valheim_instance_name }}-server-password.yaml"
+
+- name: Template out StatefulSet manifest
+  template:
+    src: statefulset.yaml
+    dest: "{{ output_dir_path }}/{{ valheim_instance_name }}-statefulset.yaml"
+
+- name: Template out Service manifest
+  template:
+    src: service.yaml
+    dest: "{{ output_dir_path }}/{{ valheim_instance_name }}-service.yaml"

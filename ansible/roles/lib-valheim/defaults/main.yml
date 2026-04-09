@@ -1,0 +1,53 @@
+---
+# Valheim Server Library Role
+# This is a library role - key variables must be provided by the calling role
+
+# Required variables (must be set by caller):
+# - valheim_instance_name: Unique name for this instance (e.g. "valheim1")
+# - valheim_namespace: Kubernetes namespace (e.g. "valheim1")
+
+# Container image (custom rootless image — runs as UID 10000, never root)
+valheim_image: "docker.io/jpuskar/valheim-server:latest"
+valheim_image_pull_policy: "Always"
+
+# User/group IDs (matches Dockerfile USER 10000)
+valheim_uid: 10000
+valheim_gid: 10000
+
+# Ports
+valheim_game_port: 2456
+valheim_msqp_port: 2457
+
+# Service
+valheim_service_type: "LoadBalancer"
+valheim_service_annotations: {}
+# valheim_load_balancer_ip: ""  # Set in cluster vars
+
+# Storage
+valheim_storage_class: "openebs-rawfile"
+valheim_config_storage_size: "10Gi"
+valheim_server_storage_size: "10Gi"
+
+# Resources
+valheim_resources: {}
+
+# Node selector
+valheim_node_selector: {}
+
+# Tolerations
+valheim_tolerations: []
+
+# Server config
+valheim_server_name: "LV426"
+valheim_world_name: "LV426"
+valheim_server_public: "false"
+
+# Admin/ban/permit lists (space-separated SteamID64s)
+valheim_adminlist_ids: ""
+valheim_bannedlist_ids: ""
+valheim_permittedlist_ids: ""
+
+# Passwords (vault-encrypt these in cluster vars)
+valheim_server_pass: "CHANGEME_VAULT_ENCRYPT"
+
+valheim_set_statefulset_zero: false

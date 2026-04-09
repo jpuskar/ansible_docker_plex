@@ -1,0 +1,30 @@
+---
+- name: Include lib-valheim library role
+  include_role:
+    name: lib-valheim
+  vars:
+    valheim_instance_name: "{{ valheim1_instance_name }}"
+    valheim_namespace: "{{ valheim1_namespace }}"
+    valheim_image: "{{ valheim1_image }}"
+    valheim_image_pull_policy: "{{ valheim1_image_pull_policy }}"
+    valheim_game_port: "{{ valheim1_game_port }}"
+    valheim_msqp_port: "{{ valheim1_msqp_port }}"
+    valheim_service_type: "{{ valheim1_service_type }}"
+    valheim_service_annotations: "{{ valheim1_service_annotations }}"
+    valheim_load_balancer_ip: "{{ valheim1_load_balancer_ip | default(omit) }}"
+    valheim_storage_class: "{{ valheim1_storage_class }}"
+    valheim_config_storage_size: "{{ valheim1_config_storage_size }}"
+    valheim_server_storage_size: "{{ valheim1_server_storage_size }}"
+    valheim_resources: "{{ valheim1_resources }}"
+    valheim_node_selector: "{{ valheim1_node_selector }}"
+    valheim_tolerations: "{{ valheim1_tolerations }}"
+    valheim_server_name: "{{ valheim1_server_name }}"
+    valheim_world_name: "{{ valheim1_world_name }}"
+    valheim_server_public: "{{ valheim1_server_public }}"
+    valheim_uid: "{{ valheim1_uid }}"
+    valheim_gid: "{{ valheim1_gid }}"
+    valheim_adminlist_ids: "{{ valheim1_adminlist_ids }}"
+    valheim_bannedlist_ids: "{{ valheim1_bannedlist_ids }}"
+    valheim_permittedlist_ids: "{{ valheim1_permittedlist_ids }}"
+    valheim_server_pass: "{{ valheim1_server_pass }}"
+    valheim_set_statefulset_zero: "{{ valheim1_set_statefulset_zero }}"
