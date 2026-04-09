@@ -27,8 +27,8 @@ zomboid1_data_storage_size: "50Gi"
 # Resources
 zomboid1_resources:
   requests:
-    cpu: "6"
-    memory: "12Gi"
+    cpu: "4"
+    memory: "8Gi"
   limits:
     cpu: "8"
     memory: "16Gi"
