@@ -5,8 +5,8 @@
 zomboid1_instance_name: "zomboid1"
 zomboid1_namespace: "zomboid1"
 
-# Container image
-zomboid1_image: "{{ harbor_external_url }}/library/zomboid-dedicated-server:latest"
+# Container image (via dockerhub pull-through)
+zomboid1_image: "{{ harbor_external_url }}/dockerhub/jsknnr/project-zomboid-server:latest"
 zomboid1_image_pull_policy: "Always"
 
 # Service
