@@ -1,0 +1,12 @@
+---
+# Loki ArgoCD Application Role Defaults
+
+# Helm chart configuration
+loki_chart_repo: "https://grafana.github.io/helm-charts"
+loki_chart_name: "loki"
+loki_chart_version: "6.55.0"
+loki_namespace: "loki"
+
+# Storage
+loki_storage_size: "50Gi"
+loki_retention_period: "168h"  # 7 days

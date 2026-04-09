@@ -1,0 +1,31 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Template out Cilium LB IP pool for Unifi
+  template:
+    src: cilium-lb-pool.yaml
+    dest: "{{ output_dir_path }}/cilium-lb-pool.yaml"
+
+- name: Template out ESO SecretStore and RBAC
+  template:
+    src: eso-secretstore.yaml
+    dest: "{{ output_dir_path }}/eso-secretstore.yaml"
+
+- name: Template out ESO ExternalSecret for MongoDB URIs
+  template:
+    src: eso-external-secret.yaml
+    dest: "{{ output_dir_path }}/eso-external-secret.yaml"
+
+- name: Template out ULP stub ConfigMap
+  template:
+    src: ulp-stub-configmap.yaml
+    dest: "{{ output_dir_path }}/ulp-stub-configmap.yaml"
+
+- name: Include MongoDB tasks
+  include_tasks: mongodb.yml
+
+- name: Include Unifi tasks
+  include_tasks: unifi.yml

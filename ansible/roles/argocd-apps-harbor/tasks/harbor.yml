@@ -28,7 +28,7 @@
 
 - name: write output manifests for helm template
   copy:
-    content: "{{ helm_template_command.stdout }}"
+    content: "{{ helm_template_command.stdout | harbor_patch_pod_security(harbor_registry_run_as_group) }}"
     dest: "{{ output_dir_path }}/harbor-helm-manifests.yaml"
 
 #- name: Template out Harbor external ingress

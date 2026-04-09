@@ -1,12 +1,15 @@
 ---
 # ansible-playbook generate-k8s2-talos-config.yml -e talos_luks_passphrase="asdf"
-- hosts: k8s2
+- hosts: k8s2_nodes
   connection: local
   vars:
     cluster_name: k8s2
   tasks:
     - name: include tasks/1_set_vars.yml
       include_tasks: ../tasks/1_set_vars.yml
+
+    - name: Include harbor registry vars
+      include_vars: "{{ repo_dir }}/ansible/inventory/group_vars/cluster/harbor_registry.yml"
 
     - name: Get LUKS password file path from environment variable
       set_fact:
@@ -39,5 +42,12 @@
         fail_msg: "LUKS password contains unsafe characters (only A-Za-z0-9-_./=+@:~!#$%&* allowed, no quotes)"
       no_log: true
 
+    # NOTE: Play targets k8s2_nodes so that hostvars (host_vars/*.yml) are
+    # auto-populated for all nodes. The role only needs to run once since it
+    # loops over cluster_hosts internally and accesses per-node data via
+    # hostvars[node_name] — never inventory_hostname. The 'when' guard
+    # prevents N×N execution (5 hosts × 5 loop items = 25 runs per task).
+    # run_once would also work but produces noisier skip output.
     - include_role:
         name: talos-gen-configs
+      when: inventory_hostname == groups[cluster_name + '_nodes'][0]

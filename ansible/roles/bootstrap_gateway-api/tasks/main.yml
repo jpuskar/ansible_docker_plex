@@ -1,0 +1,51 @@
+---
+# Gateway API CRDs must be installed before enabling Cilium Gateway API support
+# Ref: https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/
+
+- name: check if gateway-api CRDs already exist
+  shell:
+    cmd: |-
+      kubectl get crd gateways.gateway.networking.k8s.io \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o name
+  register: gateway_api_crd_check
+  failed_when: >-
+    gateway_api_crd_check.rc != 0 and
+    'NotFound' not in gateway_api_crd_check.stderr
+  changed_when: false
+
+- name: skip gateway-api bootstrap (CRDs already present)
+  meta: end_role
+  when: gateway_api_crd_check.rc == 0
+
+- name: set gateway_api_version if not defined
+  set_fact:
+    gateway_api_version: "{{ gateway_api_version | default('v1.2.0') }}"
+
+- name: set gateway_api_channel if not defined (standard or experimental)
+  set_fact:
+    gateway_api_channel: "{{ gateway_api_channel | default('standard') }}"
+
+- name: install Gateway API CRDs
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f https://github.com/kubernetes-sigs/gateway-api/releases/download/{{ gateway_api_version }}/{{ gateway_api_channel }}-install.yaml
+  register: gateway_api_install_output
+
+- name: show Gateway API installation output
+  debug:
+    var: gateway_api_install_output.stdout_lines
+
+- name: verify Gateway API CRDs are installed
+  shell:
+    cmd: |-
+      kubectl get crd \
+        --kubeconfig {{ kubeconfig_path }} \
+        | grep gateway.networking.k8s.io
+  register: gateway_api_crds
+
+- name: show installed Gateway API CRDs
+  debug:
+    var: gateway_api_crds.stdout_lines

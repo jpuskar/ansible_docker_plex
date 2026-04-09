@@ -1,0 +1,33 @@
+---
+- name: Template out kube-prometheus-stack Helm values to temp dir
+  template:
+    src: kps-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/kps-values.yaml"
+
+- name: Add prometheus-community Helm repository
+  shell:
+    cmd: |-
+      helm repo add prometheus-community {{ kps_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm prometheus-community repositories
+  shell:
+    cmd: |-
+      helm repo update prometheus-community
+  changed_when: false
+
+- name: Generate kube-prometheus-stack manifests using helm template
+  shell:
+    cmd: |-
+      helm template kube-prometheus-stack prometheus-community/{{ kps_chart_name }} \
+        --version {{ kps_chart_version }} \
+        --namespace {{ kps_namespace }} \
+        --values {{ temp_dir_path }}/kps-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/kube-prometheus-stack-helm-manifests.yaml"

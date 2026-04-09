@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ palworld_instance_name }}
+  namespace: {{ palworld_namespace }}
+  labels:
+    app: palworld
+    app.kubernetes.io/name: palworld
+    app.kubernetes.io/instance: {{ palworld_instance_name }}
+{% if palworld_service_annotations %}
+  annotations:
+{% for key, value in palworld_service_annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ palworld_service_type }}
+{% if palworld_load_balancer_ip is defined and palworld_service_type == "LoadBalancer" %}
+  loadBalancerIP: {{ palworld_load_balancer_ip }}
+{% endif %}
+  selector:
+    app: palworld
+    app.kubernetes.io/instance: {{ palworld_instance_name }}
+  ports:
+    - name: game
+      port: {{ palworld_game_port }}
+      targetPort: {{ palworld_game_port }}
+      protocol: UDP

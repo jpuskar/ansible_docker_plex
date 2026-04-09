@@ -1,0 +1,77 @@
+---
+# Palworld Server Instance 1
+
+# Instance identity
+palworld1_instance_name: "palworld1"
+palworld1_namespace: "palworld1"
+
+# Container image
+palworld1_image: "{{ harbor_external_url }}/library/palworld-server:2026-04-08--1"
+palworld1_image_pull_policy: "Always"
+
+# Sidecar
+palworld1_rcon_image: "{{ harbor_external_url }}/library/palworld-rcon-backup:latest"
+palworld1_rcon_enabled: true
+
+# Service
+palworld1_service_type: "LoadBalancer"
+palworld1_service_annotations: {}
+# palworld1_load_balancer_ip: ""  # Set in cluster vars
+
+# Game server port
+palworld1_game_port: 8211
+
+# Storage
+palworld1_storage_class: "openebs-rawfile"
+palworld1_storage_size: "40Gi"
+
+# Resources
+palworld1_resources:
+  requests:
+    cpu: "2"
+    memory: "8Gi"
+  limits:
+    cpu: "4"
+    memory: "16Gi"
+
+# Node selector
+palworld1_node_selector: {}
+
+# Tolerations
+palworld1_tolerations: []
+
+# Game server config
+palworld1_server_config:
+  CollectionDropRate: 1.000000
+  DeathPenalty: None
+  EnemyDropItemRate: 1.000000
+  ExpRate: 1.000000
+  PalCaptureRate: 1.000000
+  PalEggDefaultHatchingTime: 0.100000
+  PalSpawnNumRate: 1.200000
+  PlayerDamageRateAttack: 1.000000
+  PlayerDamageRateDefense: 1.000000
+  RCONEnabled: "True"
+  bActiveUNKO: "False"
+  bEnableInvaderEnemy: "False"
+  bEnableNonLoginPenalty: "False"
+  PalStomachDecreaceRate: 0.400000
+  PlayerStomachDecreaceRate: 0.400000
+  BaseCampMaxNumInGuild: 6
+
+# Passwords (vault-encrypt these in cluster vars)
+palworld1_server_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33323939303265383932633166383766663834623532636337313131656239623535353837616433
+  3064323337386135343439363435396234366134303562660a326235346263386532626262316338
+  61643132656532333131353438363432383635376236643665383365386366326664316461356330
+  3464363365363036660a306666353764323735323739373433616637333638333030313864313533
+  6366
+
+palworld1_admin_password: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  31663432366534363831323764666263653235303236333963313332633666346639326638313533
+  6461666163373937383531313365303535306132616135640a393539363538356531636236643066
+  37393634373166393065363639303766346531636639366631623238396235636363633837376165
+  3234366339643465300a343237313761323334323935623266383836623964303864323136376261
+  31356631326463343262376234333065666134353736666437303135316563316138

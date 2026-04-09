@@ -9,36 +9,25 @@ metadata:
 spec:
   project: default
 
-  # Multi-source: Helm chart from Helm repo, values and namespace from Git
   sources:
-    # Helm chart source
-    - repoURL: https://percona.github.io/percona-helm-charts/
-      chart: pg-operator
-      targetRevision: 2.8.2
-      helm:
-        valueFiles:
-          - $values/argocd-apps/percona-postgres/operator-values.yaml
-
-    # Git repo source for values
     - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: zfs-disk-replace
-      ref: values
-
-    # Git repo source for namespace
-    - repoURL: https://github.com/jpuskar/ansible_docker_plex
-      targetRevision: zfs-disk-replace
-      path: argocd-apps/percona-postgres
-      directory:
-        include: 'namespace.yaml'
+      targetRevision: {{ argocd_apps_revision_overrides['percona-postgres-operator'] | default(argocd_apps_git_revision) }}
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "percona-postgres"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
 
   destination:
     server: https://kubernetes.default.svc
     namespace: percona-postgres
 
   syncPolicy:
-    # Manual sync only
     syncOptions:
-      - ServerSideApply=true  # Ensures CRDs are installed before other resources
+      - ServerSideApply=true
+      - CreateNamespace=true
     retry:
       limit: 5
       backoff:

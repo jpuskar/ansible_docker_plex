@@ -1,4 +1,34 @@
 ---
+- name: Extract Harbor CA certificate from harbor-ingress secret
+  shell:
+    cmd: |
+      kubectl get secret harbor-ingress -n harbor \
+        -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
+  changed_when: false
+
+- name: Verify CA certificate was extracted
+  stat:
+    path: "{{ temp_dir }}/harbor-ca.crt"
+  register: ca_cert_stat
+
+- name: Read CA certificate content
+  slurp:
+    src: "{{ temp_dir }}/harbor-ca.crt"
+  register: ca_cert_content
+  when: ca_cert_stat.stat.exists
+
+- name: Assert CA certificate is valid
+  assert:
+    that:
+      - ca_cert_stat.stat.exists
+      - ca_cert_stat.stat.size > 0
+      - "(ca_cert_content.content | b64decode) is search('BEGIN CERTIFICATE')"
+    fail_msg: "CA cert at {{ temp_dir }}/harbor-ca.crt is missing or invalid (exists: {{ ca_cert_stat.stat.exists }}, size: {{ ca_cert_stat.stat.size | default(0) }})"
+
+- name: Set Harbor CA cert path
+  set_fact:
+    harbor_ca_path: "{{ temp_dir }}/harbor-ca.crt"
+
 - name: Get Harbor admin password from Kubernetes secret if not provided
   shell:
     cmd: |
@@ -17,12 +47,13 @@
 
 - name: Create registry endpoints for pull-through proxies
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/registries"
+    url: "https://{{ harbor_external_url }}/api/v2.0/registries"
     method: POST
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     body_format: json
     body:
       name: "{{ item.endpoint_name }}"
@@ -43,12 +74,13 @@
 
 - name: Get registry endpoint IDs
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/registries?name={{ item.endpoint_name | urlencode }}"
+    url: "https://{{ harbor_external_url }}/api/v2.0/registries?name={{ item.endpoint_name | urlencode }}"
     method: GET
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     status_code: [200]
   loop: "{{ harbor_pull_through_registries }}"
   loop_control:
@@ -57,12 +89,13 @@
 
 - name: Create pull-through cache projects
   uri:
-    url: "{{ harbor_external_url }}/api/v2.0/projects"
+    url: "https://{{ harbor_external_url }}/api/v2.0/projects"
     method: POST
     user: admin
     password: "{{ harbor_admin_password }}"
     force_basic_auth: yes
-    validate_certs: "{{ harbor_validate_certs }}"
+    validate_certs: true
+    ca_path: "{{ harbor_ca_path }}"
     body_format: json
     body:
       project_name: "{{ item.item.name }}"

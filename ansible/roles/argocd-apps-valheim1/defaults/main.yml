@@ -1,0 +1,58 @@
+---
+# Valheim Server Instance 1
+
+# Instance identity
+valheim1_instance_name: "valheim1"
+valheim1_namespace: "valheim1"
+
+# Container image (custom rootless image via harbor proxy)
+valheim1_image: "{{ harbor_external_url }}/library/valheim-server:latest"
+valheim1_image_pull_policy: "Always"
+
+# Service
+valheim1_service_type: "LoadBalancer"
+valheim1_service_annotations: {}
+# valheim1_load_balancer_ip: ""  # Set in cluster vars
+
+# Ports
+valheim1_game_port: 2456
+valheim1_msqp_port: 2457
+
+# Storage
+valheim1_storage_class: "openebs-rawfile"
+valheim1_config_storage_size: "10Gi"
+valheim1_server_storage_size: "10Gi"
+
+# Resources
+valheim1_resources: {}
+
+# Node selector
+valheim1_node_selector: {}
+
+# Tolerations
+valheim1_tolerations: []
+
+# Server config
+valheim1_server_name: "LV426"
+valheim1_world_name: "LV426"
+valheim1_server_public: "false"
+
+# User/group IDs (matches Dockerfile USER 10000)
+valheim1_uid: 10000
+valheim1_gid: 10000
+
+# Admin/ban/permit lists (space-separated SteamID64s)
+valheim1_adminlist_ids: ""
+valheim1_bannedlist_ids: ""
+valheim1_permittedlist_ids: ""
+
+# Passwords (vault-encrypt these in cluster vars)
+valheim1_server_pass: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33323939303265383932633166383766663834623532636337313131656239623535353837616433
+  3064323337386135343439363435396234366134303562660a326235346263386532626262316338
+  61643132656532333131353438363432383635376236643665383365386366326664316461356330
+  3464363365363036660a306666353764323735323739373433616637333638333030313864313533
+  6366
+
+valheim1_set_statefulset_zero: true

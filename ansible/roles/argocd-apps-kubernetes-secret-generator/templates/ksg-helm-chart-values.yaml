@@ -1,0 +1,7 @@
+# kubernetes-secret-generator Helm values
+secretLength: "{{ ksg_secret_length }}"
+watchNamespace: "{{ ksg_watch_namespace }}"
+
+rbac:
+  create: true
+  clusterRole: true

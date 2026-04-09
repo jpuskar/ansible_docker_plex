@@ -2,6 +2,14 @@
 - name: set repo_dir fact
   set_fact:
     repo_dir: "{{ (playbook_dir ~ '/../..') | realpath }}"
+  when: repo_dir is not defined
+
+- name: verify repo_dir structure
+  assert:
+    that:
+      - (repo_dir ~ '/ansible/inventory') is directory
+      - (repo_dir ~ '/ansible/tasks') is directory
+    fail_msg: "repo_dir '{{ repo_dir }}' does not look like the repo root (missing ansible/inventory or ansible/tasks)"
 
 - name: set temp_dir fact
   set_fact:

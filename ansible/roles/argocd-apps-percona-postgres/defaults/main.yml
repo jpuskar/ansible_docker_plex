@@ -1,0 +1,30 @@
+---
+# percona-postgres ArgoCD Application Role Defaults
+
+# Percona PostgreSQL Operator Helm chart configuration
+percona_postgres_chart_repo: "https://percona.github.io/percona-helm-charts/"
+percona_postgres_chart_name: "pg-operator"
+percona_postgres_chart_version: "2.9.0"
+percona_postgres_namespace: "percona-postgres"
+
+# Operator configuration
+percona_postgres_watch_all_namespaces: true
+percona_postgres_replica_count: 1
+percona_postgres_log_level: "INFO"
+percona_postgres_log_structured: false
+percona_postgres_disable_telemetry: false
+
+# Tolerations
+percona_postgres_tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Exists
+    effect: NoSchedule
+
+# Resource limits for operator
+percona_postgres_resources:
+  limits:
+    cpu: 200m
+    memory: 500Mi
+  requests:
+    cpu: 100m
+    memory: 20Mi

@@ -1,0 +1,39 @@
+---
+- name: Template out kyverno Helm values to temp dir
+  template:
+    src: kyverno-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/kyverno-values.yaml"
+
+- name: Add kyverno Helm repository
+  shell:
+    cmd: |-
+      helm repo add kyverno {{ kyverno_repo_url }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm kyverno repositories
+  shell:
+    cmd: |-
+      helm repo update kyverno
+  changed_when: false
+
+- name: Generate kyverno manifests using helm template
+  shell:
+    cmd: |-
+      helm template kyverno {{ kyverno_chart_name }} \
+        --version {{ kyverno_version }} \
+        --namespace {{ kyverno_namespace }} \
+        --values {{ temp_dir_path }}/kyverno-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/kyverno-helm-manifests.yaml"
+
+- name: Template out ingress domain replacement policy
+  template:
+    src: ingress-domain-policy.yaml
+    dest: "{{ output_dir_path }}/kyverno-ingress-domain-policy.yaml"
+  when: kyverno_domain_replacement_enabled and kyverno_domain_actual != ''

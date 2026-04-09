@@ -1,0 +1,20 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Include cert-manager tasks
+  include_tasks: cert-manager.yml
+
+- name: Template out self-signed ClusterIssuer
+  template:
+    src: self-signed-clusterissuer.yaml
+    dest: "{{ output_dir_path }}/self-signed-clusterissuer.yaml"
+  when: cert_manager_deploy_ca | bool
+
+- name: Template out root CA certificate
+  template:
+    src: root-ca-certificate.yaml
+    dest: "{{ output_dir_path }}/root-ca-certificate.yaml"
+  when: cert_manager_deploy_ca | bool

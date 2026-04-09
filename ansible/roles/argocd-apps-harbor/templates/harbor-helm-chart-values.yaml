@@ -1,8 +1,8 @@
 ---
 # Harbor Helm values
 
-# External URL for Harbor
-externalURL: "{{ harbor_external_url }}"
+# External URL for Harbor (must include https:// scheme)
+externalURL: "https://{{ harbor_external_url }}"
 
 # Use ESO-generated admin password
 existingSecretAdminPassword: "harbor-admin-secret"

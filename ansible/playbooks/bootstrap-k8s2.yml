@@ -8,21 +8,21 @@
 
     - name: include gateway-api role
       include_role:
-        name: gateway-api
+        name: bootstrap_gateway-api
 
     - name: include cilium role
       include_role:
-        name: cilium
+        name: bootstrap_cilium
 
     - name: include cert-manager role
       include_role:
-        name: cert-manager
+        name: bootstrap_cert-manager
       vars:
         cert_manager_enable_prometheus: false
 
     - name: include trust-manager role
       include_role:
-        name: trust-manager
+        name: bootstrap_trust-manager
 
     - name: include argocd role
       include_role:

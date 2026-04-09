@@ -1,0 +1,87 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: smtp-proxy
+  namespace: {{ shinobi_smtp_proxy_namespace }}
+spec:
+  serviceName: smtp-proxy
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smtp-proxy
+  template:
+    metadata:
+      labels:
+        app: smtp-proxy
+    spec:
+      containers:
+        - name: smtp-proxy
+          image: {{ shinobi_smtp_proxy_image }}
+          env:
+            - name: CAMERA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: camera-username
+            - name: CAMERA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: camera-password
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: discord-bot-token
+            - name: DISCORD_CHANNEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: discord-channel-id
+            - name: SHINOBI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-proxy-camera-creds
+                  key: shinobi-api-key
+            - name: OV_GPU_DisableWinogradConvolution
+              value: "1"
+          ports:
+            - containerPort: {{ shinobi_smtp_proxy_port }}
+              name: smtp
+              protocol: TCP
+            - containerPort: {{ shinobi_smtp_proxy_health_port }}
+              name: health
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /config
+          resources:
+            requests:
+              memory: "{{ shinobi_smtp_proxy_resources_requests_memory }}"
+              cpu: "{{ shinobi_smtp_proxy_resources_requests_cpu }}"
+{% if shinobi_smtp_proxy_intel_gpu_enabled | default(false) %}
+              gpu.intel.com/i915: "1"
+{% endif %}
+            limits:
+              memory: "{{ shinobi_smtp_proxy_resources_limits_memory }}"
+              cpu: "{{ shinobi_smtp_proxy_resources_limits_cpu }}"
+{% if shinobi_smtp_proxy_intel_gpu_enabled | default(false) %}
+              gpu.intel.com/i915: "1"
+{% endif %}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ shinobi_smtp_proxy_health_port }}
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ shinobi_smtp_proxy_health_port }}
+      volumes:
+        - name: config
+          configMap:
+            name: smtp-proxy-config

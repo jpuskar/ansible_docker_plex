@@ -1,0 +1,8 @@
+---
+- name: Include cilium tasks
+  include_tasks: cilium.yml
+
+- name: Template out LoadBalancer IP pool and L2 announcement policy
+  template:
+    src: cilium-loadbalancer-ip-pool.yaml
+    dest: "{{ output_dir_path }}/cilium-loadbalancer-ip-pool.yaml"

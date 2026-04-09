@@ -1,0 +1,14 @@
+---
+# kubernetes-secret-generator ArgoCD Application Role Defaults
+
+# Helm chart configuration
+ksg_chart_repo: "https://helm.mittwald.de"
+ksg_chart_name: "kubernetes-secret-generator"
+ksg_chart_version: "3.4.1"
+ksg_namespace: "secret-generator"
+
+# Secret length default
+ksg_secret_length: "40"
+
+# Watch all namespaces
+ksg_watch_namespace: ""

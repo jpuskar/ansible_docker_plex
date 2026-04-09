@@ -1,0 +1,135 @@
+# kube-prometheus-stack Helm values — minimal homelab
+# Keeps Prometheus, Grafana, node-exporter, kube-state-metrics.
+# Disables heavy/unnecessary components.
+
+# --- Prometheus ---
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 7d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: openebs-rawfile
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    # Scrape all ServiceMonitors/PodMonitors regardless of labels
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+# --- Alertmanager ---
+alertmanager:
+  enabled: false
+
+# --- Grafana ---
+grafana:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  persistence:
+    enabled: true
+    storageClassName: openebs-rawfile
+    size: 2Gi
+  # Admin password from kubernetes-secret-generator StringSecret
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+  # Loki datasource for log queries
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.loki.svc:80
+      jsonData:
+        maxLines: 1000
+
+# --- Exporters ---
+nodeExporter:
+  enabled: true
+  operatingSystems:
+    linux:
+      enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  namespaceOverride: node-exporter
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+  extraArgs:
+    - --no-collector.systemd
+    - --no-collector.btrfs
+    - --no-collector.fibrechannel
+    - --no-collector.infiniband
+    - --no-collector.bcache
+    - --no-collector.bonding
+    - --no-collector.mdadm
+    - --no-collector.ipvs
+    - --no-collector.entropy
+    - --no-collector.tapestats
+    - --no-collector.zfs
+
+kubeStateMetrics:
+  enabled: true
+
+# --- Disable components not needed on a homelab ---
+thanosRuler:
+  enabled: false
+
+# --- Talos control plane scraping ---
+# Talos exposes these on non-standard ports/binds
+kubeEtcd:
+  enabled: true
+  service:
+    enabled: true
+    port: 2381
+    targetPort: 2381
+  serviceMonitor:
+    scheme: http
+
+kubeControllerManager:
+  enabled: true
+  service:
+    enabled: true
+    port: 10257
+    targetPort: 10257
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+
+kubeScheduler:
+  enabled: true
+  service:
+    enabled: true
+    port: 10259
+    targetPort: 10259
+  serviceMonitor:
+    https: true
+    insecureSkipVerify: true
+
+# kube-proxy replaced by Cilium
+kubeProxy:
+  enabled: false

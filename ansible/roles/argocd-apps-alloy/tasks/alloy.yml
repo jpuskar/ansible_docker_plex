@@ -1,0 +1,33 @@
+---
+- name: Template out Alloy Helm values to temp dir
+  template:
+    src: alloy-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/alloy-values.yaml"
+
+- name: Add grafana Helm repository
+  shell:
+    cmd: |-
+      helm repo add grafana {{ alloy_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm grafana repositories
+  shell:
+    cmd: |-
+      helm repo update grafana
+  changed_when: false
+
+- name: Generate Alloy manifests using helm template
+  shell:
+    cmd: |-
+      helm template alloy grafana/{{ alloy_chart_name }} \
+        --version {{ alloy_chart_version }} \
+        --namespace {{ alloy_namespace }} \
+        --values {{ temp_dir_path }}/alloy-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/alloy-helm-manifests.yaml"

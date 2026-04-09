@@ -1,0 +1,71 @@
+---
+- name: check if ArgoCD manages openebs-rawfile
+  shell:
+    cmd: |-
+      kubectl get daemonset rawfile-csi-node -n {{ openebs_rawfile_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
+  register: argocd_check_openebs_rawfile
+  failed_when: >-
+    argocd_check_openebs_rawfile.rc != 0 and
+    'NotFound' not in argocd_check_openebs_rawfile.stderr
+  changed_when: false
+
+- name: skip openebs-rawfile bootstrap (managed by ArgoCD)
+  meta: end_role
+  when: argocd_check_openebs_rawfile.stdout | default('') | length > 0
+
+- name: render rawfile helm chart values file
+  template:
+    src: rawfile-values.yaml
+    dest: "{{ temp_dir }}/rawfile-values.yaml"
+    backup: yes
+
+- name: add openebs-rawfile helm repo
+  shell:
+    cmd: helm repo add openebs-rawfile {{ openebs_rawfile_repo_url }}
+
+- name: update openebs-rawfile helm repo
+  shell:
+    cmd: helm repo update openebs-rawfile
+
+- name: create openebs-rawfile namespace
+  shell:
+    cmd: |-
+      kubectl create namespace {{ openebs_rawfile_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
+
+- name: install openebs-rawfile via helm
+  shell:
+    cmd: |-
+      helm upgrade \
+        rawfile-csi \
+          {{ openebs_rawfile_chart_name }} \
+            --kubeconfig {{ kubeconfig_path }} \
+            --install \
+            --version {{ openebs_rawfile_version }} \
+            --namespace {{ openebs_rawfile_namespace }} \
+            --values "{{ temp_dir }}/rawfile-values.yaml"
+
+- name: wait for rawfile controller to be ready
+  shell:
+    cmd: |-
+      kubectl wait --for=condition=ready pod \
+        -l app=rawfile-csi-controller \
+        -n {{ openebs_rawfile_namespace }} \
+        --kubeconfig {{ kubeconfig_path }} \
+        --timeout=300s
+
+- name: render storageclass
+  template:
+    src: storageclass.yaml
+    dest: "{{ temp_dir }}/rawfile-storageclass.yaml"
+    backup: yes
+
+- name: apply storageclass
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ temp_dir }}/rawfile-storageclass.yaml

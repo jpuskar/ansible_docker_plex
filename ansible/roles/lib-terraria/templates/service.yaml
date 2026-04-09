@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ terraria_instance_name }}
+  namespace: {{ terraria_namespace }}
+  labels:
+    app: terraria
+    app.kubernetes.io/name: terraria
+    app.kubernetes.io/instance: {{ terraria_instance_name }}
+{% if terraria_service_annotations %}
+  annotations:
+{% for key, value in terraria_service_annotations.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+spec:
+  type: {{ terraria_service_type }}
+{% if terraria_load_balancer_ip is defined and terraria_service_type == "LoadBalancer" %}
+  loadBalancerIP: {{ terraria_load_balancer_ip }}
+{% endif %}
+  selector:
+    app: terraria
+    app.kubernetes.io/instance: {{ terraria_instance_name }}
+  ports:
+    - name: terraria
+      port: {{ terraria_game_port }}
+      targetPort: {{ terraria_game_port }}
+      protocol: TCP

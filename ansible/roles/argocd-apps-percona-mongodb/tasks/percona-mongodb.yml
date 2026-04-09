@@ -1,0 +1,33 @@
+---
+- name: Template out percona-mongodb Helm values to temp dir
+  template:
+    src: percona-mongodb-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/percona-mongodb-values.yaml"
+
+- name: Add percona Helm repository
+  shell:
+    cmd: |-
+      helm repo add percona {{ percona_mongodb_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm percona repositories
+  shell:
+    cmd: |-
+      helm repo update percona
+  changed_when: false
+
+- name: Generate percona-mongodb manifests using helm template
+  shell:
+    cmd: |-
+      helm template percona-mongodb percona/{{ percona_mongodb_chart_name }} \
+        --version {{ percona_mongodb_chart_version }} \
+        --namespace {{ percona_mongodb_namespace }} \
+        --values {{ temp_dir_path }}/percona-mongodb-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/percona-mongodb-helm-manifests.yaml"

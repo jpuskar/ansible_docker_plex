@@ -21,13 +21,11 @@
 #     - include_role:
 #        name: node_exporter
 
-
 #    - include_role:
 #        name: zfs-core
 
    - include_role:
        name: zfs-naskiller-config
-
 
 #     # TODO: disable password rotation - 5.5.1.x
 #     - include_role:
@@ -57,7 +55,6 @@
 #           # WARNING: make sure you understand the precedence when working with these values!!
 #           allow_users: "{{ ssh_allowed_user }}"
 #           allow_groups: "{{ ssh_allowed_user }}"
-
 
 #    - include_role:
 #        name: udev-luks-autofs

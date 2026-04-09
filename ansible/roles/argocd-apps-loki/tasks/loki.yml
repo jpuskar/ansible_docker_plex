@@ -1,0 +1,33 @@
+---
+- name: Template out Loki Helm values to temp dir
+  template:
+    src: loki-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/loki-values.yaml"
+
+- name: Add grafana Helm repository
+  shell:
+    cmd: |-
+      helm repo add grafana {{ loki_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm grafana repositories
+  shell:
+    cmd: |-
+      helm repo update grafana
+  changed_when: false
+
+- name: Generate Loki manifests using helm template
+  shell:
+    cmd: |-
+      helm template loki grafana/{{ loki_chart_name }} \
+        --version {{ loki_chart_version }} \
+        --namespace {{ loki_namespace }} \
+        --values {{ temp_dir_path }}/loki-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/loki-helm-manifests.yaml"

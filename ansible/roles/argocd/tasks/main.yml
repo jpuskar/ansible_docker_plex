@@ -1,31 +1,63 @@
 ---
-- name: render argocd helm chart values file
-  template:
-    src: argocd-values.yaml
-    dest: "{{ temp_dir }}/argocd-values.yaml"
-    backup: yes
-
-- name: add argocd helm repo
-  shell:
-    cmd: helm repo add argo {{ argocd_repo_url }}
-
-- name: update argocd helm repo
-  shell:
-    cmd: helm repo update argo
-
-- name: create argocd namespace
+- name: check if ArgoCD is already installed
   shell:
     cmd: |-
-      kubectl create namespace {{ argocd_namespace }} \
+      kubectl get deployment argocd-server -n {{ argocd_namespace }} \
         --kubeconfig {{ kubeconfig_path }} \
-        --dry-run=client -o yaml | kubectl apply --kubeconfig {{ kubeconfig_path }} -f -
-  when: argocd_create_namespace | bool
+        -o name
+  register: argocd_installed_check
+  failed_when: >-
+    argocd_installed_check.rc != 0 and
+    'NotFound' not in argocd_installed_check.stderr
+  changed_when: false
 
-- name: Read Ansible vault password from file
+- name: set argocd_already_installed fact
   set_fact:
-    argocd_ansible_vault_password: "{{ lookup('file', lookup('env', 'ANSIBLE_VAULT_PASSWORD_PATH')) }}"
-  no_log: true
-  when: argocd_ansible_enabled
+    argocd_already_installed: >-
+      {{
+        not (argocd_force_install | bool) and
+        argocd_installed_check.rc == 0
+      }}
+
+- name: skip argocd helm install (already installed, use -e argocd_force_install=true to override)
+  debug:
+    msg: "ArgoCD deployment already exists in {{ argocd_namespace }}. Skipping install."
+  when: argocd_already_installed | bool
+
+- name: install argocd
+  when: not argocd_already_installed | bool
+  block:
+    - name: render argocd helm chart values file
+      template:
+        src: argocd-values.yaml
+        dest: "{{ temp_dir }}/argocd-values.yaml"
+        backup: yes
+
+    - name: add argocd helm repo
+      shell:
+        cmd: helm repo add argo {{ argocd_repo_url }}
+
+    - name: update argocd helm repo
+      shell:
+        cmd: helm repo update argo
+
+    - name: create argocd namespace
+      shell:
+        cmd: |-
+          kubectl create namespace {{ argocd_namespace }} \
+            --kubeconfig {{ kubeconfig_path }}
+      register: create_ns_argocd
+      failed_when: >-
+        create_ns_argocd.rc != 0 and
+        'AlreadyExists' not in create_ns_argocd.stderr
+      changed_when: create_ns_argocd.rc == 0
+      when: argocd_create_namespace | bool
+
+    - name: Read Ansible vault password from file
+      set_fact:
+        argocd_ansible_vault_password: "{{ lookup('file', lookup('env', 'ANSIBLE_VAULT_PASSWORD_PATH')) }}"
+      no_log: true
+      when: argocd_ansible_enabled
 
 #- name: Read ArgoCD SOPS AGE key from file
 #  set_fact:
@@ -105,44 +137,44 @@
 #                  sops -d --input-type yaml --output-type yaml /dev/stdin
 #  when: argocd_sops_enabled
 
-- name: create ansible vault password secret for argocd
-  kubernetes.core.k8s:
-    kubeconfig: "{{ kubeconfig_path }}"
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: argocd-ansible-vault
-        namespace: "{{ argocd_namespace }}"
-      type: Opaque
-      stringData:
-        vault-password: "{{ argocd_ansible_vault_password }}"
-  when: argocd_ansible_enabled
-  no_log: true
+    - name: create ansible vault password secret for argocd
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: argocd-ansible-vault
+            namespace: "{{ argocd_namespace }}"
+          type: Opaque
+          stringData:
+            vault-password: "{{ argocd_ansible_vault_password }}"
+      when: argocd_ansible_enabled
+      no_log: true
 
-- name: render ansible plugin config
-  template:
-    src: ansible-plugin-config.yaml
-    dest: "{{ temp_dir }}/ansible-plugin-config.yaml"
-  when: argocd_ansible_enabled
+    - name: render ansible plugin config
+      template:
+        src: ansible-plugin-config.yaml
+        dest: "{{ temp_dir }}/ansible-plugin-config.yaml"
+      when: argocd_ansible_enabled
 
-- name: create ansible plugin configmap for argocd
-  shell:
-    cmd: kubectl apply -f {{ temp_dir }}/ansible-plugin-config.yaml --kubeconfig {{ kubeconfig_path }}
-  when: argocd_ansible_enabled
+    - name: create ansible plugin configmap for argocd
+      shell:
+        cmd: kubectl apply -f {{ temp_dir }}/ansible-plugin-config.yaml --kubeconfig {{ kubeconfig_path }}
+      when: argocd_ansible_enabled
 
-- name: install argocd via helm
-  shell:
-    cmd: |-
-      helm upgrade \
-        argocd \
-          {{ argocd_chart_name }} \
-            --kubeconfig {{ kubeconfig_path }} \
-            --install \
-            --version {{ argocd_version }} \
-            --namespace {{ argocd_namespace }} \
-            --values "{{ temp_dir }}/argocd-values.yaml"
+    - name: install argocd via helm
+      shell:
+        cmd: |-
+          helm upgrade \
+            argocd \
+              {{ argocd_chart_name }} \
+                --kubeconfig {{ kubeconfig_path }} \
+                --install \
+                --version {{ argocd_version }} \
+                --namespace {{ argocd_namespace }} \
+                --values "{{ temp_dir }}/argocd-values.yaml"
 
 #- name: wait for argocd server to be ready
 #  shell:

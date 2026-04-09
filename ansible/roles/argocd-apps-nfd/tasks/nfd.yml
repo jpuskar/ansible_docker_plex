@@ -1,0 +1,35 @@
+---
+- name: Template out NFD Helm values to temp dir
+  template:
+    src: nfd-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/nfd-values.yaml"
+
+- name: Add NFD Helm repository
+  shell:
+    cmd: |-
+      helm repo add nfd {{ nfd_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm nfd repositories
+  shell:
+    cmd: |-
+      helm repo update nfd
+  changed_when: false
+
+- name: Generate NFD manifests using helm template
+  shell:
+    executable: /usr/bin/bash
+    cmd: |-
+      set -euo pipefail
+      helm template nfd nfd/{{ nfd_chart_name }} \
+        --version {{ nfd_chart_version }} \
+        --namespace {{ nfd_namespace }} \
+        --values {{ temp_dir_path }}/nfd-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/nfd-helm-manifests.yaml"

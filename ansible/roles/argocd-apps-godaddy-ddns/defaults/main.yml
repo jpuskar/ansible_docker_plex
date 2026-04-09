@@ -1,0 +1,22 @@
+---
+# GoDaddy DDNS ArgoCD Application Role Defaults
+
+# Namespace
+godaddy_ddns_namespace: "godaddy-ddns"
+
+# Container image
+godaddy_ddns_image: "{{ harbor_external_url }}/library/godaddy-ddns:latest"
+
+# The godaddy-config secret is created manually — see docs/godaddy-config-secret.yaml
+
+# Resource requests/limits — extremely lightweight workload
+godaddy_ddns_resources_requests_cpu: "10m"
+godaddy_ddns_resources_requests_memory: "32Mi"
+godaddy_ddns_resources_limits_cpu: "50m"
+godaddy_ddns_resources_limits_memory: "64Mi"
+
+# Check interval in seconds (default 5 minutes)
+godaddy_ddns_interval: "300"
+
+# DNS TTL in seconds
+godaddy_ddns_ttl: "3600"

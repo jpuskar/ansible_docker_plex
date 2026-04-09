@@ -1,0 +1,119 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ terraria_instance_name }}-server
+  namespace: {{ terraria_namespace }}
+  labels:
+    app: terraria
+    app.kubernetes.io/name: terraria
+    app.kubernetes.io/instance: {{ terraria_instance_name }}
+spec:
+  serviceName: {{ terraria_instance_name }}
+  replicas: {{ 0 if terraria_set_statefulset_zero else 1 }}
+  updateStrategy:
+    type: OnDelete
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: terraria
+      app.kubernetes.io/instance: {{ terraria_instance_name }}
+  template:
+    metadata:
+      labels:
+        app: terraria
+        app.kubernetes.io/instance: {{ terraria_instance_name }}
+    spec:
+      securityContext:
+        runAsUser: {{ terraria_uid }}
+        runAsGroup: {{ terraria_gid }}
+        fsGroup: {{ terraria_gid }}
+        runAsNonRoot: true
+      terminationGracePeriodSeconds: 30
+{% if terraria_node_selector %}
+      nodeSelector:
+{% for key, value in terraria_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if terraria_tolerations %}
+      tolerations:
+{{ terraria_tolerations | to_nice_yaml(indent=2) | indent(8, first=True) }}
+{% endif %}
+      containers:
+        - name: server
+          image: {{ terraria_image }}
+          imagePullPolicy: {{ terraria_image_pull_policy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: TMOD_WORLDNAME
+              value: "{{ terraria_world_name }}"
+            - name: TMOD_WORLDSIZE
+              value: "{{ terraria_world_size }}"
+            - name: TMOD_WORLDSEED
+              value: "{{ terraria_world_seed }}"
+            - name: TMOD_DIFFICULTY
+              value: "{{ terraria_difficulty }}"
+            - name: TMOD_MAXPLAYERS
+              value: "{{ terraria_max_players }}"
+            - name: TMOD_MOTD
+              value: "{{ terraria_motd }}"
+            - name: TMOD_SECURE
+              value: "{{ terraria_secure }}"
+            - name: TMOD_NPCSTREAM
+              value: "{{ terraria_npcstream }}"
+            - name: TMOD_LANGUAGE
+              value: "{{ terraria_language }}"
+            - name: TMOD_PORT
+              value: "{{ terraria_game_port }}"
+            - name: TMOD_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: server-password
+                  key: server-pass
+            - name: TMOD_AUTOSAVE_INTERVAL
+              value: "{{ terraria_autosave_interval }}"
+            - name: TMOD_SHUTDOWN_MESSAGE
+              value: "{{ terraria_shutdown_message }}"
+{% if terraria_autodownload %}
+            - name: TMOD_AUTODOWNLOAD
+              value: "{{ terraria_autodownload }}"
+{% endif %}
+{% if terraria_enabledmods %}
+            - name: TMOD_ENABLEDMODS
+              value: "{{ terraria_enabledmods }}"
+{% endif %}
+          ports:
+            - name: terraria
+              containerPort: {{ terraria_game_port }}
+              protocol: TCP
+{% if terraria_resources %}
+          resources:
+{{ terraria_resources | to_nice_yaml(indent=2) | indent(12, first=True) }}
+{% endif %}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: data
+        labels:
+          app: terraria
+          app.kubernetes.io/instance: {{ terraria_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if terraria_storage_class %}
+        storageClassName: {{ terraria_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ terraria_data_storage_size }}

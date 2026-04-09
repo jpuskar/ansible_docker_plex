@@ -1,0 +1,31 @@
+# Percona MongoDB Operator Helm values
+
+# Watch all namespaces for PerconaServerMongoDB resources
+watchAllNamespaces: {{ percona_mongodb_watch_all_namespaces | lower }}
+
+# Operator replica count
+replicaCount: {{ percona_mongodb_replica_count }}
+
+# Allow scheduling on control plane nodes
+tolerations:
+{% for toleration in percona_mongodb_tolerations %}
+  - key: {{ toleration.key }}
+    operator: {{ toleration.operator }}
+    effect: {{ toleration.effect }}
+{% endfor %}
+
+# Resource limits for operator
+resources:
+  limits:
+    cpu: {{ percona_mongodb_resources.limits.cpu }}
+    memory: {{ percona_mongodb_resources.limits.memory }}
+  requests:
+    cpu: {{ percona_mongodb_resources.requests.cpu }}
+    memory: {{ percona_mongodb_resources.requests.memory }}
+
+# Logging configuration
+logLevel: "{{ percona_mongodb_log_level }}"
+logStructured: {{ percona_mongodb_log_structured | lower }}
+
+# Telemetry (set to true to disable)
+disableTelemetry: {{ percona_mongodb_disable_telemetry | lower }}

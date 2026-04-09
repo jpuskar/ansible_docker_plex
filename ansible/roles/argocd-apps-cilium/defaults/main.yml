@@ -1,0 +1,32 @@
+---
+# Cilium ArgoCD Application Role Defaults
+
+# Cilium Helm chart configuration
+cilium_chart_repo: "https://helm.cilium.io/"
+cilium_chart_name: "cilium"
+cilium_chart_version: "1.18.5"
+cilium_namespace: "kube-system"
+
+# Ingress controller
+cilium_ingress_controller_enabled: true
+cilium_ingress_loadbalancer_mode: "dedicated"
+cilium_ingress_default: true
+
+# Gateway API
+cilium_gateway_api_enabled: false
+
+# L2 announcements for LoadBalancer IPs
+cilium_l2_announcements_enabled: true
+
+# LoadBalancer IP pool range
+cilium_lb_pool_start: "192.168.25.50"
+cilium_lb_pool_stop: "192.168.25.70"
+
+# Operator
+cilium_operator_replicas: 1
+
+# External IPs
+cilium_external_ips_enabled: true
+
+# Device detection pattern
+cilium_devices: "en+"

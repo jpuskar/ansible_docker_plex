@@ -1,0 +1,49 @@
+---
+- name: Template out Velero Helm values to temp dir
+  template:
+    src: velero-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/velero-values.yaml"
+
+- name: Add vmware-tanzu Helm repository
+  shell:
+    cmd: |-
+      helm repo add vmware-tanzu {{ velero_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm vmware-tanzu repositories
+  shell:
+    cmd: |-
+      helm repo update vmware-tanzu
+  changed_when: false
+
+- name: Generate Velero manifests using helm template
+  shell:
+    cmd: |-
+      helm template velero vmware-tanzu/{{ velero_chart_name }} \
+        --version {{ velero_chart_version }} \
+        --namespace {{ velero_namespace }} \
+        --values {{ temp_dir_path }}/velero-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/velero-helm-manifests.yaml"
+
+- name: Template out NFS PV and PVC for backup storage
+  template:
+    src: velero-nfs-pv-pvc.yaml
+    dest: "{{ output_dir_path }}/velero-nfs-pv-pvc.yaml"
+
+- name: Template out MinIO deployment, service, and credentials secret
+  copy:
+    content: "{{ lookup('template', 'velero-minio.yaml') | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/velero-minio.yaml"
+
+- name: Template out default backup schedule
+  template:
+    src: velero-default-schedule.yaml
+    dest: "{{ output_dir_path }}/velero-default-schedule.yaml"
+  when: velero_default_schedule_enabled | default(true)

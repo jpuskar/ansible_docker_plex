@@ -4,15 +4,35 @@
     src: "{{ item }}"
     dest: "{{ temp_dir }}/{{ item }}"
   loop:
+    - gateway-api-application.yaml
+    - cilium-application.yaml
+    - cert-manager-application.yaml
+    - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
-    - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
+    - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
-    - nvidia-device-plugin-application.yaml
-    - nvidia-gpu-operator-application.yaml
-    - vscode-remote-standard-application.yaml
+    - kubernetes-secret-generator-application.yaml
+    - kube-prometheus-stack-application.yaml
+    - loki-application.yaml
+    - alloy-application.yaml
+    - kyverno-application.yaml
+    - shinobi-smtp-proxy-application.yaml
+    - nfd-application.yaml
+    - intel-gpu-plugin-application.yaml
+    - unifi-application.yaml
+    - godaddy-ddns-application.yaml
+    - velero-application.yaml
+    - plex-application.yaml
+    - palworld1-application.yaml
+    - zomboid1-application.yaml
+    - valheim1-application.yaml
+    - terraria1-application.yaml
+#    - nvidia-device-plugin-application.yaml
+#    - nvidia-gpu-operator-application.yaml
+#    - vscode-remote-standard-application.yaml
 
 - name: Apply ArgoCD Application manifests
   shell:
@@ -21,12 +41,32 @@
         --kubeconfig {{ kubeconfig_path }} \
         -f {{ temp_dir }}/{{ item }}
   loop:
+    - gateway-api-application.yaml
+    - cilium-application.yaml
+    - cert-manager-application.yaml
+    - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
-    - openebs-rawfile-storageclass-application.yaml
     - percona-postgres-operator-application.yaml
+    - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
     - external-secrets-operator-application.yaml
     - harbor-application.yaml
-    - nvidia-device-plugin-application.yaml
-    - nvidia-gpu-operator-application.yaml
-    - vscode-remote-standard-application.yaml
+    - kubernetes-secret-generator-application.yaml
+    - kube-prometheus-stack-application.yaml
+    - loki-application.yaml
+    - alloy-application.yaml
+    - kyverno-application.yaml
+    - shinobi-smtp-proxy-application.yaml
+    - nfd-application.yaml
+    - intel-gpu-plugin-application.yaml
+    - unifi-application.yaml
+    - godaddy-ddns-application.yaml
+    - velero-application.yaml
+    - plex-application.yaml
+    - palworld1-application.yaml
+    - zomboid1-application.yaml
+    - valheim1-application.yaml
+    - terraria1-application.yaml
+#    - nvidia-device-plugin-application.yaml
+#    - nvidia-gpu-operator-application.yaml
+#    - vscode-remote-standard-application.yaml

@@ -1,0 +1,29 @@
+---
+- name: Add Intel Helm repository
+  shell:
+    cmd: |-
+      helm repo add intel {{ intel_helm_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm intel repositories
+  shell:
+    cmd: |-
+      helm repo update intel
+  changed_when: false
+
+- name: Generate Intel Device Plugins Operator manifests using helm template
+  shell:
+    executable: /usr/bin/bash
+    cmd: |-
+      set -euo pipefail
+      helm template intel-device-plugins-operator intel/{{ intel_operator_chart_name }} \
+        --version {{ intel_operator_chart_version }} \
+        --namespace {{ intel_gpu_namespace }} \
+        --include-crds
+  register: helm_template_operator
+
+- name: write output manifests for operator helm template
+  copy:
+    content: "{{ helm_template_operator.stdout }}"
+    dest: "{{ output_dir_path }}/intel-operator-helm-manifests.yaml"

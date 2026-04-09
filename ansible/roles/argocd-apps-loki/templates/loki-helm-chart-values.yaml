@@ -1,0 +1,90 @@
+# Loki Helm values — SingleBinary mode for homelab on Talos
+
+# --- Deployment mode ---
+deploymentMode: SingleBinary
+
+# --- Loki config ---
+loki:
+  auth_enabled: false
+
+  # Filesystem storage — no object store needed
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+
+  storage:
+    type: filesystem
+
+  # Retention
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+  limits_config:
+    retention_period: {{ loki_retention_period }}
+
+  # Ingestion limits suitable for homelab
+  ingester:
+    chunk_idle_period: 30m
+    chunk_retain_period: 1m
+
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki
+
+# --- Single Binary (all components in one pod) ---
+singleBinary:
+  replicas: 1
+  persistence:
+    storageClass: openebs-rawfile
+    size: {{ loki_storage_size }}
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# --- Disable scalable targets (not used in SingleBinary) ---
+write:
+  replicas: 0
+read:
+  replicas: 0
+backend:
+  replicas: 0
+
+# --- Gateway ---
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# Disable chunk cache / results cache (in-memory only for homelab)
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Disable minio sub-chart (using filesystem)
+minio:
+  enabled: false
+
+# Disable self-monitoring and test
+monitoring:
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false

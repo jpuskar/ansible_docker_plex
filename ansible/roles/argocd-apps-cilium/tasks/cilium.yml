@@ -1,0 +1,33 @@
+---
+- name: Template out Cilium Helm values to temp dir
+  template:
+    src: cilium-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/cilium-values.yaml"
+
+- name: Add Cilium Helm repository
+  shell:
+    cmd: |-
+      helm repo add cilium {{ cilium_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm cilium repositories
+  shell:
+    cmd: |-
+      helm repo update cilium
+  changed_when: false
+
+- name: Generate Cilium manifests using helm template
+  shell:
+    cmd: |-
+      helm template cilium cilium/{{ cilium_chart_name }} \
+        --version {{ cilium_chart_version }} \
+        --namespace {{ cilium_namespace }} \
+        --values {{ temp_dir_path }}/cilium-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/cilium-helm-manifests.yaml"

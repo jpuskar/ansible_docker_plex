@@ -1,0 +1,28 @@
+---
+# Intel Device Plugins Operator + GPU Plugin ArgoCD Application Role Defaults
+
+intel_gpu_namespace: "inteldeviceplugins-system"
+
+# Helm chart repo
+intel_helm_repo: "https://intel.github.io/helm-charts/"
+
+# Operator chart
+intel_operator_chart_name: "intel-device-plugins-operator"
+intel_operator_chart_version: "0.35.0"
+
+# GPU plugin chart
+intel_gpu_chart_name: "intel-device-plugins-gpu"
+intel_gpu_chart_version: "0.35.0"
+
+# Number of containers that can share a single GPU
+# 1 = exclusive access, >1 = time-sliced sharing
+intel_gpu_shared_dev_num: 10
+
+# Log verbosity (0-5, higher = more verbose)
+intel_gpu_log_level: 2
+
+# Enable GPU monitoring metrics
+intel_gpu_enable_monitoring: true
+
+# Deploy NodeFeatureRule for automatic GPU labeling
+intel_gpu_node_feature_rule: true

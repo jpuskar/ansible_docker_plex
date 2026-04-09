@@ -1,0 +1,40 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-namespace.yaml"
+
+- name: Template out server config ConfigMap
+  template:
+    src: server-config-configmap.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-server-config.yaml"
+
+- name: Template out server password Secret
+  template:
+    src: server-password-secret.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-server-password.yaml"
+
+- name: Template out ServiceAccount
+  template:
+    src: serviceaccount.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-serviceaccount.yaml"
+
+- name: Template out Role (secret reader)
+  template:
+    src: role.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-role.yaml"
+
+- name: Template out RoleBinding
+  template:
+    src: rolebinding.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-rolebinding.yaml"
+
+- name: Template out StatefulSet manifest
+  template:
+    src: statefulset.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-statefulset.yaml"
+
+- name: Template out Service manifest
+  template:
+    src: service.yaml
+    dest: "{{ output_dir_path }}/{{ palworld_instance_name }}-service.yaml"

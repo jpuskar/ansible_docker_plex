@@ -1,0 +1,33 @@
+---
+- name: Template out trust-manager Helm values to temp dir
+  template:
+    src: trust-manager-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/trust-manager-values.yaml"
+
+- name: Add trust-manager Helm repository
+  shell:
+    cmd: |-
+      helm repo add jetstack {{ trust_manager_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm jetstack repositories
+  shell:
+    cmd: |-
+      helm repo update jetstack
+  changed_when: false
+
+- name: Generate trust-manager manifests using helm template
+  shell:
+    cmd: |-
+      helm template trust-manager jetstack/{{ trust_manager_chart_name }} \
+        --version {{ trust_manager_chart_version }} \
+        --namespace {{ trust_manager_namespace }} \
+        --values {{ temp_dir_path }}/trust-manager-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/trust-manager-helm-manifests.yaml"

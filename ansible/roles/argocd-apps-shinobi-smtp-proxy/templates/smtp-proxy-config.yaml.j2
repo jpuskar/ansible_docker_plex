@@ -1,0 +1,95 @@
+# SMTP Proxy Configuration
+listen_host: "0.0.0.0"
+listen_port: 2525
+
+# SMTP proxy — set to false to run as standalone motion detector
+smtp_enabled: false
+
+# Health check endpoint
+health_port: {{ shinobi_smtp_proxy_health_port }}
+
+# Shinobi SMTP Server (only used when smtp_enabled: true)
+forward_host: "shinobi-smtp2.{{ site_fqdn }}"
+forward_port: 2525
+
+# Logging
+log_level: "DEBUG"
+
+# Subject line cleaning (smtp only)
+clean_subjects: true
+fallback_subject: "Motion Detected"
+
+# Subject filtering (smtp only)
+filter_keywords:
+  - "Intensity Change Stop"
+  - "Intensity Change"
+  - "Motion Detection Stop"
+
+# Debug: log MIME structure of every email (smtp only)
+debug_mime: false
+
+# AI Image Detection
+ai_detection_enabled: true
+confidence_threshold: 0.25
+ir_confidence_threshold: {{ shinobi_smtp_proxy_ir_confidence_threshold | default(0.45) }}
+
+# Baseline detection - periodic YOLO to filter out stationary objects
+baseline_interval: {{ shinobi_smtp_proxy_baseline_interval }}
+position_tolerance: {{ shinobi_smtp_proxy_position_tolerance }}
+
+# Rolling frame buffer
+buffer_seconds: {{ shinobi_smtp_proxy_buffer_seconds }}
+
+# Camera frame strategy: 'rtsp' or 'http'
+camera_strategy: rtsp
+
+# Motion detection (rtsp strategy only) — replaces camera-triggered SMTP alerts
+motion_detection: true
+motion_threshold: {{ shinobi_smtp_proxy_motion_threshold | default(25) }}  # pixel diff threshold (0-255)
+motion_min_area: {{ shinobi_smtp_proxy_motion_min_area | default(500) }}   # min contour area in pixels
+
+# Discord notifications (bot token + channel ID come from env vars / Secret)
+discord_cooldown: {{ shinobi_smtp_proxy_discord_cooldown }}
+
+# Shinobi NVR integration — push detection events to timeline
+# API key comes from SHINOBI_API_KEY env var (Secret)
+# Monitor map is auto-discovered from camera IPs at startup
+{% if shinobi_smtp_proxy_shinobi_base_url is defined %}
+shinobi:
+  base_url: "{{ shinobi_smtp_proxy_shinobi_base_url }}"
+  group_key: "{{ shinobi_smtp_proxy_shinobi_group_key }}"
+{% endif %}
+
+# Detection zones — only alert on objects inside these regions.
+# Polygons use normalized coords (0.0-1.0 of frame width/height).
+# [0,0] = top-left, [1,1] = bottom-right.
+# If no zones for a camera, whole frame is valid.
+# Example: driveway polygon that excludes the street
+#   camfrontdoor:
+#     - [[0.1, 0.3], [0.6, 0.3], [0.7, 1.0], [0.0, 1.0]]
+{% if shinobi_smtp_proxy_detection_zones is defined %}
+detection_zones:
+{{ shinobi_smtp_proxy_detection_zones | to_nice_yaml(indent=2) | indent(2, true) }}
+{% endif %}
+
+# Minimum detection bounding box area (fraction of frame, 0-1)
+# Detections smaller than this are discarded as noise
+min_detection_area: {{ shinobi_smtp_proxy_min_detection_area | default(0.003) }}
+
+# Baseline hysteresis thresholds
+# Objects must appear for add_threshold consecutive cycles to enter baseline
+# When a promoted object misses at normal confidence, verify at low confidence
+# before dropping — catches objects flickering near the threshold
+baseline_add_threshold: {{ shinobi_smtp_proxy_baseline_add_threshold | default(3) }}
+baseline_verify_confidence: {{ shinobi_smtp_proxy_baseline_verify_confidence | default(0.15) }}
+
+# Motion novelty threshold (0-1 scale)
+# Motion below this is considered environmental (wind, tree sway, shadows)
+# and won't trigger alerts even if YOLO detects an object there
+min_motion_novelty: {{ shinobi_smtp_proxy_min_motion_novelty | default(0.05) }}
+
+# Camera IPs
+cameras:
+{% for cam_id, cam_ip in shinobi_smtp_proxy_cameras.items() %}
+  {{ cam_id }}: "{{ cam_ip }}"
+{% endfor %}

@@ -1,0 +1,35 @@
+# OpenEBS Rawfile CSI Helm values
+
+# Disable default StorageClass - we manage it separately
+storageClasses: []
+
+# Node plugin configuration
+node:
+  # Data directory path on the node
+  dataDirPath: {{ openebs_rawfile_storage_path }}
+
+  # Node selector - only run on TPM-encrypted nodes
+  nodeSelector:
+{% for key, value in openebs_rawfile_node_selector.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+
+  # Tolerations for control plane nodes if needed
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Controller configuration
+controller:
+  # Node selector for controller
+  nodeSelector:
+{% for key, value in openebs_rawfile_node_selector.items() %}
+    {{ key }}: "{{ value }}"
+{% endfor %}
+
+  # Tolerations for control plane nodes if needed
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule

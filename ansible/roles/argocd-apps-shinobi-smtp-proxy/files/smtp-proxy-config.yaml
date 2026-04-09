@@ -1,0 +1,25 @@
+# SMTP Proxy Configuration
+listen_host: "0.0.0.0"
+listen_port: 2525
+
+# Shinobi SMTP Server
+forward_host: "shinobi-smtp.{{ cluster_domain }}"
+forward_port: 2525
+
+# Logging
+log_level: "INFO"
+
+# Subject line cleaning
+clean_subjects: true
+fallback_subject: "Motion Detected"
+
+# Subject filtering - drop emails containing these keywords
+filter_keywords:
+  - "Intensity Change Stop"
+  - "Intensity Change"
+  - "Motion Detection Stop"
+
+# AI Image Detection (reduces false positives)
+# Uses local YOLOv8n model to detect people, vehicles, and animals
+ai_detection_enabled: true
+confidence_threshold: 0.25  # Detection confidence (0.0-1.0, lower = more sensitive)

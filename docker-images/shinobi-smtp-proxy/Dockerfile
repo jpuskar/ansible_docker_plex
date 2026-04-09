@@ -1,20 +1,34 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install tini for proper init and signal handling
-# System dependencies for Pillow (image processing), OpenCV (YOLO), and tini
+# System dependencies for Pillow, headless OpenCV, and Intel GPU compute runtime
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl \
         libgl1 \
         libglib2.0-0 \
         libgomp1 \
-        libjpeg62-turbo-dev \
-        libsm6 \
-        libxext6 \
-        libxrender-dev \
         tini \
-        zlib1g-dev \
+        ocl-icd-libopencl1 \
+        wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Intel GPU compute runtime — Skylake (Gen9) requires LEGACY packages
+# Regular packages (26.x) only support Gen12+ (Tiger Lake and newer)
+# https://github.com/intel/compute-runtime/blob/master/LEGACY_PLATFORMS.md
+# https://github.com/intel/compute-runtime/releases/tag/24.35.30872.36
+ARG IGC_VERSION=1.0.17537.24
+ARG NEO_LEGACY_VERSION=24.35.30872.36
+ARG L0_LEGACY_VERSION=1.5.30872.36
+ARG GMMLIB_VERSION=22.5.0
+RUN mkdir -p /tmp/neo && cd /tmp/neo && \
+    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/igc-${IGC_VERSION}/intel-igc-core_${IGC_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/intel-graphics-compiler/releases/download/igc-${IGC_VERSION}/intel-igc-opencl_${IGC_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/intel-opencl-icd-legacy1_${NEO_LEGACY_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/intel-level-zero-gpu-legacy1_${L0_LEGACY_VERSION}_amd64.deb && \
+    wget -q https://github.com/intel/compute-runtime/releases/download/${NEO_LEGACY_VERSION}/libigdgmm12_${GMMLIB_VERSION}_amd64.deb && \
+    dpkg -i *.deb && \
+    rm -rf /tmp/neo && \
+    apt-get purge -y wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -22,19 +36,26 @@ WORKDIR /app
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (CPU-only PyTorch to avoid ~1.5GB of CUDA stubs)
+# Install OpenVINO for Intel GPU inference acceleration
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir openvino
 
-# Download YOLO model during build to avoid downloading on every container start
-# This caches the model in the image
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+# Download YOLO model and export to OpenVINO IR format during build
+# The exported model is used at runtime for GPU-accelerated inference
+RUN python -c "from ultralytics import YOLO; YOLO('yolo11x.pt')" && \
+    python -c "from ultralytics import YOLO; YOLO('yolo11x.pt').export(format='openvino', imgsz=640, half=False)"
 
 # Copy application source
 COPY src/ ./src/
 
-# Create non-root user for security
-RUN useradd -r -u 1001 -m -s /bin/bash smtpproxy && \
-    chown -R smtpproxy:smtpproxy /app
+# Create non-root user in 'render' group for Intel GPU /dev/dri access
+# GID 109 is the standard render group on Debian/Ubuntu
+RUN groupadd -g 109 render 2>/dev/null || true && \
+    useradd -r -u 1001 -m -s /bin/bash -G render smtpproxy && \
+    chown -R smtpproxy:smtpproxy /app && \
+    chown -R smtpproxy:smtpproxy /tmp/Ultralytics
 
 # Create config directory (will be mounted as volume)
 RUN mkdir -p /config && chown smtpproxy:smtpproxy /config
@@ -48,9 +69,9 @@ ENV PYTHONUNBUFFERED=1
 # Expose SMTP proxy port
 EXPOSE 2525
 
-# Health check - verify the process is running
+# Health check - verify the health endpoint responds
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import socket; s=socket.socket(); s.connect(('localhost', 2525)); s.close()" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')" || exit 1
 
 # Use tini as init system for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]

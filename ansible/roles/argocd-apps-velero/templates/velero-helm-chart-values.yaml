@@ -1,0 +1,103 @@
+---
+# Velero Helm chart values
+# Docs: https://github.com/vmware-tanzu/helm-charts/tree/main/charts/velero
+
+configuration:
+  features: {{ velero_features }}
+
+  backupStorageLocation:
+    - name: default
+      provider: velero.io/aws
+      bucket: {{ velero_bsl_bucket }}
+      config:
+        region: minio
+        s3ForcePathStyle: "true"
+        s3Url: "http://minio.{{ velero_namespace }}.svc:9000"
+      default: true
+
+  volumeSnapshotLocation: []
+
+  # Per-schedule opt-in for FS backup — don't blanket-enable for all backups
+  defaultVolumesToFsBackup: false
+
+  # Velero reads MinIO creds via env vars (AWS SDK); no cloud file needed.
+  extraEnvVars:
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: velero-minio-credentials
+          key: access-key
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: velero-minio-credentials
+          key: secret-key
+
+# velero-plugin-for-aws provides the velero.io/aws object store plugin
+# that the BSL needs to talk to MinIO.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: {{ velero_aws_plugin_image }}:{{ velero_aws_plugin_tag }}
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# Ensure the MinIO "velero" bucket exists before Velero tries to use it.
+backupsEnabled: true
+snapshotsEnabled: false
+
+# ArgoCD manages CRDs from the chart's crds/ directory natively.
+# Disable the chart's CRD upgrade job to avoid conflicts and the
+# bitnami/kubectl image mess (see vmware-tanzu/helm-charts#698).
+upgradeCRDs: false
+
+# Run the Velero server as a non-root user so NFS root_squash doesn't
+# block writes. The node-agent DaemonSet stays root (needs host paths).
+podSecurityContext:
+  runAsUser: {{ velero_run_as_user }}
+  runAsGroup: {{ velero_run_as_group }}
+  runAsNonRoot: true
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  readOnlyRootFilesystem: false
+
+resources:
+  requests:
+    cpu: {{ velero_resources_requests_cpu }}
+    memory: {{ velero_resources_requests_memory }}
+  limits:
+    cpu: {{ velero_resources_limits_cpu }}
+    memory: {{ velero_resources_limits_memory }}
+
+# Node-agent (formerly restic) runs as a DaemonSet to back up PVC data
+deployNodeAgent: {{ velero_node_agent_enabled | lower }}
+nodeAgent:
+  resources:
+    requests:
+      cpu: {{ velero_node_agent_resources_requests_cpu }}
+      memory: {{ velero_node_agent_resources_requests_memory }}
+    limits:
+      cpu: {{ velero_node_agent_resources_limits_cpu }}
+      memory: {{ velero_node_agent_resources_limits_memory }}
+
+# Velero reads MinIO creds via env vars (AWS SDK); no cloud file needed.
+credentials:
+  useSecret: false
+
+# /udmrepo and /.cache are where Velero/kopia writes repository index
+# and cache data. Must be writable by the non-root UID.
+extraVolumes:
+  - name: udmrepo
+    emptyDir: {}
+  - name: kopia-cache
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: udmrepo
+    mountPath: /udmrepo
+  - name: kopia-cache
+    mountPath: /.cache

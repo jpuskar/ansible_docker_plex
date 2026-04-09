@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp-proxy
+  namespace: {{ shinobi_smtp_proxy_namespace }}
+  annotations:
+    io.cilium/lb-ipam-ips: "{{ shinobi_smtp_proxy_loadbalancer_ip }}"
+spec:
+  selector:
+    app: smtp-proxy
+  ports:
+    - name: smtp
+      port: {{ shinobi_smtp_proxy_port }}
+      targetPort: {{ shinobi_smtp_proxy_port }}
+      protocol: TCP
+  type: LoadBalancer

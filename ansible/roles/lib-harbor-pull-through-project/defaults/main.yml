@@ -49,6 +49,3 @@ harbor_pull_through_registries:
 
 # Harbor external URL (should be set in cluster vars)
 # harbor_external_url: "https://harbor.example.com"
-
-# Validate TLS certificates
-harbor_validate_certs: false

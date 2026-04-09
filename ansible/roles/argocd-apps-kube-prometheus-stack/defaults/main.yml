@@ -1,0 +1,9 @@
+---
+# kube-prometheus-stack ArgoCD Application Role Defaults
+# Minimal homelab configuration
+
+# Helm chart configuration
+kps_chart_repo: "https://prometheus-community.github.io/helm-charts"
+kps_chart_name: "kube-prometheus-stack"
+kps_chart_version: "82.16.2"
+kps_namespace: "monitoring"

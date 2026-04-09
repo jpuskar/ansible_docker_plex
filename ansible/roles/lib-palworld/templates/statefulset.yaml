@@ -1,0 +1,93 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ palworld_instance_name }}-server
+  namespace: {{ palworld_namespace }}
+  labels:
+    app: palworld
+    app.kubernetes.io/name: palworld
+    app.kubernetes.io/instance: {{ palworld_instance_name }}
+spec:
+  serviceName: {{ palworld_instance_name }}
+  replicas: {{ 0 if palworld_set_statefulset_zero else 1 }}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  selector:
+    matchLabels:
+      app: palworld
+      app.kubernetes.io/instance: {{ palworld_instance_name }}
+  template:
+    metadata:
+      labels:
+        app: palworld
+        app.kubernetes.io/instance: {{ palworld_instance_name }}
+    spec:
+      serviceAccountName: {{ palworld_instance_name }}
+      securityContext:
+        runAsUser: {{ palworld_uid }}
+        runAsGroup: {{ palworld_gid }}
+        fsGroup: {{ palworld_gid }}
+{% if palworld_node_selector %}
+      nodeSelector:
+{% for key, value in palworld_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
+{% if palworld_tolerations %}
+      tolerations:
+{{ palworld_tolerations | to_nice_yaml(indent=2) | indent(8, first=True) }}
+{% endif %}
+      containers:
+        - name: palworld
+          image: {{ palworld_image }}
+          imagePullPolicy: {{ palworld_image_pull_policy }}
+          env:
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: game
+              containerPort: {{ palworld_game_port }}
+              protocol: UDP
+          resources:
+{{ palworld_resources | to_nice_yaml(indent=2) | indent(12, first=True) }}
+          volumeMounts:
+            - name: server-volume
+              mountPath: /server/Pal/Saved
+            - name: config-volume
+              mountPath: /config
+{% if palworld_rcon_enabled %}
+        - name: rcon
+          image: {{ palworld_rcon_image }}
+          imagePullPolicy: {{ palworld_image_pull_policy }}
+          env:
+            - name: MY_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+{% endif %}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: server-config
+            defaultMode: 420
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: server-volume
+        labels:
+          app: palworld
+          app.kubernetes.io/instance: {{ palworld_instance_name }}
+      spec:
+        accessModes:
+          - ReadWriteOnce
+{% if palworld_storage_class %}
+        storageClassName: {{ palworld_storage_class }}
+{% endif %}
+        resources:
+          requests:
+            storage: {{ palworld_storage_size }}

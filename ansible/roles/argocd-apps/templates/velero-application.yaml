@@ -1,0 +1,44 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: {{ argocd_apps_revision_overrides['velero'] | default(argocd_apps_git_revision) }}
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "velero"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ velero_namespace | default('velero') }}
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # BSL status is updated by Velero controller — ignore status drift.
+  ignoreDifferences:
+    - group: velero.io
+      kind: BackupStorageLocation
+      jsonPointers:
+        - /status

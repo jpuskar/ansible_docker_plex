@@ -1,0 +1,24 @@
+---
+- name: Include lib-palworld library role
+  include_role:
+    name: lib-palworld
+  vars:
+    palworld_instance_name: "{{ palworld1_instance_name }}"
+    palworld_namespace: "{{ palworld1_namespace }}"
+    palworld_image: "{{ palworld1_image }}"
+    palworld_image_pull_policy: "{{ palworld1_image_pull_policy }}"
+    palworld_rcon_image: "{{ palworld1_rcon_image }}"
+    palworld_rcon_enabled: "{{ palworld1_rcon_enabled }}"
+    palworld_game_port: "{{ palworld1_game_port }}"
+    palworld_service_type: "{{ palworld1_service_type }}"
+    palworld_service_annotations: "{{ palworld1_service_annotations }}"
+    palworld_load_balancer_ip: "{{ palworld1_load_balancer_ip | default(omit) }}"
+    palworld_storage_class: "{{ palworld1_storage_class }}"
+    palworld_storage_size: "{{ palworld1_storage_size }}"
+    palworld_resources: "{{ palworld1_resources }}"
+    palworld_node_selector: "{{ palworld1_node_selector }}"
+    palworld_tolerations: "{{ palworld1_tolerations }}"
+    palworld_server_config: "{{ palworld1_server_config }}"
+    palworld_server_password: "{{ palworld1_server_password }}"
+    palworld_admin_password: "{{ palworld1_admin_password }}"
+    palworld_set_statefulset_zero: true

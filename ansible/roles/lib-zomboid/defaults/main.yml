@@ -1,0 +1,72 @@
+---
+# Zomboid Server Library Role
+# This is a library role - key variables must be provided by the calling role
+
+# Required variables (must be set by caller):
+# - zomboid_instance_name: Unique name for this instance (e.g. "zomboid1")
+# - zomboid_namespace: Kubernetes namespace (e.g. "zomboid1")
+
+# Container image (upstream rootless, runs as UID 10000)
+zomboid_image: "docker.io/sknnr/zomboid-dedicated-server:latest"
+zomboid_image_pull_policy: "Always"
+
+# User/group IDs (matches upstream image USER 10000)
+zomboid_uid: 10000
+zomboid_gid: 10000
+
+# Game server ports
+zomboid_game_port: 16261
+zomboid_direct_port: 16262
+zomboid_rcon_port: 27015
+
+# Service
+zomboid_service_type: "LoadBalancer"
+zomboid_service_annotations: {}
+# zomboid_load_balancer_ip: ""  # Set in cluster vars
+
+# Storage
+zomboid_storage_class: "openebs-rawfile"
+zomboid_server_storage_size: "50Gi"
+zomboid_data_storage_size: "50Gi"
+
+# Resources
+zomboid_resources:
+  requests:
+    cpu: "6"
+    memory: "12Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+# Node selector
+zomboid_node_selector: {}
+
+# Tolerations
+zomboid_tolerations: []
+
+# Server config (non-sensitive env vars)
+zomboid_server_config:
+  ADMIN_USERNAME: "admin"
+  ANTI_CHEAT_TYPE21: "true"
+  AUTOSAVE_INTERVAL: "15"
+  BACKUPS_COUNT: "5"
+  BACKUPS_PERIOD: "120"
+  DIRECT_PORT: "16262"
+  GAME_PORT: "16261"
+  MAP_NAMES: "Muldraugh, KY"
+  MAX_MEMORY: "10g"
+  MAX_PLAYERS: "16"
+  PAUSE_EMPTY: "true"
+  PING_LIMIT: "400"
+  PVP: "false"
+  PUBLIC: "true"
+  RCON_PORT: "27015"
+  SERVER_NAME: "MorgPugs"
+  STEAM_VAC: "true"
+
+# Passwords (vault-encrypt these in cluster vars)
+zomboid_admin_password: "CHANGEME_VAULT_ENCRYPT"
+zomboid_rcon_password: "CHANGEME_VAULT_ENCRYPT"
+zomboid_server_password: "CHANGEME_VAULT_ENCRYPT"
+
+zomboid_set_statefulset_zero: false

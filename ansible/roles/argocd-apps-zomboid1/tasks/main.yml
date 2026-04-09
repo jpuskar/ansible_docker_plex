@@ -1,0 +1,26 @@
+---
+- name: Include lib-zomboid library role
+  include_role:
+    name: lib-zomboid
+  vars:
+    zomboid_instance_name: "{{ zomboid1_instance_name }}"
+    zomboid_namespace: "{{ zomboid1_namespace }}"
+    zomboid_image: "{{ zomboid1_image }}"
+    zomboid_image_pull_policy: "{{ zomboid1_image_pull_policy }}"
+    zomboid_game_port: "{{ zomboid1_game_port }}"
+    zomboid_direct_port: "{{ zomboid1_direct_port }}"
+    zomboid_rcon_port: "{{ zomboid1_rcon_port }}"
+    zomboid_service_type: "{{ zomboid1_service_type }}"
+    zomboid_service_annotations: "{{ zomboid1_service_annotations }}"
+    zomboid_load_balancer_ip: "{{ zomboid1_load_balancer_ip | default(omit) }}"
+    zomboid_storage_class: "{{ zomboid1_storage_class }}"
+    zomboid_server_storage_size: "{{ zomboid1_server_storage_size }}"
+    zomboid_data_storage_size: "{{ zomboid1_data_storage_size }}"
+    zomboid_resources: "{{ zomboid1_resources }}"
+    zomboid_node_selector: "{{ zomboid1_node_selector }}"
+    zomboid_tolerations: "{{ zomboid1_tolerations }}"
+    zomboid_server_config: "{{ zomboid1_server_config }}"
+    zomboid_admin_password: "{{ zomboid1_admin_password }}"
+    zomboid_rcon_password: "{{ zomboid1_rcon_password }}"
+    zomboid_server_password: "{{ zomboid1_server_password }}"
+    zomboid_set_statefulset_zero: "{{ zomboid1_set_statefulset_zero }}"

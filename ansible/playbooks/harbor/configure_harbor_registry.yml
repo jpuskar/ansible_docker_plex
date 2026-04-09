@@ -6,8 +6,15 @@
     cluster_name: k8s2
 
   tasks:
-    - name: Include cluster vars
-      include_vars: "../inventory/group_vars/cluster/{{ cluster_name }}.yml"
+    - name: set repo_dir for subdirectory playbook
+      set_fact:
+        repo_dir: "{{ (playbook_dir ~ '/../../..') | realpath }}"
+
+    - name: include tasks/1_set_vars.yml
+      include_tasks: "{{ playbook_dir }}/../../tasks/1_set_vars.yml"
+
+    - name: Include harbor registry vars
+      include_vars: "{{ repo_dir }}/ansible/inventory/group_vars/cluster/harbor_registry.yml"
 
     - name: Get Harbor admin password from Kubernetes secret
       shell:
@@ -23,25 +30,53 @@
         harbor_admin_password: "{{ harbor_admin_password_result.stdout }}"
       no_log: true
 
+    - name: Extract Harbor CA certificate from harbor-ingress secret
+      shell:
+        cmd: |
+          kubectl get secret harbor-ingress -n harbor \
+            -o jsonpath='{.data.ca\.crt}' | base64 -d > {{ temp_dir }}/harbor-ca.crt
+      changed_when: false
+
+    - name: Verify CA certificate was extracted
+      stat:
+        path: "{{ temp_dir }}/harbor-ca.crt"
+      register: ca_cert_stat
+
+    - name: Read CA certificate content
+      slurp:
+        src: "{{ temp_dir }}/harbor-ca.crt"
+      register: ca_cert_content
+      when: ca_cert_stat.stat.exists
+
+    - name: Assert CA certificate is valid
+      assert:
+        that:
+          - ca_cert_stat.stat.exists
+          - ca_cert_stat.stat.size > 0
+          - "(ca_cert_content.content | b64decode) is search('BEGIN CERTIFICATE')"
+        fail_msg: "CA cert at {{ temp_dir }}/harbor-ca.crt is missing or invalid (exists: {{ ca_cert_stat.stat.exists }}, size: {{ ca_cert_stat.stat.size | default(0) }})"
+
     - name: Check if Harbor project exists
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
+        url: "https://{{ harbor_external_url }}/api/v2.0/projects?name={{ harbor_project_name }}"
         method: GET
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         status_code: [200]
       register: harbor_project_check
 
     - name: Create Harbor project for custom images
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/projects"
+        url: "https://{{ harbor_external_url }}/api/v2.0/projects"
         method: POST
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         body_format: json
         body:
           project_name: "{{ harbor_project_name }}"
@@ -53,25 +88,15 @@
         status_code: [201, 409]
       when: harbor_project_check.json | length == 0
 
-    - name: Check if Harbor robot account exists
-      uri:
-        url: "{{ harbor_external_url }}/api/v2.0/robots?q=name={{ harbor_robot_name }}"
-        method: GET
-        user: admin
-        password: "{{ harbor_admin_password }}"
-        force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
-        status_code: [200]
-      register: harbor_robot_check
-
     - name: Create Harbor robot account for Talos
       uri:
-        url: "{{ harbor_external_url }}/api/v2.0/robots"
+        url: "https://{{ harbor_external_url }}/api/v2.0/robots"
         method: POST
         user: admin
         password: "{{ harbor_admin_password }}"
         force_basic_auth: yes
-        validate_certs: "{{ harbor_validate_certs | default(false) }}"
+        validate_certs: true
+        ca_path: "{{ temp_dir }}/harbor-ca.crt"
         body_format: json
         body:
           name: "{{ harbor_robot_name }}"
@@ -87,9 +112,8 @@
                   action: "pull"
                 - resource: "repository"
                   action: "push"
-        status_code: [201]
+        status_code: [201, 409]
       register: harbor_robot_create
-      when: harbor_robot_check.json | length == 0
       no_log: true
 
     - name: Create Kubernetes secret with robot credentials
@@ -106,7 +130,7 @@
             username: "{{ harbor_robot_create.json.name }}"
             password: "{{ harbor_robot_create.json.secret }}"
             registry-url: "{{ harbor_external_url }}"
-      when: harbor_robot_create is changed
+      when: harbor_robot_create.status == 201
       no_log: true
 
     - name: Display completion info

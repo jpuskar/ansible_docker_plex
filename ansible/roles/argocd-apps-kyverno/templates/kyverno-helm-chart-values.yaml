@@ -1,0 +1,25 @@
+# Kyverno Helm values
+admissionController:
+  replicas: {{ kyverno_admission_controller_replicas }}
+
+backgroundController:
+  replicas: {{ kyverno_background_controller_replicas }}
+
+cleanupController:
+  replicas: {{ kyverno_cleanup_controller_replicas }}
+
+reportsController:
+  replicas: {{ kyverno_reports_controller_replicas }}
+
+# Propagate standard Helm labels/annotations into the kyverno-api subchart CRDs.
+# Without these, new CRDs (e.g. namespacedgeneratingpolicies) render with
+# empty labels: {} / annotations: {}, creating a perpetual OutOfSync diff.
+kyverno-api:
+  labels:
+    app.kubernetes.io/component: crds
+    app.kubernetes.io/instance: kyverno
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kyverno-crds
+  annotations:
+    meta.helm.sh/release-name: kyverno
+    meta.helm.sh/release-namespace: kyverno

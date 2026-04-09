@@ -1,0 +1,64 @@
+---
+# Velero ArgoCD Application Role Defaults
+
+# Helm chart configuration
+velero_chart_repo: "https://vmware-tanzu.github.io/helm-charts"
+velero_chart_name: "velero"
+velero_chart_version: "12.0.0"
+velero_namespace: "velero"
+
+# ── NFS backup location ────────────────────────────────────────────
+# The NFS server and export path for the backup storage location.
+velero_nfs_server: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33393961316364346230333331346530346634336130646133383866363663376237343532353564
+  3965363332646237643065383064316430303835343039300a633432633465336331363136626335
+  62663533656631646163636230313032386662646666303332333462356535353639663434613632
+  6666366362316533390a653935316162326437653536636461323662366137663765303666666162
+  3961
+velero_nfs_path: /tank0/k8s2-velero
+
+# ── Backup Storage Location ────────────────────────────────────────
+velero_bsl_bucket: "velero"
+
+# ── MinIO (S3-compatible gateway for BSL) ──────────────────────────
+# MinIO runs as a single pod backed by the NFS PVC.  Velero talks
+# to it via the velero-plugin-for-aws.  Credentials are auto-generated
+# by kubernetes-secret-generator (StringSecret).
+velero_minio_resources_requests_cpu: "50m"
+velero_minio_resources_requests_memory: "128Mi"
+velero_minio_resources_limits_cpu: "500m"
+velero_minio_resources_limits_memory: "512Mi"
+
+# ── Velero AWS plugin (provides the velero.io/aws object store) ────
+velero_aws_plugin_image: "velero/velero-plugin-for-aws"
+velero_aws_plugin_tag: "v1.14.0"
+
+# ── Snapshot / CSI ─────────────────────────────────────────────────
+# Enable CSI snapshotting for PVC backups
+velero_features: "EnableCSI"
+
+# ── Default backup schedule (daily at 02:00, keep 7 days) ─────────
+velero_default_schedule_enabled: true
+velero_default_schedule_cron: "0 2 * * *"
+velero_default_schedule_ttl: "168h"
+
+# ── UID/GID for the Velero server pod ──────────────────────────────
+# NFS uses root_squash by default, so the server pod must run as a
+# non-root user whose UID:GID owns the NFS export directory.
+# chown this UID:GID on the ZFS server and chmod 0770.
+velero_run_as_user: 2020
+velero_run_as_group: 2020
+
+# ── Resource requests/limits for the Velero server ─────────────────
+velero_resources_requests_cpu: "100m"
+velero_resources_requests_memory: "256Mi"
+velero_resources_limits_cpu: "500m"
+velero_resources_limits_memory: "512Mi"
+
+# ── Node-agent (restic/kopia) for PVC file-level backup ───────────
+velero_node_agent_enabled: true
+velero_node_agent_resources_requests_cpu: "100m"
+velero_node_agent_resources_requests_memory: "256Mi"
+velero_node_agent_resources_limits_cpu: "1000m"
+velero_node_agent_resources_limits_memory: "1Gi"

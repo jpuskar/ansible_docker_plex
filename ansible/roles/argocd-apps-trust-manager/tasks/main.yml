@@ -1,0 +1,9 @@
+---
+- name: Include trust-manager tasks
+  include_tasks: trust-manager.yml
+
+- name: Template out CA bundle manifest
+  template:
+    src: ca-bundle.yaml
+    dest: "{{ output_dir_path }}/ca-bundle.yaml"
+  when: trust_manager_deploy_bundle | bool

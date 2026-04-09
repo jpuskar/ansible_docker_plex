@@ -1,0 +1,30 @@
+---
+- name: Template out Percona MongoDB secrets manifest
+  template:
+    src: percona-mongodb-secrets.yaml
+    dest: "{{ output_dir_path }}/percona-mongodb-secrets.yaml"
+
+- name: Template out Percona MongoDB cluster Helm values to temp dir
+  template:
+    src: percona-mongodb-cluster-values.yaml
+    dest: "{{ temp_dir_path }}/percona-mongodb-cluster-values.yaml"
+
+- name: Update Helm percona repository
+  shell:
+    cmd: |-
+      helm repo update percona
+  changed_when: false
+
+- name: Generate Percona MongoDB cluster manifests using helm template
+  shell:
+    cmd: |-
+      helm template {{ unifi_psmdb_cluster_name }} percona/{{ unifi_psmdb_chart_name }} \
+        --version {{ unifi_psmdb_chart_version }} \
+        --namespace {{ unifi_namespace }} \
+        --values {{ temp_dir_path }}/percona-mongodb-cluster-values.yaml
+  register: helm_template_command
+
+- name: Write output manifests for Percona MongoDB cluster helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/percona-mongodb-cluster-manifests.yaml"

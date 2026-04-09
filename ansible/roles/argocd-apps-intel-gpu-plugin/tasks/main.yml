@@ -1,0 +1,11 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Include operator helm tasks
+  include_tasks: operator.yml
+
+- name: Include GPU plugin helm tasks
+  include_tasks: gpu-plugin.yml

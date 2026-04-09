@@ -1,97 +1,258 @@
+from __future__ import annotations
+
 import asyncio
 import io
 import logging
 
-from typing import List, Optional
-
+import cv2
+import numpy as np
 from PIL import Image
 from ultralytics import YOLO
 
+import metrics as m
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger("smtp-proxy")
+
+
+class Detection:
+    """A single YOLO detection with class, position, and size."""
+
+    __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "conf")
+
+    def __init__(self, cls_id: int, name: str, cx: float, cy: float,
+                 w: float, h: float, conf: float) -> None:
+        self.cls_id = cls_id
+        self.name = name
+        self.cx = cx  # center x (0-1, fraction of image width)
+        self.cy = cy  # center y (0-1, fraction of image height)
+        self.w = w  # width (0-1)
+        self.h = h  # height (0-1)
+        self.conf = conf
+
+    # Vehicle class group — car/bus/truck/motorcycle are often confused
+    _VEHICLE_CLASSES = frozenset({2, 3, 5, 7})
+
+    def is_near(self, other: Detection, tolerance: float = 0.15) -> bool:
+        """Check if another detection of the same class group is nearby."""
+        same_class = (self.cls_id == other.cls_id
+                      or (self.cls_id in self._VEHICLE_CLASSES
+                          and other.cls_id in self._VEHICLE_CLASSES))
+        if not same_class:
+            return False
+        return (
+            abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance
+        )
+
+    def max_novelty(self, rects: list[tuple[float, float, float, float, float]],
+                    min_overlap: float = 0.1) -> float:
+        """Return the max novelty score from overlapping motion rects.
+
+        Each rect is (x, y, w, h, novelty) in normalized 0-1 coords.
+        novelty indicates how much instantaneous motion exceeds the temporal
+        background. Returns 0.0 if no overlap.
+        """
+        dx1 = self.cx - self.w / 2
+        dy1 = self.cy - self.h / 2
+        dx2 = self.cx + self.w / 2
+        dy2 = self.cy + self.h / 2
+        det_area = self.w * self.h
+        if det_area <= 0:
+            return 0.0
+        best = 0.0
+        for rx, ry, rw, rh, novelty in rects:
+            ox1 = max(dx1, rx)
+            oy1 = max(dy1, ry)
+            ox2 = min(dx2, rx + rw)
+            oy2 = min(dy2, ry + rh)
+            if ox1 < ox2 and oy1 < oy2:
+                overlap = (ox2 - ox1) * (oy2 - oy1)
+                if overlap / det_area >= min_overlap:
+                    best = max(best, novelty)
+        return best
+
+    def __repr__(self) -> str:
+        return f"{self.name}@({self.cx:.2f},{self.cy:.2f})"
 
 
 class ObjectDetector:
-    """AI-powered object detector using YOLOv8 for identifying people, vehicles, and animals"""
+    """Runs YOLO11x with OpenVINO on Intel GPU (falls back to CPU)."""
+
+    # OpenVINO model directory exported during Docker build
+    _OPENVINO_MODEL = "yolo11x_openvino_model"
+    _PYTORCH_MODEL = "yolo11x.pt"
 
     def __init__(
         self,
-        model_path: str = 'yolov8n.pt',
+        model_path: str | None = None,
         confidence_threshold: float = 0.25,
-        target_classes: Optional[List[int]] = None
+        target_classes: set[int] | None = None,
+        ir_confidence_threshold: float = 0.45,
     ) -> None:
-        """Initialize the object detector with YOLO model
-
-        Args:
-            model_path: Path to the YOLO model file (default: yolov8n.pt)
-            confidence_threshold: Minimum confidence score for detections (0.0-1.0)
-            target_classes: List of COCO class IDs to detect. If None, uses default set.
-        """
-        self.model_path = model_path
         self.confidence_threshold = confidence_threshold
-        self.model: Optional[YOLO] = None
+        self.ir_confidence_threshold = ir_confidence_threshold
+        self.target_classes = set(target_classes or [])
 
-        # COCO class IDs for people, vehicles, and animals
-        # person=0, bicycle=1, car=2, motorcycle=3, bus=5, truck=7,
-        # bird=14, cat=15, dog=16, horse=17, sheep=18, cow=19, elephant=20, bear=21, zebra=22, giraffe=23
-        if target_classes is None:
-            self.target_classes = [0, 1, 2, 3, 5, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+        # Try OpenVINO model first (exported during Docker build), fall back to PyTorch
+        import pathlib
+        ov_path = pathlib.Path(self._OPENVINO_MODEL)
+        if model_path:
+            resolved = model_path
+        elif ov_path.is_dir() and (ov_path / "yolo11x.xml").exists():
+            resolved = str(ov_path)
         else:
-            self.target_classes = target_classes
+            resolved = self._PYTORCH_MODEL
 
-        self._load_model()
+        log.info("Loading YOLO model %s...", resolved)
+        self.model = YOLO(resolved, task="detect")
+        self._using_openvino = resolved.endswith("_openvino_model") or resolved.endswith(".xml")
 
-    def _load_model(self) -> None:
-        """Load the YOLO model into memory"""
-        try:
-            logger.info(f"Loading YOLO model from {self.model_path}...")
-            self.model = YOLO(self.model_path)
-            logger.info(f"YOLO model loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load YOLO model: {e}")
-            raise
+        # Select OpenVINO device: prefer GPU, fall back to CPU
+        # Ultralytics uses "intel:gpu" / "intel:cpu" prefix for OpenVINO devices
+        if self._using_openvino:
+            try:
+                import openvino as ov
+                devices = ov.Core().available_devices
+                log.info("OpenVINO available devices: %s", devices)
+                if "GPU" in devices:
+                    self._ov_device = "intel:gpu"
+                    # Gen9 iGPUs (Skylake/Coffee Lake) produce NaN with Winograd convolution.
+                    # Ultralytics doesn't pass GPU config properties, so monkey-patch
+                    # ov.Core.compile_model to inject the fix automatically.
+                    _orig_compile = ov.Core.compile_model
 
-    async def detect_objects_in_image(self, image_data: bytes) -> bool:
-        """Detect target objects (people, vehicles, animals) in an image
+                    def _patched_compile(self_core, model, device_name="", config=None, **kw):
+                        if config is None:
+                            config = {}
+                        if isinstance(device_name, str) and "GPU" in device_name.upper():
+                            config.setdefault("GPU_DISABLE_WINOGRAD_CONVOLUTION", "YES")
+                        return _orig_compile(self_core, model, device_name=device_name, config=config, **kw)
 
-        Args:
-            image_data: Raw image data as bytes
+                    ov.Core.compile_model = _patched_compile
+                    log.info("Patched ov.Core.compile_model with GPU_DISABLE_WINOGRAD_CONVOLUTION=YES")
+                else:
+                    self._ov_device = "intel:cpu"
+            except Exception:
+                self._ov_device = "intel:cpu"
+        else:
+            self._ov_device = None
 
-        Returns:
-            True if target objects were detected, False otherwise
+        log.info("YOLO model loaded (OpenVINO=%s, device=%s)", self._using_openvino, self._ov_device)
+        m.model_info.info({
+            "model": resolved,
+            "openvino": str(self._using_openvino),
+            "device": str(self._ov_device or "pytorch"),
+        })
+
+    async def detect(self, image_data: bytes) -> bool:
+        """Returns True if any target object is found in the image bytes."""
+        detections = await self.get_detections(image_data)
+        return len(detections) > 0
+
+    @staticmethod
+    def _is_grayscale(img: Image.Image) -> bool:
+        """Fast check: sample patches across the image to detect IR/night mode.
+        Returns True if image has negligible color saturation."""
+        if img.mode != "RGB":
+            return img.mode in ("L", "LA")
+        w, h = img.size
+        ps = 20  # patch half-size
+        # Sample 5 spread-out patches: top-left, top-right, center, bottom-left, bottom-right
+        points = [
+            (w // 4, h // 4),
+            (3 * w // 4, h // 4),
+            (w // 2, h // 2),
+            (w // 4, 3 * h // 4),
+            (3 * w // 4, 3 * h // 4),
+        ]
+        total_spread = 0.0
+        for cx, cy in points:
+            x1, y1 = max(0, cx - ps), max(0, cy - ps)
+            x2, y2 = min(w, cx + ps), min(h, cy + ps)
+            patch = img.crop((x1, y1, x2, y2))
+            px = np.array(patch, dtype=np.int16)
+            total_spread += np.abs(px[:, :, 0] - px[:, :, 1]).mean()
+            total_spread += np.abs(px[:, :, 1] - px[:, :, 2]).mean()
+        avg_spread = total_spread / len(points)
+        return avg_spread < 10.0
+
+    @staticmethod
+    def _apply_clahe(img: Image.Image) -> Image.Image:
+        """Apply CLAHE contrast enhancement to an IR/grayscale PIL image.
+        Converts to LAB, applies CLAHE to the L channel, converts back to RGB."""
+        arr = np.array(img)
+        lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
+        return Image.fromarray(enhanced)
+
+    async def get_detections(self, image_data: bytes,
+                             confidence_override: float | None = None,
+                             camera_id: str | None = None) -> list[Detection]:
+        """Returns list of Detection objects for target classes found in image.
+        If confidence_override is set, it is used instead of the dynamic IR/day threshold.
         """
         try:
-            # Load image from bytes
             img = Image.open(io.BytesIO(image_data))
+            img_w, img_h = img.size
 
-            # Run YOLO detection (runs in thread pool to avoid blocking)
-            loop = asyncio.get_event_loop()
+            is_ir = self._is_grayscale(img)
+
+            if confidence_override is not None:
+                conf_thresh = confidence_override
+            else:
+                conf_thresh = (
+                    self.ir_confidence_threshold if is_ir else self.confidence_threshold
+                )
+
+            # CLAHE contrast enhancement for IR/night frames
+            # Improves YOLO detection of dim objects (e.g. parked car under IR LEDs)
+            if is_ir:
+                img = self._apply_clahe(img)
+
+            import time
+            t0 = time.monotonic()
+            loop = asyncio.get_running_loop()
+            predict_kwargs: dict = dict(conf=conf_thresh, imgsz=640, verbose=False)
+            if self._ov_device:
+                predict_kwargs["device"] = self._ov_device
             results = await loop.run_in_executor(
                 None,
-                lambda: self.model.predict(
-                    img,
-                    conf=self.confidence_threshold,
-                    imgsz=416,
-                    verbose=False,
-                )
+                lambda: self.model.predict(img, **predict_kwargs),
             )
+            elapsed_ms = (time.monotonic() - t0) * 1000
+            log.log(5, "YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)  # TRACE
 
-            # Check if any target objects were detected
+            detections = []
             for result in results:
-                if result.boxes is not None and len(result.boxes) > 0:
-                    detected_classes = result.boxes.cls.cpu().numpy().astype(int)
-                    for cls_id in detected_classes:
-                        if cls_id in self.target_classes:
-                            class_name = result.names[cls_id]
-                            confidence = result.boxes.conf[detected_classes == cls_id].max()
-                            logger.info(
-                                f"Detected ({class_name}) in image (confidence: {confidence:.2f})"
-                            )
-                            return True
+                if result.boxes is None or len(result.boxes) == 0:
+                    continue
+                boxes = result.boxes
+                for i, cls_id in enumerate(boxes.cls.cpu().numpy().astype(int)):
+                    if cls_id not in self.target_classes:
+                        continue
+                    x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy()
+                    conf = float(boxes.conf[i])
+                    d = Detection(
+                        cls_id=cls_id,
+                        name=result.names[cls_id],
+                        cx=(x1 + x2) / 2 / img_w,
+                        cy=(y1 + y2) / 2 / img_h,
+                        w=(x2 - x1) / img_w,
+                        h=(y2 - y1) / img_h,
+                        conf=conf,
+                    )
+                    detections.append(d)
+                    log.debug(
+                        "Detected %s %s (%.0f%%) at (%.2f, %.2f)",
+                        camera_id or "?",
+                        d.name,
+                        conf * 100,
+                        d.cx,
+                        d.cy,
+                    )
 
-            logger.info("No people/vehicles/animals detected in image.")
-            return False
-
-        except Exception as e:
-            logger.error(f"Error during AI detection: {e}")
-            return True  # Allow through on error to avoid false negatives
+            return detections
+        except Exception:
+            log.exception("YOLO detection error")
+            return []

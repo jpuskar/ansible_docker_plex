@@ -1,0 +1,36 @@
+---
+- name: check if ArgoCD manages cilium
+  shell:
+    cmd: |-
+      kubectl get daemonset cilium -n kube-system \
+        --kubeconfig {{ kubeconfig_path }} \
+        -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/tracking-id}'
+  register: argocd_check_cilium
+  failed_when: >-
+    argocd_check_cilium.rc != 0 and
+    'NotFound' not in argocd_check_cilium.stderr
+  changed_when: false
+
+- name: skip cilium bootstrap (managed by ArgoCD)
+  meta: end_role
+  when: argocd_check_cilium.stdout | default('') | length > 0
+
+- name: include helm_chart tasks
+  include_tasks: helm_chart.yml
+
+- name: render other templates
+  template:
+    src: cilium-loadbalancer-ip-pool.yaml
+    dest: "{{ temp_dir }}/{{ cluster_name }}__{{ item }}"
+    backup: yes
+  loop:
+    - cilium-loadbalancer-ip-pool.yaml
+
+- name: kubectl apply
+  shell:
+    cmd: |-
+      kubectl apply \
+        --kubeconfig {{ kubeconfig_path }} \
+        -f {{ item }}
+  loop:
+    - "{{ temp_dir }}/{{ cluster_name }}__cilium-loadbalancer-ip-pool.yaml"

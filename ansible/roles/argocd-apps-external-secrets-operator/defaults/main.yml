@@ -4,7 +4,7 @@
 # External Secrets Operator Helm chart configuration
 eso_chart_repo: "https://charts.external-secrets.io"
 eso_chart_name: "external-secrets"
-eso_chart_version: "1.2.1"
+eso_chart_version: "2.2.0"
 eso_namespace: "external-secrets"
 
 # Enable cert-controller for certificate generation

@@ -1,13 +1,14 @@
 ---
 # ArgoCD Helm chart configuration
-argocd_version: "9.2.3"  # Chart version
-argocd_app_version: "v3.2.3"  # ArgoCD application version
+argocd_version: "9.4.17"  # Chart version
+argocd_app_version: "v3.3.6"  # ArgoCD application version
 argocd_namespace: "argocd"
 argocd_repo_url: "https://argoproj.github.io/argo-helm"
 argocd_chart_name: "argo/argo-cd"
 
 # Installation options
 argocd_create_namespace: true
+argocd_force_install: false  # Set to true to force helm upgrade even if already running
 
 # Server configuration
 argocd_server_replicas: 1
@@ -50,7 +51,7 @@ argocd_sops_enabled: false
 # Custom repo-server image with SOPS support
 argocd_sops_image_registry: "docker.io/jpuskar"
 argocd_sops_image_name: "argocd-sops-sidecar"
-argocd_sops_image_tag: "latest"
+argocd_sops_image_tag: "{{ argocd_app_version }}"
 # Age private key for SOPS decryption (store in vault)
 # Generate with: age-keygen -o age.key
 # argocd_sops_age_key: "AGE-SECRET-KEY-1..."
@@ -59,6 +60,6 @@ argocd_sops_image_tag: "latest"
 argocd_ansible_enabled: true
 argocd_ansible_image_registry: "docker.io/jpuskar"
 argocd_ansible_image_name: "argocd-ansible-cmp"
-argocd_ansible_image_tag: "latest"
+argocd_ansible_image_tag: "{{ argocd_app_version }}"
 # Ansible vault password (read from file via env var)
 # argocd_ansible_vault_password: ""

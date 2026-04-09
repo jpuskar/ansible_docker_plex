@@ -1,155 +1,118 @@
-import email
+from __future__ import annotations
+
 import email.header
 import logging
 import re
-
-from typing import List, Tuple
 
 from email.message import Message
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
 from email.mime.base import MIMEBase
+from email import encoders
+
+log = logging.getLogger("smtp-proxy")
 
 
-logger = logging.getLogger(__name__)
-
-
-def decode_subject(subject_line: str, fallback_subject: str) -> str:
-    """Decode email subject line from various encodings to clean ASCII
-
-    Args:
-        subject_line: The encoded subject line to decode
-        fallback_subject: Subject to use if decoding fails
-
-    Returns:
-        Cleaned ASCII-safe subject string
-    """
+def decode_subject(raw_subject: str, fallback_subject: str) -> str:
+    """Decode an RFC 2047 subject line to clean ASCII."""
     try:
-        # Handle RFC 2047 encoded subjects like =?UTF-8?B?...?=
-        decoded_parts = email.header.decode_header(subject_line)
-        decoded_subject = ""
-
-        for part, encoding in decoded_parts:
-            if isinstance(part, bytes):
-                if encoding:
-                    decoded_text = part.decode(encoding)
-                else:
-                    # Try common encodings
-                    for enc in ['utf-8', 'latin-1', 'ascii']:
-                        try:
-                            decoded_text = part.decode(enc)
-                            break
-                        except UnicodeDecodeError:
-                            continue
-                    else:
-                        decoded_text = part.decode('utf-8', errors='replace')
+        parts = email.header.decode_header(raw_subject)
+        decoded = ""
+        for chunk, charset in parts:
+            if isinstance(chunk, bytes):
+                decoded += chunk.decode(charset or "utf-8", errors="replace")
             else:
-                decoded_text = part
+                decoded += chunk
 
-            decoded_subject += decoded_text
+        # Collapse to ASCII, strip garbage
+        cleaned = decoded.encode("ascii", errors="replace").decode("ascii")
+        cleaned = re.sub(r"\?+", " ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
-        # Clean up the subject - convert to ASCII-safe characters
-        cleaned = decoded_subject.encode('ascii', errors='replace').decode('ascii')
-        # Replace question marks (from failed conversions) with spaces
-        cleaned = re.sub(r'\?+', ' ', cleaned).strip()
-
-        # If nothing readable remains, use fallback
-        if not cleaned or cleaned.isspace():
+        if not cleaned:
             cleaned = fallback_subject
 
-        # Final trim of whitespace and ensure no leading/trailing spaces
-        cleaned = cleaned.strip()
-        # Extra cleaning: remove multiple spaces and trim again
-        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-
-        logger.info(f"Subject decoded: '{subject_line}' -> '{cleaned}'")
+        log.debug("Subject decoded: '%s' -> '%s'", raw_subject, cleaned)
         return cleaned
-
-    except Exception as e:
-        logger.warning(f"Failed to decode subject '{subject_line}': {e}")
+    except Exception:
+        log.warning("Failed to decode subject '%s'", raw_subject, exc_info=True)
         return fallback_subject
 
 
-def extract_images_from_message(message: Message) -> List[Tuple[Message, bytes]]:
-    """Extract all image parts from an email message
-
-    Args:
-        message: The email message to extract images from
-
-    Returns:
-        List of tuples containing (image_part, image_data)
-    """
+def extract_images(message: Message) -> list[bytes]:
+    """Return list of raw image bytes from a message's MIME parts.
+    Also checks application/octet-stream parts for image magic bytes."""
     images = []
     for part in message.walk():
-        content_type = part.get_content_type()
-        if content_type.startswith('image/'):
-            try:
-                image_data = part.get_payload(decode=True)
-                if image_data:
-                    logger.info(f"Found image attachment: {content_type}")
-                    images.append((part, image_data))
-            except Exception as e:
-                logger.error(f"Error extracting image attachment: {e}")
+        ct = part.get_content_type()
+        data = part.get_payload(decode=True)
+        if not data:
+            continue
+        if ct.startswith("image/"):
+            images.append(data)
+        elif ct == "application/octet-stream" and _looks_like_image(data):
+            images.append(data)
     return images
 
 
-def create_forwarded_message(
-    original_message: Message,
-    mail_from: str,
-    rcpt_tos: List[str],
-    clean_subject: str
-) -> MIMEMultipart:
-    """Create a new MIME message for forwarding with cleaned subject
+def _looks_like_image(data: bytes) -> bool:
+    """Check if raw bytes start with known image magic bytes."""
+    if len(data) < 4:
+        return False
+    # JPEG, PNG, GIF, BMP, WEBP
+    return (
+        data[:2] == b"\xff\xd8"  # JPEG
+        or data[:8] == b"\x89PNG\r\n\x1a\n"  # PNG
+        or data[:4] == b"GIF8"  # GIF
+        or data[:2] == b"BM"  # BMP
+        or data[8:12] == b"WEBP"
+    )  # WEBP
 
-    Args:
-        original_message: The original email message
-        mail_from: Sender email address
-        rcpt_tos: List of recipient email addresses
-        clean_subject: Cleaned subject line
 
-    Returns:
-        New MIMEMultipart message ready for forwarding
-    """
-    new_message = MIMEMultipart()
-    new_message['From'] = mail_from
-    new_message['Subject'] = clean_subject
-    new_message['To'] = ', '.join(rcpt_tos)
+def create_forwarded_message(original: Message, mail_from: str, rcpt_tos: list[str], subject: str) -> MIMEMultipart:
+    """Build a new MIME message with a cleaned subject, preserving attachments."""
+    msg = MIMEMultipart()
+    msg["From"] = mail_from
+    msg["To"] = ", ".join(rcpt_tos)
+    msg["Subject"] = subject
 
-    # Copy other headers (except the ones we're setting)
-    for key, value in original_message.items():
-        if key.lower() not in ['from', 'subject', 'to']:
-            new_message[key] = value
+    # Copy headers we're not overriding
+    for key, value in original.items():
+        if key.lower() not in ("from", "to", "subject"):
+            msg[key] = value
 
-    # Copy all parts including images
-    if original_message.is_multipart():
-        for part in original_message.walk():
-            content_type = part.get_content_type()
-            if content_type == 'text/plain':
-                new_message.attach(MIMEText(part.get_payload(decode=False), 'plain'))
-            elif content_type == 'text/html':
-                new_message.attach(MIMEText(part.get_payload(decode=False), 'html'))
-            elif content_type.startswith('image/'):
-                # Attach image
-                img_data = part.get_payload(decode=True)
-                if img_data:
-                    img_part = MIMEImage(img_data, _subtype=content_type.split('/')[1])
-                    if part.get('Content-Disposition'):
-                        img_part['Content-Disposition'] = part.get('Content-Disposition')
-                    if part.get('Content-ID'):
-                        img_part['Content-ID'] = part.get('Content-ID')
-                    new_message.attach(img_part)
-            elif part.get_content_maintype() != 'multipart':
-                # Attach other types of content
+    if original.is_multipart():
+        for part in original.walk():
+            ct = part.get_content_type()
+            if ct in ("text/plain", "text/html"):
                 payload = part.get_payload(decode=True)
-                if payload:
-                    attachment = MIMEBase(part.get_content_maintype(), part.get_content_subtype())
-                    attachment.set_payload(payload)
-                    if part.get('Content-Disposition'):
-                        attachment['Content-Disposition'] = part.get('Content-Disposition')
-                    new_message.attach(attachment)
+                if payload is None:
+                    continue
+                charset = part.get_content_charset() or "utf-8"
+                subtype = "html" if ct == "text/html" else "plain"
+                text = payload.decode(charset, errors="replace")
+                msg.attach(MIMEText(text, subtype, "utf-8"))
+            elif ct.startswith("image/"):
+                data = part.get_payload(decode=True)
+                if data:
+                    img = MIMEImage(data, _subtype=ct.split("/")[1])
+                    for hdr in ("Content-Disposition", "Content-ID"):
+                        if part.get(hdr):
+                            img[hdr] = part[hdr]
+                    msg.attach(img)
+            elif part.get_content_maintype() != "multipart":
+                data = part.get_payload(decode=True)
+                if data:
+                    att = MIMEBase(
+                        part.get_content_maintype(), part.get_content_subtype()
+                    )
+                    att.set_payload(data)
+                    encoders.encode_base64(att)
+                    if part.get("Content-Disposition"):
+                        att["Content-Disposition"] = part["Content-Disposition"]
+                    msg.attach(att)
     else:
-        content = original_message.get_payload()
-        new_message.attach(MIMEText(content, 'plain'))
+        msg.attach(MIMEText(original.get_payload(), "plain"))
 
-    return new_message
+    return msg

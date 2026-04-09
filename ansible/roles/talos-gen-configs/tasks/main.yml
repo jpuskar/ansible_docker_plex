@@ -59,16 +59,44 @@
 
 - name: get all hosts in cluster group
   set_fact:
-    cluster_hosts: "{{ groups[talos_cluster_name] }}"
+    cluster_hosts: "{{ groups[talos_cluster_name + '_nodes'] }}"
 
-- name: template out per-node hostname config patches
-  template:
-    src: hostname.yaml
-    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml"
-    backup: true
-  loop: "{{ cluster_hosts }}"
-  loop_control:
-    loop_var: node_name
+- name: determine talosctl version from cluster nodes
+  set_fact:
+    talosctl_version: "{{ cluster_hosts | map('extract', hostvars, ['talos_image_requirements', 'version']) | select('defined') | unique | community.general.version_sort | last }}"
+
+- debug:
+    msg: "Resolved talosctl version: {{ talosctl_version }}"
+
+- name: set talosctl platform vars
+  set_fact:
+    talosctl_os: "{{ ansible_facts['system'] | lower }}"
+    talosctl_arch: "{{ 'arm64' if ansible_facts['architecture'] in ['aarch64', 'arm64'] else 'amd64' }}"
+
+- name: set talosctl download URL and cache path
+  set_fact:
+    talosctl_bin: "{{ repo_dir }}/tmp/talosctl-{{ talosctl_version }}-{{ talosctl_os }}-{{ talosctl_arch }}"
+    talosctl_url: "https://github.com/siderolabs/talos/releases/download/{{ talosctl_version }}/talosctl-{{ talosctl_os }}-{{ talosctl_arch }}"
+
+- name: check if talosctl is already cached
+  stat:
+    path: "{{ talosctl_bin }}"
+  register: talosctl_stat
+
+- name: download talosctl {{ talosctl_version }}
+  get_url:
+    url: "{{ talosctl_url }}"
+    dest: "{{ talosctl_bin }}"
+    mode: '0755'
+  when: not talosctl_stat.stat.exists
+
+- name: verify talosctl version
+  command: "{{ talosctl_bin }} version --client --short"
+  register: talosctl_version_check
+  changed_when: false
+
+- debug:
+    msg: "Using talosctl: {{ talosctl_bin }} ({{ talosctl_version_check.stdout }})"
 
 - name: template out per-node label config patches
   template:
@@ -107,16 +135,15 @@
 - name: run talosctl gen config for each node
   shell:
     cmd: |-
-      talosctl gen config \
+      {{ talosctl_bin }} gen config \
         {{ talos_cluster_name }} \
         https://{{ talos_control_plane_ip }}:6443 \
         --install-disk /dev/{{ hostvars[node_name].talos_install_disk | default(talos_install_disk) }} \
         --with-secrets {{ talos_working_dir }}/{{ talos_cluster_name }}-secrets.yaml \
-        --additional-sans "{{ talos_additional_sans | join(',') }}" \
+        --additional-sans "{{ ([talos_control_plane_ip] + talos_additional_sans) | unique | join(',') }}" \
         --install-image={{ selected_image }} \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-allowSchedulingOnControlPlanes.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-prep-for-cilium.yaml \
-        --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-hostname.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-labels.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-rotate-server-certificates.yaml \
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
@@ -139,3 +166,12 @@
 
 - debug:
     var: talosctl_gen_config_output
+
+- name: patch HostnameConfig in generated configs (replace auto hostname with per-node hostname)
+  copy:
+    content: "{{ lookup('file', talos_working_dir + '/controlplane-' + node_name + '.yaml') | patch_hostname_config(node_name) }}"
+    dest: "{{ talos_working_dir }}/controlplane-{{ node_name }}.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
