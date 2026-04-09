@@ -89,8 +89,6 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            - name: server-data
-              mountPath: /server
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim
@@ -108,19 +106,3 @@ spec:
         resources:
           requests:
             storage: {{ valheim_config_storage_size }}
-    - apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: server-data
-        labels:
-          app: valheim
-          app.kubernetes.io/instance: {{ valheim_instance_name }}
-      spec:
-        accessModes:
-          - ReadWriteOnce
-{% if valheim_storage_class %}
-        storageClassName: {{ valheim_storage_class }}
-{% endif %}
-        resources:
-          requests:
-            storage: {{ valheim_server_storage_size }}
