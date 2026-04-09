@@ -124,6 +124,3 @@ spec:
         resources:
           requests:
             storage: {{ valheim_server_storage_size }}
-        resources:
-          requests:
-            storage: {{ valheim_backups_storage_size }}
