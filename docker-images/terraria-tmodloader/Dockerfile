@@ -39,10 +39,10 @@ RUN wget -q "https://github.com/tModLoader/tModLoader/releases/download/${TMOD_V
     && unzip -o tModLoader.zip \
     && rm tModLoader.zip \
     && rm -f serverconfig.txt \
-    && chmod +x start-tModLoaderServer.sh LaunchUtils/ScriptCaller.sh LaunchUtils/DotNetInstall.sh
+    && chmod +x start-tModLoaderServer.sh LaunchUtils/ScriptCaller.sh LaunchUtils/InstallDotNet.sh
 
 # Install .NET runtime (tModLoader's bundled installer puts it in /server/dotnet/)
-RUN ./LaunchUtils/DotNetInstall.sh
+RUN ./LaunchUtils/InstallDotNet.sh
 
 # Prime steamcmd cache so first run doesn't need to self-update
 RUN steamcmd +quit || true
