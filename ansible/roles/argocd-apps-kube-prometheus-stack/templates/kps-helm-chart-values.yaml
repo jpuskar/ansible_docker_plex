@@ -25,6 +25,20 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+    # Static scrape targets outside the k8s cluster
+    additionalScrapeConfigs:
+      - job_name: backups2-node
+        static_configs:
+          - targets: ["backups2:9100"]
+            labels:
+              instance: backups2
+        scrape_interval: 60s
+      - job_name: backups2-smartctl
+        static_configs:
+          - targets: ["backups2:9633"]
+            labels:
+              instance: backups2
+        scrape_interval: 15m
 
 # --- Alertmanager ---
 alertmanager:

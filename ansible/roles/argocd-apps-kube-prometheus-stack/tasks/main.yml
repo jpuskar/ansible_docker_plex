@@ -14,5 +14,10 @@
     src: grafana-admin-stringsecret.yaml
     dest: "{{ output_dir_path }}/grafana-admin-stringsecret.yaml"
 
+- name: Template out backups2 PrometheusRule
+  template:
+    src: backups2-alerts.yaml
+    dest: "{{ output_dir_path }}/backups2-alerts.yaml"
+
 - name: Include kube-prometheus-stack tasks
   include_tasks: kube-prometheus-stack.yml

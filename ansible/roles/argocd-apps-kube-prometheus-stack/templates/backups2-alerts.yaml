@@ -1,0 +1,249 @@
+#jinja2: variable_start_string: '[[', variable_end_string: ']]'
+---
+# PrometheusRule for backups2 NAS (192.168.1.192)
+# Covers: SMART disk health, NVMe wear, ZFS pool state, filesystem space, exporter health
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backups2-alerts
+  namespace: [[ kps_namespace ]]
+  labels:
+    app: kube-prometheus-stack
+    release: kube-prometheus-stack
+spec:
+  groups:
+
+    # ---------------------------------------------------------------
+    # Exporter health — know if metrics stop flowing
+    # ---------------------------------------------------------------
+    - name: backups2-exporter-health
+      rules:
+        - alert: Backups2NodeExporterDown
+          expr: up{job="backups2-node"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "backups2 node_exporter is down"
+            description: "node_exporter on backups2 (192.168.1.192:9100) has been unreachable for 5 minutes."
+
+        - alert: Backups2SmartctlExporterDown
+          expr: up{job="backups2-smartctl"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "backups2 smartctl_exporter is down"
+            description: "smartctl_exporter on backups2 (192.168.1.192:9633) has been unreachable for 5 minutes."
+
+    # ---------------------------------------------------------------
+    # SMART disk health (all drives)
+    # ---------------------------------------------------------------
+    - name: backups2-smart-health
+      rules:
+        - alert: SmartDeviceUnhealthy
+          expr: smartctl_device_smart_status{job="backups2-smartctl"} != 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "SMART health check FAILED on {{ $labels.device }}"
+            description: "Device {{ $labels.device }} on backups2 reports SMART status != 1 (FAILED). Immediate attention required."
+
+        - alert: SmartDeviceHighTemperature
+          expr: smartctl_device_temperature{job="backups2-smartctl", temperature_type="current"} > 50
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High temperature on {{ $labels.device }}: {{ $value }}°C"
+            description: "Device {{ $labels.device }} on backups2 has been above 50°C for 10 minutes."
+
+        - alert: SmartDeviceCriticalTemperature
+          expr: smartctl_device_temperature{job="backups2-smartctl", temperature_type="current"} > 60
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical temperature on {{ $labels.device }}: {{ $value }}°C"
+            description: "Device {{ $labels.device }} on backups2 has been above 60°C for 5 minutes."
+
+        - alert: SmartReallocatedSectors
+          expr: smartctl_device_attribute{job="backups2-smartctl", attribute_name="Reallocated_Sector_Ct", attribute_value_type="raw"} > 0
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Reallocated sectors on {{ $labels.device }}: {{ $value }}"
+            description: "Device {{ $labels.device }} has {{ $value }} reallocated sectors. This indicates failing sectors being remapped — early sign of drive degradation."
+
+        - alert: SmartCurrentPendingSectors
+          expr: smartctl_device_attribute{job="backups2-smartctl", attribute_name="Current_Pending_Sector", attribute_value_type="raw"} > 0
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pending sectors on {{ $labels.device }}: {{ $value }}"
+            description: "Device {{ $labels.device }} has {{ $value }} pending sectors awaiting reallocation."
+
+        - alert: SmartOfflineUncorrectable
+          expr: smartctl_device_attribute{job="backups2-smartctl", attribute_name="Offline_Uncorrectable", attribute_value_type="raw"} > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Offline uncorrectable sectors on {{ $labels.device }}: {{ $value }}"
+            description: "Device {{ $labels.device }} has {{ $value }} offline uncorrectable sectors. This is data loss territory — plan replacement."
+
+        - alert: SmartUDMACRCErrorsIncreasing
+          expr: increase(smartctl_device_attribute{job="backups2-smartctl", attribute_name="UDMA_CRC_Error_Count", attribute_value_type="raw"}[24h]) > 0
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "New UDMA CRC errors on {{ $labels.device }}"
+            description: "Device {{ $labels.device }} has new UDMA CRC errors in the last 24h. Check SATA cable or port."
+
+    # ---------------------------------------------------------------
+    # NVMe-specific health (nvme0 — OS drive)
+    # ---------------------------------------------------------------
+    - name: backups2-nvme-health
+      rules:
+        - alert: NvmeCriticalWarning
+          expr: smartctl_device_critical_warning{job="backups2-smartctl"} > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "NVMe critical warning on {{ $labels.device }}"
+            description: "NVMe device {{ $labels.device }} reports critical_warning={{ $value }}. Check controller/media health."
+
+        - alert: NvmeMediaErrors
+          expr: smartctl_device_media_errors{job="backups2-smartctl"} > 0
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "NVMe media errors on {{ $labels.device }}: {{ $value }}"
+            description: "NVMe device {{ $labels.device }} has {{ $value }} unrecovered media errors."
+
+        - alert: NvmeWearWarning
+          expr: smartctl_device_percentage_used{job="backups2-smartctl"} > 80
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NVMe wear at {{ $value }}% on {{ $labels.device }}"
+            description: "NVMe device {{ $labels.device }} is {{ $value }}% worn. Plan replacement soon."
+
+        - alert: NvmeWearCritical
+          expr: smartctl_device_percentage_used{job="backups2-smartctl"} > 90
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "NVMe wear at {{ $value }}% on {{ $labels.device }}"
+            description: "NVMe device {{ $labels.device }} is {{ $value }}% worn. Replace ASAP."
+
+        - alert: NvmeAvailableSpareWarning
+          expr: smartctl_device_available_spare{job="backups2-smartctl"} < 20
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "NVMe available spare low on {{ $labels.device }}: {{ $value }}%"
+            description: "NVMe device {{ $labels.device }} has only {{ $value }}% spare capacity remaining."
+
+        - alert: NvmeAvailableSpareCritical
+          expr: smartctl_device_available_spare{job="backups2-smartctl"} < 10
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "NVMe available spare critically low on {{ $labels.device }}: {{ $value }}%"
+            description: "NVMe device {{ $labels.device }} has only {{ $value }}% spare capacity. Replace immediately."
+
+    # ---------------------------------------------------------------
+    # ZFS pool health
+    # ---------------------------------------------------------------
+    - name: backups2-zfs-health
+      rules:
+        - alert: ZpoolNotOnline
+          expr: node_zfs_zpool_state{job="backups2-node", state="online"} != 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ZFS pool {{ $labels.zpool }} is NOT online"
+            description: "Pool {{ $labels.zpool }} on backups2 is not in online state. Check zpool status immediately."
+
+        - alert: ZpoolDegraded
+          expr: node_zfs_zpool_state{job="backups2-node", state="degraded"} == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ZFS pool {{ $labels.zpool }} is DEGRADED"
+            description: "Pool {{ $labels.zpool }} on backups2 is running in degraded mode. A mirror vdev has a failed/missing drive."
+
+        - alert: ZpoolFaulted
+          expr: node_zfs_zpool_state{job="backups2-node", state="faulted"} == 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ZFS pool {{ $labels.zpool }} is FAULTED"
+            description: "Pool {{ $labels.zpool }} on backups2 is FAULTED and likely inaccessible. Data loss may have occurred."
+
+        - alert: ZpoolSuspended
+          expr: node_zfs_zpool_state{job="backups2-node", state="suspended"} == 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ZFS pool {{ $labels.zpool }} is SUSPENDED"
+            description: "Pool {{ $labels.zpool }} on backups2 is suspended — I/O is blocked waiting for device recovery."
+
+    # ---------------------------------------------------------------
+    # Filesystem space
+    # ---------------------------------------------------------------
+    - name: backups2-filesystem-space
+      rules:
+        - alert: FilesystemSpaceLow
+          expr: |-
+            (
+              node_filesystem_avail_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              / node_filesystem_size_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+            ) * 100 < 15
+          for: 30m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Low disk space on {{ $labels.mountpoint }}: {{ printf \"%.1f\" $value }}% free"
+            description: "Filesystem {{ $labels.mountpoint }} ({{ $labels.device }}) on backups2 has less than 15% free space."
+
+        - alert: FilesystemSpaceCritical
+          expr: |-
+            (
+              node_filesystem_avail_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              / node_filesystem_size_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+            ) * 100 < 5
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critically low disk space on {{ $labels.mountpoint }}: {{ printf \"%.1f\" $value }}% free"
+            description: "Filesystem {{ $labels.mountpoint }} ({{ $labels.device }}) on backups2 has less than 5% free space."
+
+        - alert: RootFilesystemSpaceLow
+          expr: |-
+            (
+              node_filesystem_avail_bytes{job="backups2-node", mountpoint="/"}
+              / node_filesystem_size_bytes{job="backups2-node", mountpoint="/"}
+            ) * 100 < 20
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Root filesystem low on backups2: {{ printf \"%.1f\" $value }}% free"
+            description: "The root filesystem on backups2 has less than 20% free space."
