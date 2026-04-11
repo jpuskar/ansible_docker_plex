@@ -29,13 +29,13 @@ prometheus:
     additionalScrapeConfigs:
       - job_name: backups2-node
         static_configs:
-          - targets: ["backups2:9100"]
+          - targets: ["backups2.{{ cluster_domain }}:9100"]
             labels:
               instance: backups2
         scrape_interval: 60s
       - job_name: backups2-smartctl
         static_configs:
-          - targets: ["backups2:9633"]
+          - targets: ["backups2.{{ cluster_domain }}:9633"]
             labels:
               instance: backups2
         scrape_interval: 15m
