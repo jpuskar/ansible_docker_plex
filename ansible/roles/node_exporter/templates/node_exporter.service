@@ -5,7 +5,12 @@ After=network.target
 [Service]
 User=node_exporter
 ExecStart=/opt/node_exporter/{{ node_exporter_folder_name }}/node_exporter \
-    --collector.textfile.directory={{ node_exporter_textfile_dir }}
+    --no-collector.bcache \
+    --no-collector.btrfs \
+    --no-collector.fibrechannel \
+    --no-collector.infiniband \
+    --no-collector.mdadm \
+    --no-collector.tapestats
 Restart=on-failure
 RestartSec=5
 

@@ -1,0 +1,3 @@
+---
+smartctl_exporter_download_url: "https://github.com/prometheus-community/smartctl_exporter/releases/download/v0.14.0/smartctl_exporter-0.14.0.linux-amd64.tar.gz"
+smartctl_exporter_checksum: "sha256:875983cd27affc5a682401930e5a8eea3f06c325fe6d6a7228c5547d882685b3"

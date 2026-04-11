@@ -42,39 +42,6 @@
   set_fact:
     node_exporter_folder_name: "{{ node_exporter_file_name | regex_replace('.tar.gz', '') }}"
 
-# --- smartmontools + textfile collector for SMART disk metrics ---
-
-- name: install smartmontools
-  ansible.builtin.apt:
-    name: smartmontools
-    state: present
-    update_cache: yes
-
-- name: create textfile collector directory
-  file:
-    state: directory
-    owner: node_exporter
-    group: node_exporter
-    mode: 0755
-    path: "{{ node_exporter_textfile_dir }}"
-
-- name: deploy smartmon collector script
-  template:
-    src: smartmon.sh
-    dest: /usr/local/bin/smartmon_collector.sh
-    owner: root
-    group: root
-    mode: 0755
-
-- name: cron job to collect SMART metrics
-  ansible.builtin.cron:
-    name: "node_exporter smartmon collector"
-    minute: "{{ node_exporter_smartmon_interval }}"
-    job: "/usr/local/bin/smartmon_collector.sh > {{ node_exporter_textfile_dir }}/smartmon.prom.$$ && mv {{ node_exporter_textfile_dir }}/smartmon.prom.$$ {{ node_exporter_textfile_dir }}/smartmon.prom"
-    user: root
-
-# --- node_exporter systemd service ---
-
 - name: render node_exporter systemd unit file
   template:
     src: node_exporter.service

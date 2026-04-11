@@ -9,15 +9,18 @@
 #    # ref: https://help.ubuntu.com/community/SerialConsoleHowto
 #    - include_role:
 #        name: serial_console
-#
+
      - include_role:
          name: sensors
 #
 #     - include_role:
 #        name: liquidctl
 #
-#     - include_role:
-#        name: node_exporter
+     - include_role:
+         name: node_exporter
+
+     - include_role:
+         name: smartctl_exporter
 #
 #    - include_role:
 #        name: zfs-core

@@ -1,0 +1,67 @@
+---
+- name: install smartmontools
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+    update_cache: yes
+
+- name: set smartctl_exporter_file_name fact
+  set_fact:
+    smartctl_exporter_file_name: "{{ smartctl_exporter_download_url.split('/')[-1] }}"
+
+- name: download smartctl_exporter
+  ansible.builtin.get_url:
+    url: "{{ smartctl_exporter_download_url }}"
+    dest: "/root/{{ smartctl_exporter_file_name }}"
+    checksum: "{{ smartctl_exporter_checksum }}"
+
+- name: create smartctl_exporter folder
+  file:
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+    path: /opt/smartctl_exporter
+
+- name: unzip smartctl_exporter
+  ansible.builtin.unarchive:
+    src: "/root/{{ smartctl_exporter_file_name }}"
+    dest: /opt/smartctl_exporter
+    remote_src: yes
+
+- name: set smartctl_exporter_folder_name fact
+  set_fact:
+    smartctl_exporter_folder_name: "{{ smartctl_exporter_file_name | regex_replace('.tar.gz', '') }}"
+
+- name: render smartctl_exporter systemd unit file
+  template:
+    src: smartctl_exporter.service
+    dest: /etc/systemd/system/smartctl_exporter.service
+    owner: root
+    group: root
+    mode: 0644
+  register: smartctl_exporter_unit_file
+
+- name: systemd daemon-reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: smartctl_exporter_unit_file.changed
+
+- name: restart smartctl_exporter if service file changed
+  ansible.builtin.systemd:
+    name: smartctl_exporter
+    state: restarted
+  when: smartctl_exporter_unit_file.changed
+
+- name: systemd start smartctl_exporter
+  ansible.builtin.systemd:
+    name: smartctl_exporter
+    state: started
+    enabled: true
+
+- name: Allow all access to tcp port 9633 for smartctl_exporter
+  ufw:
+    rule: allow
+    direction: in
+    to_port: '9633'
+    proto: tcp
