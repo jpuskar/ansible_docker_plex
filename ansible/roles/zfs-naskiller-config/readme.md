@@ -3,6 +3,7 @@
 # TODO
 - drive power aggressiveness
 - write caching?
+- users and groups: desktop-backups, steamshare (but fix gid/uid misalign on server)
 
 
 ## Adding a new drive
