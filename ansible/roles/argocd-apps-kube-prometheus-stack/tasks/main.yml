@@ -19,5 +19,10 @@
     src: backups2-alerts.yaml
     dest: "{{ output_dir_path }}/backups2-alerts.yaml"
 
+- name: Template out smartctl Grafana dashboard
+  template:
+    src: grafana-dashboard-smartctl.yaml
+    dest: "{{ output_dir_path }}/grafana-dashboard-smartctl.yaml"
+
 - name: Include kube-prometheus-stack tasks
   include_tasks: kube-prometheus-stack.yml

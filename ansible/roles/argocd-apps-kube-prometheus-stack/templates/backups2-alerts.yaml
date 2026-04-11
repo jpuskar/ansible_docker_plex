@@ -19,7 +19,7 @@ spec:
     - name: backups2-exporter-health
       rules:
         - alert: Backups2NodeExporterDown
-          expr: up{job="backups2-node"} == 0
+          expr: up{job="node-exporter", instance="backups2"} == 0
           for: 5m
           labels:
             severity: critical
@@ -169,7 +169,7 @@ spec:
     - name: backups2-zfs-health
       rules:
         - alert: ZpoolNotOnline
-          expr: node_zfs_zpool_state{job="backups2-node", state="online"} != 1
+          expr: node_zfs_zpool_state{job="node-exporter", instance="backups2", state="online"} != 1
           for: 1m
           labels:
             severity: critical
@@ -178,7 +178,7 @@ spec:
             description: "Pool {{ $labels.zpool }} on backups2 is not in online state. Check zpool status immediately."
 
         - alert: ZpoolDegraded
-          expr: node_zfs_zpool_state{job="backups2-node", state="degraded"} == 1
+          expr: node_zfs_zpool_state{job="node-exporter", instance="backups2", state="degraded"} == 1
           for: 1m
           labels:
             severity: critical
@@ -187,7 +187,7 @@ spec:
             description: "Pool {{ $labels.zpool }} on backups2 is running in degraded mode. A mirror vdev has a failed/missing drive."
 
         - alert: ZpoolFaulted
-          expr: node_zfs_zpool_state{job="backups2-node", state="faulted"} == 1
+          expr: node_zfs_zpool_state{job="node-exporter", instance="backups2", state="faulted"} == 1
           for: 0m
           labels:
             severity: critical
@@ -196,7 +196,7 @@ spec:
             description: "Pool {{ $labels.zpool }} on backups2 is FAULTED and likely inaccessible. Data loss may have occurred."
 
         - alert: ZpoolSuspended
-          expr: node_zfs_zpool_state{job="backups2-node", state="suspended"} == 1
+          expr: node_zfs_zpool_state{job="node-exporter", instance="backups2", state="suspended"} == 1
           for: 0m
           labels:
             severity: critical
@@ -212,8 +212,8 @@ spec:
         - alert: FilesystemSpaceLow
           expr: |-
             (
-              node_filesystem_avail_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
-              / node_filesystem_size_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              node_filesystem_avail_bytes{job="node-exporter", instance="backups2", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              / node_filesystem_size_bytes{job="node-exporter", instance="backups2", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
             ) * 100 < 15
           for: 30m
           labels:
@@ -225,8 +225,8 @@ spec:
         - alert: FilesystemSpaceCritical
           expr: |-
             (
-              node_filesystem_avail_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
-              / node_filesystem_size_bytes{job="backups2-node", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              node_filesystem_avail_bytes{job="node-exporter", instance="backups2", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
+              / node_filesystem_size_bytes{job="node-exporter", instance="backups2", fstype=~"zfs|ext4", mountpoint!~"/boot.*"}
             ) * 100 < 5
           for: 15m
           labels:
@@ -238,8 +238,8 @@ spec:
         - alert: RootFilesystemSpaceLow
           expr: |-
             (
-              node_filesystem_avail_bytes{job="backups2-node", mountpoint="/"}
-              / node_filesystem_size_bytes{job="backups2-node", mountpoint="/"}
+              node_filesystem_avail_bytes{job="node-exporter", instance="backups2", mountpoint="/"}
+              / node_filesystem_size_bytes{job="node-exporter", instance="backups2", mountpoint="/"}
             ) * 100 < 20
           for: 15m
           labels:

@@ -33,6 +33,9 @@ prometheus:
             labels:
               instance: backups2
         scrape_interval: 60s
+        relabel_configs:
+          - target_label: job
+            replacement: node-exporter
       - job_name: backups2-smartctl
         static_configs:
           - targets: ["backups2.{{ domain_fqdn }}:9633"]

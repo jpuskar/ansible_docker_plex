@@ -1,0 +1,506 @@
+#jinja2: variable_start_string: '[[', variable_end_string: ']]'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-smartctl
+  namespace: [[ kps_namespace ]]
+  labels:
+    grafana_dashboard: "1"
+    app: kube-prometheus-stack
+data:
+  smartctl-exporter.json: |-
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+          "id": 100,
+          "title": "Overview",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+              "mappings": [
+                { "options": { "0": { "color": "red", "text": "FAIL" }, "1": { "color": "green", "text": "OK" } }, "type": "value" }
+              ]
+            },
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "SMART Status" }, "properties": [{ "id": "custom.cellOptions", "value": { "mode": "basic", "type": "color-background" } }] },
+              { "matcher": { "id": "byName", "options": "Temperature" }, "properties": [{ "id": "unit", "value": "celsius" }, { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 40 }, { "color": "red", "value": 50 }] } }, { "id": "custom.cellOptions", "value": { "mode": "basic", "type": "color-background" } }] },
+              { "matcher": { "id": "byName", "options": "Power On" }, "properties": [{ "id": "unit", "value": "h" }] },
+              { "matcher": { "id": "byName", "options": "Capacity" }, "properties": [{ "id": "unit", "value": "decbytes" }] }
+            ]
+          },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 1 },
+          "id": 1,
+          "options": { "showHeader": true, "sortBy": [{ "desc": false, "displayName": "Device" }] },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device{job=\"backups2-smartctl\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "DeviceInfo"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_smart_status{job=\"backups2-smartctl\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "SmartStatus"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_temperature{job=\"backups2-smartctl\", temperature_type=\"current\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Temperature"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_power_on_seconds{job=\"backups2-smartctl\"} / 3600",
+              "format": "table",
+              "instant": true,
+              "refId": "PowerOn"
+            },
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_capacity_bytes{job=\"backups2-smartctl\"}",
+              "format": "table",
+              "instant": true,
+              "refId": "Capacity"
+            }
+          ],
+          "title": "Device Inventory",
+          "transformations": [
+            { "id": "seriesToColumns", "options": { "byField": "device" } },
+            { "id": "organize", "options": {
+              "excludeByName": { "Time 1": true, "Time 2": true, "Time 3": true, "Time 4": true, "Time 5": true, "__name__": true, "__name__ 1": true, "__name__ 2": true, "__name__ 3": true, "__name__ 4": true, "__name__ 5": true, "ata_additional_product_id": true, "ata_version": true, "attribute_flags_long": true, "attribute_flags_short": true, "form_factor": true, "instance": true, "instance 1": true, "instance 2": true, "instance 3": true, "instance 4": true, "instance 5": true, "job": true, "job 1": true, "job 2": true, "job 3": true, "job 4": true, "job 5": true, "sata_version": true, "scsi_product": true, "scsi_revision": true, "scsi_vendor": true, "scsi_version": true, "temperature_type": true, "interface": true, "Value #DeviceInfo": true },
+              "indexByName": {},
+              "renameByName": { "device": "Device", "model_name": "Model", "serial_number": "Serial", "firmware_version": "Firmware", "protocol": "Protocol", "Value #SmartStatus": "SMART Status", "Value #Temperature": "Temperature", "Value #PowerOn": "Power On", "Value #Capacity": "Capacity" }
+            }}
+          ],
+          "type": "table"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+          "id": 101,
+          "title": "Temperature",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "°C", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true, "thresholdsStyle": { "mode": "line" } },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 45 }, { "color": "red", "value": 55 }] },
+              "unit": "celsius"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 10 },
+          "id": 2,
+          "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["last", "min", "max"] }, "tooltip": { "mode": "multi", "sort": "asc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_temperature{job=\"backups2-smartctl\", temperature_type=\"current\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Drive Temperature",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+          "id": 102,
+          "title": "SMART Health Indicators",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 19 },
+          "id": 3,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_attribute{job=\"backups2-smartctl\", attribute_name=\"Reallocated_Sector_Ct\", attribute_value_type=\"raw\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Reallocated Sectors",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 19 },
+          "id": 4,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_attribute{job=\"backups2-smartctl\", attribute_name=\"Current_Pending_Sector\", attribute_value_type=\"raw\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Pending Sectors",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 19 },
+          "id": 5,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_attribute{job=\"backups2-smartctl\", attribute_name=\"Offline_Uncorrectable\", attribute_value_type=\"raw\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Offline Uncorrectable",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 19 },
+          "id": 6,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_attribute{job=\"backups2-smartctl\", attribute_name=\"UDMA_CRC_Error_Count\", attribute_value_type=\"raw\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "UDMA CRC Errors",
+          "type": "stat"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+          "id": 103,
+          "title": "NVMe Health",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "max": 100,
+              "min": 0,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }] },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 25 },
+          "id": 7,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_percentage_used{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "NVMe Wear Level (%)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "max": 100,
+              "min": 0,
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 10 }, { "color": "green", "value": 20 }] },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 25 },
+          "id": 8,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_available_spare{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "NVMe Available Spare (%)",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 25 },
+          "id": 9,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_media_errors{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "NVMe Media Errors",
+          "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 25 },
+          "id": 10,
+          "options": { "colorMode": "background", "graphMode": "none", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_critical_warning{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "NVMe Critical Warning",
+          "type": "stat"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
+          "id": 104,
+          "title": "I/O & Throughput",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "decbytes"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+          "id": 11,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_bytes_read{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Total Bytes Read",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "decbytes"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
+          "id": 12,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_bytes_written{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Total Bytes Written",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+          "id": 105,
+          "title": "Power & Reliability",
+          "type": "row"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 0, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "h"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+          "id": 13,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_power_on_seconds{job=\"backups2-smartctl\"} / 3600",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Power-On Hours",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 0, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+          "id": 14,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_power_cycle_count{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Power Cycle Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 0, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+          "id": 15,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_error_log_count{job=\"backups2-smartctl\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Error Log Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "palette-classic" },
+              "custom": { "axisBorderShow": false, "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 0, "lineWidth": 1, "pointSize": 5, "showPoints": "never", "spanNulls": true },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+          "id": 16,
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "smartctl_device_attribute{job=\"backups2-smartctl\", attribute_name=\"Seek_Error_Rate\", attribute_value_type=\"raw\"}",
+              "legendFormat": "{{ device }}",
+              "refId": "A"
+            }
+          ],
+          "title": "Seek Error Rate (raw)",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["smartctl", "disk", "hardware", "backups2"],
+      "templating": { "list": [] },
+      "time": { "from": "now-24h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "SMART Disk Health — backups2",
+      "uid": "smartctl-backups2",
+      "version": 1
+    }
