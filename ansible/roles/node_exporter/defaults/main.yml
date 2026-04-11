@@ -1,3 +1,6 @@
 ---
-node_exporter_download_url: "https://github.com/prometheus/node_exporter/releases/download/v1.6.0/node_exporter-1.6.0.linux-amd64.tar.gz"
-node_exporter_checksum: "sha256:0b3573f8a7cb5b5f587df68eb28c3eb7c463f57d4b93e62c7586cb6dc481e515"
+node_exporter_download_url: "https://github.com/prometheus/node_exporter/releases/download/v1.11.1/node_exporter-1.11.1.linux-amd64.tar.gz"
+node_exporter_checksum: "sha256:9f5ea48e5bc7b656f8a91a32e7d7deb89f70f73dabd0d974418aca15f37d6810"
+
+node_exporter_textfile_dir: /var/lib/node_exporter/textfile_collector
+node_exporter_smartmon_interval: "*/5"  # cron minutes field — every 5 minutes
