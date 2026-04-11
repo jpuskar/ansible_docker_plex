@@ -1,0 +1,25 @@
+---
+# alerta ArgoCD Application Role Defaults
+
+# Helm chart configuration
+alerta_chart_repo: "https://alerta.github.io/alerta-helm/"
+alerta_chart_name: "alerta"
+alerta_chart_version: "0.2.6"
+alerta_namespace: "alerta"
+
+# Alerta admin API key — vault-encrypt with:
+#   echo -n 'YOUR_API_KEY' | ansible-vault encrypt_string --stdin-name 'alerta_admin_api_key'
+alerta_admin_api_key: "CHANGEME_VAULT_ENCRYPT_THIS"
+
+# Discord webhook URL — vault-encrypt with:
+#   echo -n 'https://discord.com/api/webhooks/...' | ansible-vault encrypt_string --stdin-name 'alerta_discord_webhook_url'
+alerta_discord_webhook_url: "CHANGEME_VAULT_ENCRYPT_THIS"
+
+# Alerta plugins to install (comma-separated)
+alerta_install_plugins: "discord"
+
+# Alerta enabled plugins
+alerta_plugins: "reject,discord"
+
+# Alertmanager integration — point Prometheus Alertmanager at Alerta
+alerta_alertmanager_api_url: "http://alerta.alerta.svc:8080/api"

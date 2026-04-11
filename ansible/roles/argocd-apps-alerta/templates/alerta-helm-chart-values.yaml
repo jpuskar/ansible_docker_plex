@@ -1,0 +1,61 @@
+# alerta Helm values
+
+replicaCount: 1
+
+# Use the pre-created secret for API key and Discord webhook
+alertaAdminApiKey:
+  existingSecret: alerta-secrets
+  secretKeyName: ALERTA_API_KEY
+
+# Install Discord plugin at startup
+installPlugins:
+  - discord
+
+# Alerta server configuration (alertad.conf)
+alertaConfig:
+  DEBUG: false
+  SECRET_KEY: "{{ alerta_admin_api_key }}"
+  PLUGINS: ["reject", "discord"]
+  DISCORD_WEBHOOK_URL: "{{ alerta_discord_webhook_url }}"
+  # Alertmanager webhook integration
+  ALERTMANAGER_API_URL: "{{ alerta_alertmanager_api_url }}"
+  # Severity colors for Discord embeds
+  DISCORD_SEVERITY_COLORS:
+    critical: 15158332
+    major: 15105570
+    minor: 16776960
+    warning: 16744448
+    informational: 3447003
+    normal: 3066993
+
+# Resource requests/limits for homelab
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+# PostgreSQL subchart — lightweight instance for alerta state
+postgresql:
+  enabled: true
+  auth:
+    database: alerta
+    username: alerta
+    existingSecret: ""
+  primary:
+    persistence:
+      enabled: true
+      storageClass: openebs-rawfile
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+# Service — ClusterIP is fine, access via Grafana or port-forward
+service:
+  type: ClusterIP
+  port: 8080

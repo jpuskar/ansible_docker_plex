@@ -30,6 +30,7 @@
     - zomboid1-application.yaml
     - valheim1-application.yaml
     - terraria1-application.yaml
+    - alerta-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -67,6 +68,7 @@
     - zomboid1-application.yaml
     - valheim1-application.yaml
     - terraria1-application.yaml
+    - alerta-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

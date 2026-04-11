@@ -1,0 +1,33 @@
+---
+- name: Template out alerta Helm values to temp dir
+  template:
+    src: alerta-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/alerta-values.yaml"
+
+- name: Add alerta Helm repository
+  shell:
+    cmd: |-
+      helm repo add alerta {{ alerta_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm alerta repositories
+  shell:
+    cmd: |-
+      helm repo update alerta
+  changed_when: false
+
+- name: Generate alerta manifests using helm template
+  shell:
+    cmd: |-
+      helm template alerta alerta/{{ alerta_chart_name }} \
+        --version {{ alerta_chart_version }} \
+        --namespace {{ alerta_namespace }} \
+        --values {{ temp_dir_path }}/alerta-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for alerta helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/alerta-helm-manifests.yaml"

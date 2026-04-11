@@ -1,0 +1,30 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: alerta
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/jpuskar/ansible_docker_plex
+      targetRevision: {{ argocd_apps_revision_overrides['alerta'] | default(argocd_apps_git_revision) }}
+      path: "./ansible/"
+      plugin:
+        env:
+          - name: APP_NAME
+            value: "alerta"
+          - name: CLUSTER_NAME
+            value: "{{ cluster_name }}"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: alerta
+
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true
