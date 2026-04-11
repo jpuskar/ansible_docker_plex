@@ -20,6 +20,9 @@
          name: kernel-modules
 
      - include_role:
+         name: early-getty
+
+     - include_role:
          name: node_exporter
 
      - include_role:

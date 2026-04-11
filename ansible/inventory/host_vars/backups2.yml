@@ -145,3 +145,6 @@ udev_rules_drive_bays_contents: !vault |
 # GPU only used for local console — framebuffer fallback is fine.
 kernel_modules_blacklist:
   - amdgpu
+
+# Start tty1 login prompt early so root can log in before network is up.
+early_getty: true

@@ -1,0 +1,39 @@
+---
+# Override getty@tty1 to start before network-online.target so root
+# can log in at the physical console immediately during boot,
+# without waiting for NFS/Samba/network to come up.
+
+- name: Create getty@tty1 override directory
+  file:
+    state: directory
+    path: /etc/systemd/system/getty@tty1.service.d
+    owner: root
+    group: root
+    mode: 0755
+  when: early_getty
+
+- name: Deploy early getty override
+  copy:
+    content: |
+      # Managed by Ansible — start tty1 login prompt early (before network)
+      [Unit]
+      After=
+      After=systemd-logind.service
+    dest: /etc/systemd/system/getty@tty1.service.d/early.conf
+    owner: root
+    group: root
+    mode: 0644
+  register: early_getty_override
+  when: early_getty
+
+- name: Remove early getty override if disabled
+  file:
+    path: /etc/systemd/system/getty@tty1.service.d/early.conf
+    state: absent
+  register: early_getty_removed
+  when: not early_getty
+
+- name: Reload systemd after getty override change
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: early_getty_override.changed | default(false) or early_getty_removed.changed | default(false)
