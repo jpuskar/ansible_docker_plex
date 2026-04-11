@@ -1,0 +1,9 @@
+---
+# List of kernel modules to blacklist via /etc/modprobe.d/
+# Set per-host in inventory/host_vars/<hostname>.yml
+#
+# Example:
+#   kernel_modules_blacklist:
+#     - amdgpu
+#     - nouveau
+kernel_modules_blacklist: []

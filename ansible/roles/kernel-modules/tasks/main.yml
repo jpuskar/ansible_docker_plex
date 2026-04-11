@@ -1,0 +1,21 @@
+---
+- name: Deploy kernel module blacklist
+  template:
+    src: blacklist.conf.j2
+    dest: /etc/modprobe.d/ansible-blacklist.conf
+    owner: root
+    group: root
+    mode: 0644
+  register: blacklist_file
+  when: kernel_modules_blacklist | length > 0
+
+- name: Remove blacklist file if no modules to blacklist
+  file:
+    path: /etc/modprobe.d/ansible-blacklist.conf
+    state: absent
+  register: blacklist_removed
+  when: kernel_modules_blacklist | length == 0
+
+- name: Rebuild initramfs
+  command: update-initramfs -u
+  when: blacklist_file.changed or blacklist_removed.changed

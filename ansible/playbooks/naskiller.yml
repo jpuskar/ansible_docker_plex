@@ -17,6 +17,9 @@
 #        name: liquidctl
 #
      - include_role:
+         name: kernel-modules
+
+     - include_role:
          name: node_exporter
 
      - include_role:

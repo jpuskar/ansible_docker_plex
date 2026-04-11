@@ -1,0 +1,4 @@
+# Managed by Ansible — do not edit manually
+{% for module in kernel_modules_blacklist %}
+blacklist {{ module }}
+{% endfor %}
