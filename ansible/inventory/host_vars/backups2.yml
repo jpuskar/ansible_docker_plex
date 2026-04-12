@@ -141,10 +141,26 @@ udev_rules_drive_bays_contents: !vault |
   63376332653235393666383136616262343730303636373339366230636231623838346464663239
   333563313931623431393438313138313564
 
-# amdgpu dm_irq_work_func caused hard lockup on 2026-04-09.
-# GPU only used for local console — framebuffer fallback is fine.
 kernel_modules_blacklist:
-  - amdgpu
+  - name: amdgpu
+    comment: |
+      dm_irq_work_func caused hard lockup on 2026-04-09.
+      GPU only used for local console — framebuffer fallback is fine.
+  - name: nct6775
+    comment: |
+      NCT6775F Super I/O on X570 Taichi uses direct ISA I/O (access_direct).
+      nct6775_update_device() is monolithic — ANY sysfs read triggers a full
+      sensor update including fan_div register WRITES (has_fan_div=true, unique
+      to the original NCT6775F). These non-atomic multi-step ISA writes (bank
+      select + data) race with the BIOS SMI handler that polls the same chip for
+      fan curve control. A corrupted bank select can redirect a fan_div write to
+      an arbitrary NCT6775 register. If that hits system control space
+      (PWROK/watchdog/GPIO), the chip locks up, deasserts PWROK, and the system
+      hard-powers-off — no logs, no oops, requires AC power cycle (RGB stays
+      lit). Crashed 3x in April 2026 within hours of loading nct6775 +
+      node_exporter. No WMI escape path exists for ASRock boards (ASUS only).
+      Later chips (nct6776+) have has_fan_div=false and skip the dangerous write
+      path. k10temp (PCI config space) is safe for CPU temps.
 
 # Start tty1 login prompt early so root can log in before network is up.
 early_getty: true

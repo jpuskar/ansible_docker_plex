@@ -2,8 +2,9 @@
 # List of kernel modules to blacklist via /etc/modprobe.d/
 # Set per-host in inventory/host_vars/<hostname>.yml
 #
-# Example:
+# Each item can be a plain string or a dict with name + comment:
 #   kernel_modules_blacklist:
 #     - amdgpu
-#     - nouveau
+#     - name: nct6775
+#       comment: "ISA I/O race with BIOS SMI causes hard crash"
 kernel_modules_blacklist: []

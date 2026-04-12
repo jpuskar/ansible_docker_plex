@@ -1,4 +1,16 @@
 # Managed by Ansible — do not edit manually
 {% for module in kernel_modules_blacklist %}
+{% if module is mapping %}
+{% if module.comment is defined %}
+
+{% for line in module.comment.split('\n') %}
+{% if line %}
+# {{ line }}
+{% endif %}
+{% endfor %}
+{% endif %}
+blacklist {{ module.name }}
+{% else %}
 blacklist {{ module }}
+{% endif %}
 {% endfor %}
