@@ -7,7 +7,7 @@ talos_use_tpm: false
 
 talos_image_requirements:
   secureboot: false
-  version: "v1.12.6"
+  version: "v1.13.2"
   extensions: ["intel-ucode"]
 
 talos_install_disk: sda
