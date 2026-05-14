@@ -1,12 +1,10 @@
 ---
 talos_enable_luks: true
 talos_use_tpm: true
-talos_enable_nvidia: true
 
 talos_image_requirements:
-  arch: arm64
   secureboot: true
   version: "v1.13.2"
-  extensions: ["nonfree-kmod-nvidia-lts"]
+  extensions: ["bnx2-bnx2x", "intel-ucode"]
 
-talos_install_disk: nvme0n1
+talos_install_disk: sda
