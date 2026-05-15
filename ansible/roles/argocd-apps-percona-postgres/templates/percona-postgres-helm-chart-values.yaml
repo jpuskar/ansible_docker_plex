@@ -14,6 +14,12 @@ tolerations:
     effect: {{ toleration.effect }}
 {% endfor %}
 
+# Node selector - require x86-64-v3 capable CPU (AVX2)
+nodeSelector:
+{% for key, value in percona_postgres_node_selector.items() %}
+  {{ key }}: "{{ value }}"
+{% endfor %}
+
 # Resource limits for operator
 resources:
   limits:
