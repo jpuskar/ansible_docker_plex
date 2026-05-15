@@ -20,7 +20,7 @@ unifi_psmdb_storage_size: "8Gi"
 # Percona MongoDB resource limits — sized small for Unifi workload
 unifi_psmdb_resources_requests_cpu: "100m"
 unifi_psmdb_resources_requests_memory: "256Mi"
-unifi_psmdb_resources_limits_cpu: "300m"
+unifi_psmdb_resources_limits_cpu: "1000m"
 unifi_psmdb_resources_limits_memory: "512Mi"
 
 # Unifi application data persistence
