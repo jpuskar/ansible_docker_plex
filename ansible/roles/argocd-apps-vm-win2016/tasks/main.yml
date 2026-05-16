@@ -17,3 +17,8 @@
   template:
     src: vm-win2016.yaml
     dest: "{{ output_dir_path }}/vm-win2016.yaml"
+
+- name: Template out RDP Service manifest
+  template:
+    src: svc-rdp.yaml
+    dest: "{{ output_dir_path }}/svc-rdp.yaml"

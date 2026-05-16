@@ -27,3 +27,6 @@ win2016_vm_run_strategy: "Manual"
 
 # Timezone (for RTC clock)
 win2016_vm_timezone: "America/New_York"
+
+# RDP LoadBalancer IP (from Cilium lb-pool 192.168.25.50-70)
+win2016_vm_rdp_loadbalancer_ip: "192.168.25.57"
