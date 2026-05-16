@@ -1,0 +1,14 @@
+---
+# CDI (Containerized Data Importer) ArgoCD Application Role Defaults
+
+# CDI release version
+cdi_version: "v1.65.0"
+cdi_namespace: "cdi"
+
+# Image pull policy for CDI components
+cdi_image_pull_policy: "IfNotPresent"
+
+# Feature gates to enable
+cdi_feature_gates:
+  - HonorWaitForFirstConsumer
+  - WebhookPvcRendering

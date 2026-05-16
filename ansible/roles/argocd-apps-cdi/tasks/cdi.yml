@@ -1,0 +1,10 @@
+---
+- name: Copy CDI operator manifest
+  copy:
+    src: "cdi-operator.{{ cdi_version }}.yaml"
+    dest: "{{ output_dir_path }}/cdi-operator.yaml"
+
+- name: Template out CDI CR
+  template:
+    src: cdi-cr.yaml
+    dest: "{{ output_dir_path }}/cdi-cr.yaml"

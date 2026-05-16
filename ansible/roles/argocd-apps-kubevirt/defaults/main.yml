@@ -8,8 +8,9 @@ kubevirt_namespace: "kubevirt"
 # Image pull policy for KubeVirt components
 kubevirt_image_pull_policy: "IfNotPresent"
 
-# Feature gates to enable (empty by default)
-kubevirt_feature_gates: []
+# Feature gates to enable
+kubevirt_feature_gates:
+  - HostDevices
 
 # Node selector for VM workloads (virt-handler)
 # Only nodes with this label will run VMs
