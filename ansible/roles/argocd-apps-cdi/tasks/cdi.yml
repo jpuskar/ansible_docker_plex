@@ -1,7 +1,7 @@
 ---
 - name: Copy CDI operator manifest
   copy:
-    src: "cdi-operator.{{ cdi_version }}.yaml"
+    content: "{{ lookup('file', role_path + '/files/cdi-operator.' + cdi_version + '.yaml') | ensure_yaml_doc_start }}"
     dest: "{{ output_dir_path }}/cdi-operator.yaml"
 
 - name: Template out CDI CR
