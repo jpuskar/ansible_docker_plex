@@ -1,0 +1,29 @@
+---
+# vm-win2016 ArgoCD Application Role Defaults
+
+# Namespace
+win2016_vm_namespace: "vms-windows"
+
+# Windows ISO source (Microsoft Eval Center)
+win2016_vm_iso_url: "https://software-static.download.prss.microsoft.com/pr/download/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
+win2016_vm_iso_size: "8Gi"
+
+# virtio-win driver ISO (fedorapeople stable)
+win2016_vm_virtio_url: "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+win2016_vm_virtio_size: "1Gi"
+
+# OS disk
+win2016_vm_osdisk_size: "100Gi"
+
+# Storage class for all PVCs
+win2016_vm_storage_class: "nfs-csi"
+
+# VM resources
+win2016_vm_cpu_cores: 4
+win2016_vm_memory: "8Gi"
+
+# VM run strategy: Manual (don't auto-start until Windows is installed)
+win2016_vm_run_strategy: "Manual"
+
+# Timezone (for RTC clock)
+win2016_vm_timezone: "America/New_York"

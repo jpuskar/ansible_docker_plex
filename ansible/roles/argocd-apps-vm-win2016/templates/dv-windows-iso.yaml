@@ -1,0 +1,18 @@
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: win2016-iso
+  namespace: {{ win2016_vm_namespace }}
+spec:
+  source:
+    http:
+      url: {{ win2016_vm_iso_url }}
+  pvc:
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: {{ win2016_vm_iso_size }}
+    storageClassName: {{ win2016_vm_storage_class }}
+    volumeMode: Filesystem

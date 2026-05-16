@@ -94,3 +94,4 @@ argocd_apps_revision_overrides:
   kubevirt: kubevirt
   cdi: kubevirt
   csi-driver-nfs: kubevirt
+  vm-win2016: kubevirt
