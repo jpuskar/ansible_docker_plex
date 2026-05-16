@@ -18,7 +18,14 @@ kubevirt_namespace_extra_labels:
 kubevirt_feature_gates:
   - HostDevices
 
-# Node selector for VM workloads (virt-handler)
-# Only nodes with this label will run VMs
+# Node selector for virt-handler (the per-node KubeVirt agent).
+# IMPORTANT: Do NOT use kubevirt.io/schedulable here — that label is MANAGED by
+# virt-handler itself (it sets true/false based on KVM capability detection).
+# Using it here creates a chicken-and-egg deadlock.
+#
+# Use a custom label you manage manually. Only nodes with this label will run
+# virt-handler, which means only those nodes can host VMs.
+# Label your VM host(s) with:
+#   kubectl label node <node> node-role.kubernetes.io/vm-host=true
 kubevirt_workload_node_selector:
-  kubevirt.io/schedulable: "true"
+  node-role.kubernetes.io/vm-host: "true"
