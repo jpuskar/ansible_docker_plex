@@ -20,6 +20,10 @@ percona_postgres_tolerations:
     operator: Exists
     effect: NoSchedule
 
+# Node selector - require x86-64-v3 capable CPU (AVX2)
+percona_postgres_node_selector:
+  feature.node.kubernetes.io/cpu-cpuid.AVX2: "true"
+
 # Resource limits for operator
 percona_postgres_resources:
   limits:

@@ -6,7 +6,7 @@ talos_enable_nvidia: true
 talos_image_requirements:
   arch: arm64
   secureboot: true
-  version: "v1.12.1"
+  version: "v1.13.2"
   extensions: ["nonfree-kmod-nvidia-lts"]
 
 talos_install_disk: nvme0n1

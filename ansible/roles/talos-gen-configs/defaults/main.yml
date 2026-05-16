@@ -107,6 +107,92 @@ talos_images_info:
 #        - nvidia-gdrdrv-device
 #        - nvme-cli
 #        - util-linux-tools
+  # v1.13.2 with SecureBoot, bnx2-bnx2x NIC driver, and Intel microcode
+  - name: "v1.13.2-secureboot-bnx2-bnx2x-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/4d85c6d034a422ff186a3613e05d444cd3e0602731164a25a7445cedc90dcae8:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: true
+      version: "v1.13.2"
+      extensions:
+        - bnx2-bnx2x
+        - intel-ucode
+
+  # v1.13.2 with bnx2-bnx2x NIC driver and Intel microcode (no SecureBoot)
+  - name: "v1.13.2-bnx2-bnx2x-intel-ucode"
+    image: "factory.talos.dev/metal-installer/4d85c6d034a422ff186a3613e05d444cd3e0602731164a25a7445cedc90dcae8:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: false
+      version: "v1.13.2"
+      extensions:
+        - bnx2-bnx2x
+        - intel-ucode
+
+  # v1.13.2 with SecureBoot, i915 GPU driver, and Intel microcode
+  - name: "v1.13.2-secureboot-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: true
+      version: "v1.13.2"
+      extensions:
+        - i915
+        - intel-ucode
+
+  # v1.13.2 with i915 GPU driver and Intel microcode (no SecureBoot)
+  - name: "v1.13.2-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: false
+      version: "v1.13.2"
+      extensions:
+        - i915
+        - intel-ucode
+
+  # v1.13.2 with SecureBoot and Intel microcode
+  - name: "v1.13.2-secureboot-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: true
+      version: "v1.13.2"
+      extensions:
+        - intel-ucode
+
+  # v1.13.2 with Intel microcode (no SecureBoot)
+  - name: "v1.13.2-intel-ucode"
+    image: "factory.talos.dev/metal-installer/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.13.2"
+    tags:
+      arch: amd64
+      secureboot: false
+      version: "v1.13.2"
+      extensions:
+        - intel-ucode
+
+  # v1.12.7 with SecureBoot, i915 GPU driver, and Intel microcode
+  - name: "v1.12.7-secureboot-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7"
+    tags:
+      arch: amd64
+      secureboot: true
+      version: "v1.12.7"
+      extensions:
+        - i915
+        - intel-ucode
+
+  # v1.12.7 with i915 GPU driver and Intel microcode (no SecureBoot)
+  - name: "v1.12.7-i915-intel-ucode"
+    image: "factory.talos.dev/metal-installer/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7"
+    tags:
+      arch: amd64
+      secureboot: false
+      version: "v1.12.7"
+      extensions:
+        - i915
+        - intel-ucode
+
   # v1.12.6 with SecureBoot, i915 GPU driver, and Intel microcode
   - name: "v1.12.6-secureboot-i915-intel-ucode"
     image: "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.6"
@@ -172,7 +258,7 @@ talos_images_info:
 # Default image requirements (can be overridden per-host in host_vars)
 talos_image_requirements:
   secureboot: true
-  version: "v1.12.6"
+  version: "v1.13.2"
   extensions: []
 
 # Harbor registry configuration for Talos

@@ -1,10 +1,10 @@
 ---
-talos_enable_luks: true
-talos_use_tpm: true
+talos_enable_luks: false
+talos_use_tpm: false
 
 talos_image_requirements:
   secureboot: true
   version: "v1.13.2"
-  extensions: ["i915", "intel-ucode"]
+  extensions: ["bnx2-bnx2x", "intel-ucode"]
 
 talos_install_disk: sda

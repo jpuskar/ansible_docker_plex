@@ -4,29 +4,36 @@
   tasks:
 #     - include_role:
 #         name: common
-
 #
 # TODO: serial_console
 #    # ref: https://help.ubuntu.com/community/SerialConsoleHowto
 #    - include_role:
 #        name: serial_console
-#
 
-#     - include_role:
-#         name: sensors
+     - include_role:
+         name: sensors
 #
 #     - include_role:
 #        name: liquidctl
 #
-#     - include_role:
-#        name: node_exporter
+     - include_role:
+         name: kernel-modules
 
+     - include_role:
+         name: early-getty
+
+     - include_role:
+         name: node_exporter
+
+     - include_role:
+         name: smartctl_exporter
+#
 #    - include_role:
 #        name: zfs-core
-
-   - include_role:
-       name: zfs-naskiller-config
-
+#
+#   - include_role:
+#       name: zfs-naskiller-config
+#
 #     # TODO: disable password rotation - 5.5.1.x
 #     - include_role:
 #         name: UBUNTU22-CIS

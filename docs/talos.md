@@ -26,7 +26,7 @@ talosctl kubeconfig --talosconfig=./talosconfig --nodes ${NODES}
 factory.talos.dev/metal-installer/0b92dc99db71715e1a269eddc014ef6bd37d5d36263a8921fde74e6e427b6a20:v1.11.5
 
 
-https://github.com/siderolabs/talos/releases/download/v1.11.6/talosctl-linux-amd64
+https://github.com/siderolabs/talos/releases/download/v1.12.7/talosctl-linux-amd64
 
 
 export CLUSTER_NAME=k8s2-node1
@@ -54,7 +54,7 @@ talosctl kubeconfig --nodes $CONTROL_PLANE_IP --talosconfig=./talosconfig
 
 # Upgrade
 ```shell
-talosctl --talosconfig ./talosconfig --nodes $IP_ADDRESS upgrade --image ghcr.io/siderolabs/installer:v1.12.0
+talosctl --talosconfig ./talosconfig --nodes $IP_ADDRESS upgrade --image ghcr.io/siderolabs/installer:v1.12.7
 talosctl --talosconfig ./talosconfig --nodes $IP_ADDRESS reboot
 ```
 
@@ -69,7 +69,28 @@ talosctl --talosconfig ./talosconfig --nodes $IP_ADDRESS etcd remove-member <ID>
 # Upgrades
 (Not all notes are secure boot though)
 ```shell
-./tmp/talosctl-v1.12.6-linux-amd64 --talosconfig ../tmp/talos/k8s2/talosconfig --nodes IP_ADDR upgrade --image "factory.talos.dev/metal-installer-secureboot/2d61dd07b20062062ea671b4d01873506103b67c0f7a4c3fb6cf4ee85585dcb8:v1.12.6" -s
+TALOSCONFIG=./tmp/talos/k8s2/talosconfig
+TALOSCTL=./tmp/talosctl-v1.12.7-linux-amd64
+
+# k8s2 - SecureBoot
+$TALOSCTL --talosconfig $TALOSCONFIG --nodes 192.168.25.151 upgrade \
+  --image "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7" -s
+
+# k8s3 - No SecureBoot (TPM 1.2)
+$TALOSCTL --talosconfig $TALOSCONFIG --nodes 192.168.25.152 upgrade \
+  --image "factory.talos.dev/metal-installer/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7" -s
+
+# k8s4 - No SecureBoot (LUKS disabled)
+$TALOSCTL --talosconfig $TALOSCONFIG --nodes 192.168.25.153 upgrade \
+  --image "factory.talos.dev/metal-installer/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7" -s
+
+# k8s5 - SecureBoot (nvme0n1)
+$TALOSCTL --talosconfig $TALOSCONFIG --nodes 192.168.25.154 upgrade \
+  --image "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7" -s
+
+# k8s6 - SecureBoot (nvme0n1)
+$TALOSCTL --talosconfig $TALOSCONFIG --nodes 192.168.25.155 upgrade \
+  --image "factory.talos.dev/metal-installer-secureboot/4b3cd373a192c8469e859b7a0cfbed3ecc3577c4a2d346a37b0aeff9cd17cdb0:v1.12.7" -s
 ```
 
 

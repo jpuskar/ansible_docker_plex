@@ -1,0 +1,13 @@
+[Unit]
+Description=Smartctl Exporter
+After=network.target
+
+[Service]
+# smartctl requires root to query drives
+User=root
+ExecStart=/opt/smartctl_exporter/{{ smartctl_exporter_folder_name }}/smartctl_exporter
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

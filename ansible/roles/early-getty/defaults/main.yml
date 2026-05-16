@@ -1,0 +1,5 @@
+---
+# Start getty on tty1 early in boot (before network-online.target)
+# so root can log in immediately for troubleshooting.
+# Set per-host in inventory/host_vars/<hostname>.yml
+early_getty: false

@@ -1,0 +1,5 @@
+---
+# Map motherboard model (ansible_board_name) to required sensor kernel modules
+sensor_module_map:
+  "X570 Taichi":
+    - k10temp

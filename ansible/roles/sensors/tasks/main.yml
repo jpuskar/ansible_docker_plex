@@ -1,16 +1,29 @@
 ---
-- name: detect sensors
-  shell:
-    cmd: |
-      set -euo pipefail
-      sensors-detect --auto
-  args:
-    executable: /bin/bash
-  register: sensors_detect_cmd
+- name: show ansible_board_name
+  debug:
+    var: ansible_board_name
 
-- name: add kernel module
-  community.general.modprobe:
-    name: nct6775
+- name: Install lm-sensors
+  ansible.builtin.apt:
+    name: lm-sensors
     state: present
-    persistent: present
-  when: "'nct6775' in sensors_detect_cmd.stdout"
+
+- name: Uncomment sensor modules in /etc/modules if commented out
+  ansible.builtin.replace:
+    path: /etc/modules
+    regexp: '^#\s*{{ item }}\s*$'
+    replace: '{{ item }}'
+  loop: "{{ sensor_module_map[ansible_board_name] | default([]) }}"
+
+- name: Ensure sensor modules in /etc/modules
+  ansible.builtin.lineinfile:
+    path: /etc/modules
+    line: "{{ item }}"
+    insertafter: EOF
+  loop: "{{ sensor_module_map[ansible_board_name] | default([]) }}"
+
+- name: Load sensor modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ sensor_module_map[ansible_board_name] | default([]) }}"

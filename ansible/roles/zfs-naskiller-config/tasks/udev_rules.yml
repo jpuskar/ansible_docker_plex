@@ -16,5 +16,5 @@
       udevadm control --reload
   args:
     executable: /bin/bash
-  register: sensors_detect_cmd
+  register: reload_udev_cmd
   when: udev_rules_file.changed
