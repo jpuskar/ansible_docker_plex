@@ -1,0 +1,10 @@
+---
+- name: Copy KubeVirt operator manifest
+  copy:
+    src: "kubevirt-operator.{{ kubevirt_version }}.yaml"
+    dest: "{{ output_dir_path }}/kubevirt-operator.yaml"
+
+- name: Template out KubeVirt CR
+  template:
+    src: kubevirt-cr.yaml
+    dest: "{{ output_dir_path }}/kubevirt-cr.yaml"

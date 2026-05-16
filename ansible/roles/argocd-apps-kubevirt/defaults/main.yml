@@ -1,0 +1,12 @@
+---
+# KubeVirt ArgoCD Application Role Defaults
+
+# KubeVirt release version
+kubevirt_version: "v1.8.2"
+kubevirt_namespace: "kubevirt"
+
+# Image pull policy for KubeVirt components
+kubevirt_image_pull_policy: "IfNotPresent"
+
+# Feature gates to enable (empty by default)
+kubevirt_feature_gates: []

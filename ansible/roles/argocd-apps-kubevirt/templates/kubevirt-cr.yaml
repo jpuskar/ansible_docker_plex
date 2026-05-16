@@ -1,0 +1,15 @@
+---
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: {{ kubevirt_namespace }}
+spec:
+  certificateRotateStrategy: {}
+  configuration:
+    developerConfiguration:
+      featureGates: {{ kubevirt_feature_gates | to_json }}
+    imagePullPolicy: {{ kubevirt_image_pull_policy }}
+  customizeComponents: {}
+  imagePullPolicy: {{ kubevirt_image_pull_policy }}
+  workloadUpdateStrategy: {}
