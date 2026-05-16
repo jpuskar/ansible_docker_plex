@@ -10,3 +10,8 @@ kubevirt_image_pull_policy: "IfNotPresent"
 
 # Feature gates to enable (empty by default)
 kubevirt_feature_gates: []
+
+# Node selector for VM workloads (virt-handler)
+# Only nodes with this label will run VMs
+kubevirt_workload_node_selector:
+  kubevirt.io/schedulable: "true"

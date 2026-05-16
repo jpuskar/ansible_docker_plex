@@ -12,4 +12,10 @@ spec:
     imagePullPolicy: {{ kubevirt_image_pull_policy }}
   customizeComponents: {}
   imagePullPolicy: {{ kubevirt_image_pull_policy }}
+  workloads:
+    nodePlacement:
+      nodeSelector:
+{% for key, value in kubevirt_workload_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
   workloadUpdateStrategy: {}
