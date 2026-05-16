@@ -86,6 +86,13 @@ spec:
             - name: tablet
               type: tablet
               bus: usb
+{% if win2016_vm_host_devices %}
+          hostDevices:
+{% for dev in win2016_vm_host_devices %}
+            - name: {{ dev.name }}
+              deviceName: {{ dev.device_name }}
+{% endfor %}
+{% endif %}
       networks:
         - name: default
           pod: {}

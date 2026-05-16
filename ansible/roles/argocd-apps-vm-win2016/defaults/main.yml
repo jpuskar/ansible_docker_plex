@@ -30,3 +30,7 @@ win2016_vm_timezone: "America/New_York"
 
 # RDP LoadBalancer IP (from Cilium lb-pool 192.168.25.50-70)
 win2016_vm_rdp_loadbalancer_ip: "192.168.25.57"
+
+# Host devices to pass through to the VM. Each entry references a resourceName
+# declared in the cluster-wide KubeVirt CR (kubevirt_permitted_usb_devices).
+win2016_vm_host_devices: []

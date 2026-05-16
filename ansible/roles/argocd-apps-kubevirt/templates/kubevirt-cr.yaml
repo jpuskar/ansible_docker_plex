@@ -10,6 +10,16 @@ spec:
     developerConfiguration:
       featureGates: {{ kubevirt_feature_gates | to_json }}
     imagePullPolicy: {{ kubevirt_image_pull_policy }}
+{% if kubevirt_permitted_usb_devices %}
+    permittedHostDevices:
+      usb:
+{% for dev in kubevirt_permitted_usb_devices %}
+        - resourceName: {{ dev.resource_name }}
+          selectors:
+            - vendor: "{{ dev.vendor }}"
+              product: "{{ dev.product }}"
+{% endfor %}
+{% endif %}
   customizeComponents: {}
   imagePullPolicy: {{ kubevirt_image_pull_policy }}
 {% if kubevirt_workload_node_selector %}

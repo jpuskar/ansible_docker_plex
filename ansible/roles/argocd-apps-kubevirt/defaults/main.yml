@@ -18,6 +18,11 @@ kubevirt_namespace_extra_labels:
 kubevirt_feature_gates:
   - HostDevices
 
+# USB host devices allowed for VM passthrough.
+# Each entry advertises a k8s extended resource on nodes where the device is
+# present; VMs claim it via spec.domain.devices.hostDevices.
+kubevirt_permitted_usb_devices: []
+
 # Node selector for virt-handler (the per-node KubeVirt agent).
 # IMPORTANT: Do NOT use kubevirt.io/schedulable here — that label is MANAGED by
 # virt-handler itself (it sets true/false based on KVM capability detection).
