@@ -32,6 +32,7 @@
     - terraria1-application.yaml
     - kubevirt-application.yaml
     - cdi-application.yaml
+    - csi-driver-nfs-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -71,6 +72,7 @@
     - terraria1-application.yaml
     - kubevirt-application.yaml
     - cdi-application.yaml
+    - csi-driver-nfs-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

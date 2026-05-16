@@ -8,6 +8,12 @@ cdi_namespace: "cdi"
 # Image pull policy for CDI components
 cdi_image_pull_policy: "IfNotPresent"
 
+# Labels to merge onto the Namespace resource in the operator manifest
+cdi_namespace_extra_labels:
+  pod-security.kubernetes.io/enforce: privileged
+  pod-security.kubernetes.io/audit: privileged
+  pod-security.kubernetes.io/warn: privileged
+
 # Feature gates to enable
 cdi_feature_gates:
   - HonorWaitForFirstConsumer

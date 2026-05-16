@@ -1,7 +1,7 @@
 ---
-- name: Copy KubeVirt operator manifest
+- name: Copy KubeVirt operator manifest (with namespace labels)
   copy:
-    src: "kubevirt-operator.{{ kubevirt_version }}.yaml"
+    content: "{{ lookup('file', role_path + '/files/kubevirt-operator.' + kubevirt_version + '.yaml') | patch_namespace_labels(kubevirt_namespace_extra_labels) }}"
     dest: "{{ output_dir_path }}/kubevirt-operator.yaml"
 
 - name: Template out KubeVirt CR

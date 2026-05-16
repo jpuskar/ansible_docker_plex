@@ -1,8 +1,3 @@
 ---
-- name: Template out namespace manifest
-  template:
-    src: namespace.yaml
-    dest: "{{ output_dir_path }}/namespace.yaml"
-
 - name: Include kubevirt tasks
   include_tasks: kubevirt.yml

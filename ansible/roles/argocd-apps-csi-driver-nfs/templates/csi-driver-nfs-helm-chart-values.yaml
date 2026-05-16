@@ -1,0 +1,22 @@
+# NFS CSI Driver Helm values
+
+# Disable StorageClass creation from the chart - we manage it separately via Git
+storageClass:
+  create: false
+
+# Controller configuration
+controller:
+  # Run on control plane nodes
+  runOnControlPlane: true
+  replicas: 1
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+
+# Node plugin configuration
+node:
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
