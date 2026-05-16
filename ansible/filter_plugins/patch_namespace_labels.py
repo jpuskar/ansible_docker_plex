@@ -28,40 +28,19 @@ def patch_namespace_labels(raw_yaml, extra_labels):
 
     plain_labels = _to_plain(extra_labels)
 
-    docs_out = []
-    for raw_doc in raw_yaml.split("\n---"):
-        # Try to parse the document
-        stripped = raw_doc.lstrip("\n")
-        if not stripped or stripped.isspace():
-            docs_out.append(raw_doc)
-            continue
-        try:
-            doc = yaml.safe_load(stripped)
-        except yaml.YAMLError:
-            docs_out.append(raw_doc)
-            continue
+    docs = list(yaml.safe_load_all(raw_yaml))
+    for doc in docs:
+        if isinstance(doc, dict) and doc.get("kind") == "Namespace":
+            meta = doc.setdefault("metadata", {})
+            labels = meta.setdefault("labels", {})
+            labels.update(plain_labels)
 
-        if not isinstance(doc, dict) or doc.get("kind") != "Namespace":
-            docs_out.append(raw_doc)
-            continue
-
-        # Merge labels into the Namespace document
-        meta = doc.setdefault("metadata", {})
-        labels = meta.setdefault("labels", {})
-        labels.update(plain_labels)
-
-        # Re-serialize just this document
-        dumped = yaml.dump(doc, default_flow_style=False, sort_keys=False)
-        # Preserve the leading newline/whitespace pattern of the original chunk
-        leading = ""
-        for ch in raw_doc:
-            if ch in ("\n", " "):
-                leading += ch
-            else:
-                break
-        docs_out.append(leading + dumped.rstrip("\n"))
-
-    return "\n---".join(docs_out)
+    return yaml.safe_dump_all(
+        docs,
+        default_flow_style=False,
+        sort_keys=False,
+        explicit_start=True,
+    )
 
 
 class FilterModule:
