@@ -14,3 +14,22 @@ blacklist {{ module.name }}
 blacklist {{ module }}
 {% endif %}
 {% endfor %}
+{% if kernel_modules_disabled | length > 0 %}
+
+# Hard-disabled modules (install /bin/false) — cannot be loaded even explicitly
+{% for module in kernel_modules_disabled %}
+{% if module is mapping %}
+{% if module.comment is defined %}
+
+{% for line in module.comment.split('\n') %}
+{% if line %}
+# {{ line }}
+{% endif %}
+{% endfor %}
+{% endif %}
+install {{ module.name }} /bin/false
+{% else %}
+install {{ module }} /bin/false
+{% endif %}
+{% endfor %}
+{% endif %}
