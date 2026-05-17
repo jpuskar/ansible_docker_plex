@@ -90,11 +90,7 @@ plex_load_balancer_ip: !vault |
   3964646462373838640a613131333732346339336465343931346561643862623061633333313131
   3331
 
-argocd_apps_revision_overrides:
-  kubevirt: kubevirt
-  cdi: kubevirt
-  csi-driver-nfs: kubevirt
-  vm-win2016: kubevirt
+argocd_apps_revision_overrides: {}
 
 # USB devices on k8s8 (the vm-host) that KubeVirt is allowed to pass through.
 kubevirt_permitted_usb_devices:
