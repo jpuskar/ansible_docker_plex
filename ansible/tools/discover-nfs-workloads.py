@@ -14,77 +14,97 @@ Outputs JSON array with current state for each workload.
 Respects KUBECONFIG environment variable.
 """
 import json
-import subprocess
 import sys
 
+from kubernetes import client, config
 
-def kubectl(*args):
-    cmd = ["kubectl"] + list(args) + ["-o", "json"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        return None
-    return json.loads(r.stdout)
+
+def load_kube_config():
+    try:
+        config.load_incluster_config()
+    except config.ConfigException:
+        config.load_kube_config()
+
+
+def get_owner_refs(obj):
+    """Return ownerReferences list from a k8s object, or empty list."""
+    if hasattr(obj, "metadata") and obj.metadata.owner_references:
+        return obj.metadata.owner_references
+    return []
 
 
 def main():
+    load_kube_config()
+    core = client.CoreV1Api()
+    apps = client.AppsV1()
+    custom = client.CustomObjectsApi()
+
     # 1. Identify NFS-backed PVCs from PV list
-    pvs = kubectl("get", "pv")
     nfs_pvcs = set()
-    for pv in (pvs or {}).get("items", []):
-        spec = pv.get("spec", {})
-        is_nfs = "nfs" in spec
-        if "nfs" in spec.get("csi", {}).get("driver", "").lower():
+    for pv in core.list_persistent_volume().items:
+        spec = pv.spec
+        is_nfs = spec.nfs is not None
+        if spec.csi and spec.csi.driver and "nfs" in spec.csi.driver.lower():
             is_nfs = True
-        if is_nfs:
-            ref = spec.get("claimRef", {})
-            if ref.get("namespace") and ref.get("name"):
-                nfs_pvcs.add(f"{ref['namespace']}/{ref['name']}")
+        if is_nfs and spec.claim_ref:
+            ns = spec.claim_ref.namespace
+            name = spec.claim_ref.name
+            if ns and name:
+                nfs_pvcs.add(f"{ns}/{name}")
 
     # 2. Find pods mounting NFS (via matched PVC or direct nfs volume)
-    pods = kubectl("get", "pods", "-A")
     nfs_pods = []
-    for pod in (pods or {}).get("items", []):
-        ns = pod["metadata"]["namespace"]
-        for vol in pod.get("spec", {}).get("volumes", []):
-            if "nfs" in vol:
+    for pod in core.list_pod_for_all_namespaces().items:
+        ns = pod.metadata.namespace
+        for vol in (pod.spec.volumes or []):
+            if vol.nfs is not None:
                 nfs_pods.append(pod)
                 break
-            pvc = vol.get("persistentVolumeClaim", {})
-            if pvc and f"{ns}/{pvc.get('claimName', '')}" in nfs_pvcs:
-                nfs_pods.append(pod)
-                break
+            if vol.persistent_volume_claim:
+                pvc_key = f"{ns}/{vol.persistent_volume_claim.claim_name}"
+                if pvc_key in nfs_pvcs:
+                    nfs_pods.append(pod)
+                    break
 
     # 3. Resolve each pod to its top-level controller
     seen = set()
     workloads = []
     for pod in nfs_pods:
-        ns = pod["metadata"]["namespace"]
-        owners = pod["metadata"].get("ownerReferences", [])
+        ns = pod.metadata.namespace
+        owners = get_owner_refs(pod)
         if not owners:
             continue
-        kind, name = owners[0]["kind"], owners[0]["name"]
+        kind, name = owners[0].kind, owners[0].name
 
         # Walk the owner chain to the top-level controller
         if kind == "ReplicaSet":
-            rs = kubectl("get", "replicaset", name, "-n", ns)
-            if rs:
-                ro = rs.get("metadata", {}).get("ownerReferences", [])
-                if ro and ro[0]["kind"] == "Deployment":
-                    kind, name = "Deployment", ro[0]["name"]
+            try:
+                rs = apps.read_namespaced_replica_set(name, ns)
+                ro = get_owner_refs(rs)
+                if ro and ro[0].kind == "Deployment":
+                    kind, name = "Deployment", ro[0].name
+            except client.ApiException:
+                pass
 
         elif kind == "VirtualMachineInstance":
-            vmi = kubectl("get", "virtualmachineinstances.kubevirt.io", name, "-n", ns)
-            if vmi:
+            try:
+                vmi = custom.get_namespaced_custom_object(
+                    "kubevirt.io", "v1", ns, "virtualmachineinstances", name
+                )
                 vo = vmi.get("metadata", {}).get("ownerReferences", [])
                 if vo and vo[0]["kind"] == "VirtualMachine":
                     kind, name = "VirtualMachine", vo[0]["name"]
+            except client.ApiException:
+                pass
 
         elif kind == "Job":
-            job = kubectl("get", "job", name, "-n", ns)
-            if job:
-                jo = job.get("metadata", {}).get("ownerReferences", [])
-                if jo and jo[0]["kind"] == "CronJob":
-                    kind, name = "CronJob", jo[0]["name"]
+            try:
+                job = client.BatchV1Api().read_namespaced_job(name, ns)
+                jo = get_owner_refs(job)
+                if jo and jo[0].kind == "CronJob":
+                    kind, name = "CronJob", jo[0].name
+            except client.ApiException:
+                pass
 
         type_map = {
             "Deployment": "deploy",
@@ -102,15 +122,25 @@ def main():
         # 4. Fetch current state of the controller
         entry = {"namespace": ns, "name": name, "type": wtype, "kind": kind}
 
-        if kind in ("Deployment", "StatefulSet"):
-            api_kind = "deployment" if kind == "Deployment" else "statefulset"
-            obj = kubectl("get", api_kind, name, "-n", ns)
-            if obj:
-                entry["replicas"] = obj["spec"]["replicas"]
+        if kind == "Deployment":
+            try:
+                obj = apps.read_namespaced_deployment(name, ns)
+                entry["replicas"] = obj.spec.replicas
+            except client.ApiException:
+                pass
+
+        elif kind == "StatefulSet":
+            try:
+                obj = apps.read_namespaced_stateful_set(name, ns)
+                entry["replicas"] = obj.spec.replicas
+            except client.ApiException:
+                pass
 
         elif kind == "VirtualMachine":
-            obj = kubectl("get", "virtualmachines.kubevirt.io", name, "-n", ns)
-            if obj:
+            try:
+                obj = custom.get_namespaced_custom_object(
+                    "kubevirt.io", "v1", ns, "virtualmachines", name
+                )
                 spec = obj.get("spec", {})
                 if "running" in spec:
                     entry["running"] = spec["running"]
@@ -123,6 +153,8 @@ def main():
                     entry["vm_restore_spec"] = {"runStrategy": strategy}
                 else:
                     entry["running"] = False
+            except client.ApiException:
+                pass
 
         elif kind == "DaemonSet":
             entry["skip"] = True
