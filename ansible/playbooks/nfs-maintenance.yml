@@ -99,10 +99,8 @@
         definition:
           spec:
             replicas: 0
-      when:
-        - item.type in ['deploy', 'sts']
-        - item.replicas | int > 0
-      loop: "{{ nfs_workloads }}"
+      when: item.replicas | int > 0
+      loop: "{{ nfs_workloads | selectattr('type', 'in', ['deploy', 'sts']) | list }}"
       loop_control:
         label: "{{ item.kind }} {{ item.namespace }}/{{ item.name }} ({{ item.replicas }} → 0)"
 
@@ -116,10 +114,8 @@
         name: "{{ item.name }}"
         definition:
           spec: "{{ item.vm_stop_spec }}"
-      when:
-        - item.type == 'vm'
-        - item.running | bool
-      loop: "{{ nfs_workloads }}"
+      when: item.running | bool
+      loop: "{{ nfs_workloads | selectattr('type', 'eq', 'vm') | list }}"
       loop_control:
         label: "{{ item.namespace }}/{{ item.name }} → stopped"
 
@@ -182,10 +178,8 @@
         definition:
           spec:
             replicas: "{{ item.replicas | int }}"
-      when:
-        - item.type in ['deploy', 'sts']
-        - item.replicas | int > 0
-      loop: "{{ nfs_workloads }}"
+      when: item.replicas | int > 0
+      loop: "{{ nfs_workloads | selectattr('type', 'in', ['deploy', 'sts']) | list }}"
       loop_control:
         label: "{{ item.kind }} {{ item.namespace }}/{{ item.name }} → {{ item.replicas }}"
 
@@ -199,10 +193,8 @@
         name: "{{ item.name }}"
         definition:
           spec: "{{ item.vm_restore_spec }}"
-      when:
-        - item.type == 'vm'
-        - item.running | bool
-      loop: "{{ nfs_workloads }}"
+      when: item.running | bool
+      loop: "{{ nfs_workloads | selectattr('type', 'eq', 'vm') | list }}"
       loop_control:
         label: "{{ item.namespace }}/{{ item.name }} → restored"
 
