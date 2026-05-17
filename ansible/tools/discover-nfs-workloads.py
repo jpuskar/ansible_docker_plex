@@ -19,13 +19,6 @@ import sys
 from kubernetes import client, config
 
 
-def load_kube_config():
-    try:
-        config.load_incluster_config()
-    except config.ConfigException:
-        config.load_kube_config()
-
-
 def get_owner_refs(obj):
     """Return ownerReferences list from a k8s object, or empty list."""
     if hasattr(obj, "metadata") and obj.metadata.owner_references:
@@ -34,9 +27,13 @@ def get_owner_refs(obj):
 
 
 def main():
-    load_kube_config()
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} <kubeconfig>", file=sys.stderr)
+        sys.exit(1)
+
+    config.load_kube_config(config_file=sys.argv[1])
     core = client.CoreV1Api()
-    apps = client.AppsV1()
+    apps = client.AppsV1Api()
     custom = client.CustomObjectsApi()
 
     # 1. Identify NFS-backed PVCs from PV list

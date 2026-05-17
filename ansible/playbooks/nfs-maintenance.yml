@@ -31,9 +31,7 @@
       check_mode: false
       block:
         - name: "Run NFS workload discovery"
-          command: "python3 {{ discovery_script }}"
-          environment:
-            KUBECONFIG: "{{ kubeconfig }}"
+          command: "python3 {{ discovery_script }} {{ kubeconfig }}"
           register: discovery
           changed_when: false
 
