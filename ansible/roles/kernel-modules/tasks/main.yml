@@ -17,7 +17,10 @@
   when: (kernel_modules_blacklist | length == 0) and (kernel_modules_disabled | length == 0)
 
 - name: Unload hard-disabled modules if currently loaded
-  command: rmmod {{ item.name | default(item) }}
+  command:
+    argv:
+      - rmmod
+      - "{{ item.name | default(item) }}"
   loop: "{{ kernel_modules_disabled }}"
   failed_when: false
   changed_when: false
