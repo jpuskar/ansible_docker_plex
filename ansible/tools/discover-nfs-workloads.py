@@ -13,6 +13,7 @@ Walks pod ownerReferences to resolve top-level controllers
 Outputs JSON array with current state for each workload.
 Respects KUBECONFIG environment variable.
 """
+import argparse
 import json
 import sys
 
@@ -27,11 +28,11 @@ def get_owner_refs(obj):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <kubeconfig>", file=sys.stderr)
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Discover NFS-dependent k8s workloads")
+    parser.add_argument("--kubeconfig", required=True, help="Path to kubeconfig file")
+    args = parser.parse_args()
 
-    config.load_kube_config(config_file=sys.argv[1])
+    config.load_kube_config(config_file=args.kubeconfig)
     core = client.CoreV1Api()
     apps = client.AppsV1Api()
     custom = client.CustomObjectsApi()
