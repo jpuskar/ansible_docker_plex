@@ -11,8 +11,8 @@
 #   - Pods with inline spec.volumes[].nfs mounts (not backed by a PVC)
 #
 # Usage:
-#   Scale down:  ansible-playbook playbooks/nfs-maintenance.yml -t down
-#   Scale up:    ansible-playbook playbooks/nfs-maintenance.yml -t up
+#   Scale down:  ansible-playbook playbooks/nfs-maintenance.yml -t down -e kubeconfig=~/.kube/k8s2-config
+#   Scale up:    ansible-playbook playbooks/nfs-maintenance.yml -t up -e kubeconfig=~/.kube/k8s2-config
 #   Dry-run:     ansible-playbook playbooks/nfs-maintenance.yml -t down --check
 
 - name: NFS Server Maintenance — Scale Down / Restore
@@ -20,11 +20,28 @@
   gather_facts: no
 
   vars:
-    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default('~/.kube/k8s2-config', true) }}"
     state_file: "{{ playbook_dir }}/../tmp/nfs-maintenance-state.json"
     discovery_script: "{{ playbook_dir }}/../tools/discover-nfs-workloads.py"
 
   tasks:
+    - name: "Validate kubeconfig"
+      tags: [down, up, never]
+      block:
+        - name: "Fail if kubeconfig not provided"
+          fail:
+            msg: "kubeconfig is required. Pass it with: -e kubeconfig=~/.kube/k8s2-config"
+          when: kubeconfig is not defined or kubeconfig == ''
+
+        - name: "Fail if kubeconfig file does not exist"
+          stat:
+            path: "{{ kubeconfig }}"
+          register: kc_stat
+
+        - name: "Check kubeconfig path"
+          fail:
+            msg: "kubeconfig file not found: {{ kubeconfig }}"
+          when: not kc_stat.stat.exists
+
     # ── SCALE DOWN ──────────────────────────────────────────────
     - name: "Discover NFS-dependent workloads"
       tags: [down, never]
