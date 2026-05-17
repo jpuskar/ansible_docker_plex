@@ -1,0 +1,26 @@
+---
+# csi-driver-nfs ArgoCD Application Role Defaults
+
+# Helm chart configuration
+csi_driver_nfs_chart_repo: "https://raw.githubusercontent.com/kubernetes-csi/csi-driver-nfs/master/charts"
+csi_driver_nfs_chart_name: "csi-driver-nfs"
+csi_driver_nfs_chart_version: "4.13.2"
+csi_driver_nfs_namespace: "kube-system"
+
+# NFS server configuration
+csi_driver_nfs_server: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  33393961316364346230333331346530346634336130646133383866363663376237343532353564
+  3965363332646237643065383064316430303835343039300a633432633465336331363136626335
+  62663533656631646163636230313032386662646666303332333462356535353639663434613632
+  6666366362316533390a653935316162326437653536636461323662366137663765303666666162
+  3961
+csi_driver_nfs_share: "/tank0/k8s2-nfs-pvcs"
+
+# StorageClass configuration
+csi_driver_nfs_storageclass_name: "nfs-csi"
+csi_driver_nfs_storageclass_is_default: false
+csi_driver_nfs_reclaim_policy: "Delete"
+csi_driver_nfs_mount_options:
+  - nfsvers=4.1
+  - noatime

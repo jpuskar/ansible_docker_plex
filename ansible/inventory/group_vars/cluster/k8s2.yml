@@ -89,3 +89,20 @@ plex_load_balancer_ip: !vault |
   31653631353738343138303531396461393665656539353234643165383034363866653364356131
   3964646462373838640a613131333732346339336465343931346561643862623061633333313131
   3331
+
+argocd_apps_revision_overrides:
+  kubevirt: kubevirt
+  cdi: kubevirt
+  csi-driver-nfs: kubevirt
+  vm-win2016: kubevirt
+
+# USB devices on k8s8 (the vm-host) that KubeVirt is allowed to pass through.
+kubevirt_permitted_usb_devices:
+  - resource_name: ups.local/tripplite-su3000
+    vendor: "09ae"
+    product: "1330"
+
+# Pass the Tripp Lite SU3000RTXL2U UPS into the Windows VM for PowerAlert.
+win2016_vm_host_devices:
+  - name: ups
+    device_name: ups.local/tripplite-su3000

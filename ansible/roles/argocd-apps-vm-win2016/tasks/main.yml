@@ -1,0 +1,24 @@
+---
+- name: Template out namespace manifest
+  template:
+    src: namespace.yaml
+    dest: "{{ output_dir_path }}/namespace.yaml"
+
+- name: Template out DataVolume manifests
+  template:
+    src: "{{ item }}"
+    dest: "{{ output_dir_path }}/{{ item }}"
+  loop:
+    - dv-windows-iso.yaml
+    - dv-virtio-win.yaml
+    - dv-os-disk.yaml
+
+- name: Template out VirtualMachine manifest
+  template:
+    src: vm-win2016.yaml
+    dest: "{{ output_dir_path }}/vm-win2016.yaml"
+
+- name: Template out RDP Service manifest
+  template:
+    src: svc-rdp.yaml
+    dest: "{{ output_dir_path }}/svc-rdp.yaml"

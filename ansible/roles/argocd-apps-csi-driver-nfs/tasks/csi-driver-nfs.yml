@@ -1,0 +1,33 @@
+---
+- name: Template out csi-driver-nfs Helm values to temp dir
+  template:
+    src: csi-driver-nfs-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/csi-driver-nfs-values.yaml"
+
+- name: Add csi-driver-nfs Helm repository
+  shell:
+    cmd: |-
+      helm repo add csi-driver-nfs {{ csi_driver_nfs_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm csi-driver-nfs repositories
+  shell:
+    cmd: |-
+      helm repo update csi-driver-nfs
+  changed_when: false
+
+- name: Generate csi-driver-nfs manifests using helm template
+  shell:
+    cmd: |-
+      helm template csi-driver-nfs csi-driver-nfs/{{ csi_driver_nfs_chart_name }} \
+        --version {{ csi_driver_nfs_chart_version }} \
+        --namespace {{ csi_driver_nfs_namespace }} \
+        --values {{ temp_dir_path }}/csi-driver-nfs-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for helm template
+  copy:
+    content: "{{ helm_template_command.stdout }}"
+    dest: "{{ output_dir_path }}/csi-driver-nfs-helm-manifests.yaml"

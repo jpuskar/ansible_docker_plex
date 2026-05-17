@@ -1,0 +1,3 @@
+---
+- name: Include CDI tasks
+  include_tasks: cdi.yml

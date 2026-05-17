@@ -1,6 +1,7 @@
 ---
 talos_enable_luks: false
 talos_use_tpm: false
+talos_enable_kubevirt: true
 
 talos_image_requirements:
   secureboot: true

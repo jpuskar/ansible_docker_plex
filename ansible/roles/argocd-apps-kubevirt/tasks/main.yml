@@ -1,0 +1,3 @@
+---
+- name: Include kubevirt tasks
+  include_tasks: kubevirt.yml
