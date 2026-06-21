@@ -229,7 +229,6 @@ class BaselineManager:
 
         alert_dispatcher = AlertDispatcher(self.discord_notifier, self.shinobi_notifier)
         baseline_service = BaselineService(
-            cameras=self.cameras,
             scheduler=self._scheduler,
             detector=self.detector,
             position_tolerance=self.position_tolerance,
@@ -237,13 +236,12 @@ class BaselineManager:
             alert_cooldown=alert_cooldown,
         )
         frame_selector = BestFrameSelector(
-            cameras=self.cameras,
+            get_recent_frames=self._get_recent_frames,
             scheduler=self._scheduler,
             position_tolerance=self.position_tolerance,
         )
         self._baseline_service = baseline_service
         self._motion_processor = MotionEventProcessor(
-            cameras=self.cameras,
             scheduler=self._scheduler,
             baseline_service=baseline_service,
             frame_selector=frame_selector,
@@ -318,7 +316,10 @@ class BaselineManager:
                 )
             except Exception:
                 continue
-            await self._motion_processor.process_motion_event(event)
+            camera = self.cameras[event.camera_id]
+            alerted = await self._motion_processor.process_motion_event(event, camera)
+            if alerted:
+                self._start_follow_up_if_idle(event.camera_id, camera)
 
     async def _baseline_loop(self) -> None:
         await asyncio.sleep(15)
@@ -328,7 +329,7 @@ class BaselineManager:
                     self._log_baseline_skip(camera_id, camera.last_motion_time)
                     continue
                 try:
-                    await self._baseline_service.update(camera_id)
+                    await self._baseline_service.update(camera_id, camera)
                 except Exception:
                     log.warning(
                         "Baseline update failed for %s",
@@ -349,4 +350,13 @@ class BaselineManager:
         m.baseline_skipped_total.labels(camera=camera_id).inc()
 
     async def _update_baseline(self, camera_id: str) -> None:
-        await self._baseline_service.update(camera_id)
+        await self._baseline_service.update(camera_id, self.cameras[camera_id])
+
+    def _get_recent_frames(self, camera_id: str, seconds: float) -> list[bytes]:
+        return self.cameras[camera_id].buffer.get_recent(seconds=seconds)
+
+    def _start_follow_up_if_idle(self, camera_id: str, camera: CameraState) -> None:
+        if not camera.followup_active:
+            asyncio.create_task(
+                self._motion_processor.follow_up_scan(camera_id, camera)
+            )

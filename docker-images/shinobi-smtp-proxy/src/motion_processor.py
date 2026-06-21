@@ -15,7 +15,7 @@ from scene_compare import annotate_frame
 if TYPE_CHECKING:
     from alert_dispatcher import AlertDispatcher
     from baseline_service import BaselineService
-    from camera_runtime import CameraState, CameraStates
+    from camera_runtime import CameraState
     from frame_selector import BestFrameSelector
     from pipeline import DetectionPipeline
 
@@ -31,7 +31,6 @@ class MotionEventProcessor:
 
     def __init__(
         self,
-        cameras: CameraStates,
         scheduler: InferenceScheduler,
         baseline_service: BaselineService,
         frame_selector: BestFrameSelector,
@@ -43,7 +42,6 @@ class MotionEventProcessor:
         followup_interval: float,
         followup_duration: float,
     ) -> None:
-        self.cameras = cameras
         self.scheduler = scheduler
         self.baseline_service = baseline_service
         self.frame_selector = frame_selector
@@ -55,19 +53,22 @@ class MotionEventProcessor:
         self.followup_interval = followup_interval
         self.followup_duration = followup_duration
 
-    async def process_motion_event(self, event: MotionEvent) -> None:
+    async def process_motion_event(
+        self,
+        event: MotionEvent,
+        camera: CameraState,
+    ) -> bool:
         try:
-            camera = self.cameras[event.camera_id]
             camera.last_motion_time = time.monotonic()
             detections = await self._detect_motion_objects(event)
             if not detections:
-                return
+                return False
 
             all_yolo_detections = list(detections)
             ctx = self._motion_context(event, camera)
-            new, baseline = self._filter_motion_detections(detections, ctx)
+            new, baseline = self._filter_motion_detections(detections, ctx, camera)
             if not new:
-                return
+                return False
 
             names = ", ".join(sorted(set(d.name for d in new)))
             log.info(
@@ -84,13 +85,13 @@ class MotionEventProcessor:
                 all_yolo_detections,
                 new,
             )
-            self.baseline_service.record_alert(event.camera_id, new)
-            self._start_follow_up_if_idle(event.camera_id)
+            self.baseline_service.record_alert(camera, new)
+            return True
         except Exception:
             log.warning("Motion processing error for %s", event.camera_id, exc_info=True)
+            return False
 
-    async def follow_up_scan(self, camera_id: str) -> None:
-        camera = self.cameras[camera_id]
+    async def follow_up_scan(self, camera_id: str, camera: CameraState) -> None:
         if camera.followup_active:
             return
         camera.followup_active = True
@@ -102,7 +103,11 @@ class MotionEventProcessor:
                 if time.monotonic() >= deadline:
                     break
                 scan_num += 1
-                extended = await self._run_follow_up_scan(camera_id, scan_num)
+                extended = await self._run_follow_up_scan(
+                    camera_id,
+                    camera,
+                    scan_num,
+                )
                 if extended:
                     deadline = time.monotonic() + self.followup_duration
         except Exception:
@@ -158,13 +163,14 @@ class MotionEventProcessor:
             motion_rects=event.motion_rects,
             jpeg_bytes=event.jpeg_bytes,
             reference_frame=camera.reference_frame,
-            recent_alerts=self.baseline_service.active_alerts(event.camera_id),
+            recent_alerts=self.baseline_service.active_alerts(camera),
         )
 
     def _filter_motion_detections(
         self,
         detections: list[Detection],
         ctx: FilterContext,
+        camera: CameraState,
     ) -> tuple[list[Detection], list[Detection]]:
         detections = self.motion_pre.run(detections, ctx)
         if not detections:
@@ -173,6 +179,7 @@ class MotionEventProcessor:
         comparison = self.baseline_service.compare(
             detections,
             ctx.camera_id,
+            camera,
             observe=True,
         )
         new = comparison.new_detections
@@ -201,8 +208,12 @@ class MotionEventProcessor:
             )
         return new, baseline
 
-    async def _run_follow_up_scan(self, camera_id: str, scan_num: int) -> bool:
-        camera = self.cameras[camera_id]
+    async def _run_follow_up_scan(
+        self,
+        camera_id: str,
+        camera: CameraState,
+        scan_num: int,
+    ) -> bool:
         recent_frames = camera.buffer.get_recent(seconds=1.0)
         if not recent_frames:
             return False
@@ -218,7 +229,7 @@ class MotionEventProcessor:
             return False
 
         ctx = self._follow_up_context(camera_id, camera, jpeg_bytes)
-        new = self._filter_follow_up_detections(detections, ctx, scan_num)
+        new = self._filter_follow_up_detections(detections, ctx, camera, scan_num)
         if not new:
             return False
 
@@ -236,7 +247,7 @@ class MotionEventProcessor:
             detections,
             new,
         )
-        self.baseline_service.record_alert(camera_id, new)
+        self.baseline_service.record_alert(camera, new)
         m.alerts_total.labels(camera=camera_id, destination="followup").inc()
         return True
 
@@ -252,13 +263,14 @@ class MotionEventProcessor:
             zones=camera.config.zones,
             jpeg_bytes=jpeg_bytes,
             reference_frame=camera.reference_frame,
-            recent_alerts=self.baseline_service.active_alerts(camera_id),
+            recent_alerts=self.baseline_service.active_alerts(camera),
         )
 
     def _filter_follow_up_detections(
         self,
         detections: list[Detection],
         ctx: FilterContext,
+        camera: CameraState,
         scan_num: int,
     ) -> list[Detection]:
         detections = self.followup_pre.run(detections, ctx)
@@ -268,6 +280,7 @@ class MotionEventProcessor:
         comparison = self.baseline_service.compare(
             detections,
             ctx.camera_id,
+            camera,
             observe=False,
         )
         new = comparison.new_detections
@@ -314,7 +327,3 @@ class MotionEventProcessor:
             jpeg_bytes=annotated,
             detections=best_frame.new_detections,
         )
-
-    def _start_follow_up_if_idle(self, camera_id: str) -> None:
-        if not self.cameras[camera_id].followup_active:
-            asyncio.create_task(self.follow_up_scan(camera_id))

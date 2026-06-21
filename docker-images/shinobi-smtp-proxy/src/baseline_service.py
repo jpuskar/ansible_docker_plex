@@ -14,7 +14,7 @@ from proxy_types.alerts import RecentAlert, RecentAlerts
 from proxy_types.pipeline import BaselineComparison
 
 if TYPE_CHECKING:
-    from camera_runtime import CameraStates
+    from camera_runtime import CameraState
     from object_detector import ObjectDetector
 
 log = logging.getLogger("smtp-proxy")
@@ -29,40 +29,38 @@ class BaselineService:
 
     def __init__(
         self,
-        cameras: CameraStates,
         scheduler: InferenceScheduler,
         detector: ObjectDetector,
         position_tolerance: float,
         verify_confidence: float,
         alert_cooldown: float,
     ) -> None:
-        self.cameras = cameras
         self.scheduler = scheduler
         self.detector = detector
         self.position_tolerance = position_tolerance
         self.verify_confidence = verify_confidence
         self.alert_cooldown = alert_cooldown
 
-    def active_alerts(self, camera_id: str) -> RecentAlerts:
+    def active_alerts(self, camera: CameraState) -> RecentAlerts:
         """Return this camera's recent alerts with expired entries purged."""
-        camera = self.cameras[camera_id]
         now = time.monotonic()
         return [
             alert for alert in camera.recent_alerts
             if now - alert.timestamp < self.alert_cooldown
         ]
 
-    def record_alert(self, camera_id: str, detections: list[Detection]) -> None:
+    def record_alert(self, camera: CameraState, detections: list[Detection]) -> None:
         """Record alerted detections for cooldown, dropping expired entries."""
-        recent = self.active_alerts(camera_id)
+        recent = self.active_alerts(camera)
         now = time.monotonic()
         recent.extend(RecentAlert(timestamp=now, detection=d) for d in detections)
-        self.cameras[camera_id].recent_alerts = recent
+        camera.recent_alerts = recent
 
     def compare(
         self,
         detections: list[Detection],
         camera_id: str,
+        camera: CameraState,
         observe: bool,
     ) -> BaselineComparison:
         """Diff detections against the camera's baseline.
@@ -70,7 +68,6 @@ class BaselineService:
         ``new_detections`` is ``None`` to signal "baseline not yet initialized",
         which callers use to suppress alerts until warmup completes.
         """
-        camera = self.cameras[camera_id]
         baseline = camera.baseline
         tracker = camera.tracker
 
@@ -97,8 +94,7 @@ class BaselineService:
         ] if baseline else detections
         return BaselineComparison(new_detections=new, baseline=baseline)
 
-    async def update(self, camera_id: str) -> None:
-        camera = self.cameras[camera_id]
+    async def update(self, camera_id: str, camera: CameraState) -> None:
         recent = camera.buffer.get_recent(seconds=2)
         total = camera.buffer.total()
         if not recent:
@@ -116,7 +112,7 @@ class BaselineService:
             confidence_override=self.detector.confidence_threshold,
             camera_id=camera_id,
         )
-        self._store_reference_frame(camera_id, jpeg)
+        self._store_reference_frame(camera, jpeg)
 
         tracker = camera.tracker
         messages = tracker.update(detections)
@@ -147,8 +143,8 @@ class BaselineService:
             len(baseline),
         )
 
-    def _store_reference_frame(self, camera_id: str, jpeg: bytes) -> None:
+    def _store_reference_frame(self, camera: CameraState, jpeg: bytes) -> None:
         arr = np.frombuffer(jpeg, dtype=np.uint8)
         gray = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
         if gray is not None:
-            self.cameras[camera_id].reference_frame = gray
+            camera.reference_frame = gray

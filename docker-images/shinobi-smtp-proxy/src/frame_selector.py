@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 
 from inference_scheduler import PRIORITY_MOTION, InferenceScheduler
 from object_detector import Detection
@@ -15,11 +16,11 @@ class BestFrameSelector:
 
     def __init__(
         self,
-        cameras,
+        get_recent_frames: Callable[[str, float], list[bytes]],
         scheduler: InferenceScheduler,
         position_tolerance: float,
     ) -> None:
-        self.cameras = cameras
+        self.get_recent_frames = get_recent_frames
         self.scheduler = scheduler
         self.position_tolerance = position_tolerance
 
@@ -39,7 +40,7 @@ class BestFrameSelector:
 
         await asyncio.sleep(1.5)
 
-        delayed_frames = self.cameras[camera_id].buffer.get_recent(seconds=2)
+        delayed_frames = self.get_recent_frames(camera_id, 2)
         if not delayed_frames:
             return best_frame
 
