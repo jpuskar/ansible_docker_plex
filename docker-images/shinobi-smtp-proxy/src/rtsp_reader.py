@@ -5,6 +5,7 @@ import queue
 import threading
 import time
 from collections import deque
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -22,6 +23,13 @@ RTSP_SUBSTREAM = "rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subt
 MOTION_THRESHOLD = 25  # pixel difference threshold (0-255)
 MOTION_MIN_AREA = 500  # minimum contour area in pixels to count as motion
 MOTION_COOLDOWN = 2.0  # seconds between motion events per camera
+
+
+class RTSPReaderMetrics(NamedTuple):
+    frames_ok: int
+    frames_fail: int
+    bytes_total: int
+    motion_events: int
 
 
 class CameraBuffer:
@@ -91,6 +99,7 @@ class RTSPReader(threading.Thread):
         self.target_fps = target_fps
         self._stop_event = threading.Event()
         # Counters for metrics (read from async side)
+        self._metrics_lock = threading.Lock()
         self.frames_ok = 0
         self.frames_fail = 0
         self.bytes_total = 0
@@ -112,6 +121,34 @@ class RTSPReader(threading.Thread):
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    def snapshot_metrics(self) -> RTSPReaderMetrics:
+        """Return and reset counters updated by this reader thread."""
+        with self._metrics_lock:
+            metrics = RTSPReaderMetrics(
+                frames_ok=self.frames_ok,
+                frames_fail=self.frames_fail,
+                bytes_total=self.bytes_total,
+                motion_events=self.motion_events,
+            )
+            self.frames_ok = 0
+            self.frames_fail = 0
+            self.bytes_total = 0
+            self.motion_events = 0
+            return metrics
+
+    def _record_frame_ok(self, byte_count: int) -> None:
+        with self._metrics_lock:
+            self.frames_ok += 1
+            self.bytes_total += byte_count
+
+    def _record_frame_fail(self) -> None:
+        with self._metrics_lock:
+            self.frames_fail += 1
+
+    def _record_motion_event(self) -> None:
+        with self._metrics_lock:
+            self.motion_events += 1
 
     def _build_motion_mask(self, h: int, w: int) -> np.ndarray | None:
         """Build a binary mask from zone polygons scaled to pixel coords."""
@@ -227,16 +264,15 @@ class RTSPReader(threading.Thread):
                     last_frame = now
                     ret, frame = cap.retrieve()
                     if not ret:
-                        self.frames_fail += 1
+                        self._record_frame_fail()
                         continue
                     ok, jpeg = cv2.imencode(".jpg", frame)
                     if not ok:
-                        self.frames_fail += 1
+                        self._record_frame_fail()
                         continue
                     jpeg_bytes = jpeg.tobytes()
                     self.buf.add(jpeg_bytes)
-                    self.frames_ok += 1
-                    self.bytes_total += len(jpeg_bytes)
+                    self._record_frame_ok(len(jpeg_bytes))
                     m.camera_frames_total.labels(camera=self.camera_id, status="ok").inc()
                     m.camera_bytes_total.labels(camera=self.camera_id).inc(len(jpeg_bytes))
 
@@ -249,7 +285,7 @@ class RTSPReader(threading.Thread):
                             if motion_rects:
                                 if now - self._last_motion >= MOTION_COOLDOWN:
                                     self._last_motion = now
-                                    self.motion_events += 1
+                                    self._record_motion_event()
                                     m.motion_events_total.labels(camera=self.camera_id).inc()
                                     try:
                                         self._motion_queue.put_nowait(
@@ -264,7 +300,7 @@ class RTSPReader(threading.Thread):
 
             except Exception as exc:
                 self.connected = False
-                self.frames_fail += 1
+                self._record_frame_fail()
                 m.camera_frames_total.labels(camera=self.camera_id, status="fail").inc()
                 m.camera_connected.labels(camera=self.camera_id).set(0)
                 self._backoff = min(max(self._backoff * 2, 1), 30)

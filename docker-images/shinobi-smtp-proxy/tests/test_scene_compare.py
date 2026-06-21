@@ -33,6 +33,34 @@ def _make_gray_jpeg(width=100, height=100, value=128):
 # --- filter_by_zone ---
 
 class TestBuildCameraConfigs:
+    def test_none_returns_empty_configs(self):
+        assert build_camera_configs(None) == []
+
+    def test_requires_camera_list(self):
+        with pytest.raises(ValueError, match="cameras must be a list"):
+            build_camera_configs({"id": "cam1"})
+
+    def test_requires_camera_mapping(self):
+        with pytest.raises(ValueError, match=r"cameras\[0\] must be a mapping"):
+            build_camera_configs(["cam1"])
+
+    def test_rejects_duplicate_camera_ids(self):
+        with pytest.raises(ValueError, match="duplicates 'cam1'"):
+            build_camera_configs([
+                {"id": "cam1", "host": "192.0.2.10"},
+                {"id": "cam1", "host": "192.0.2.11"},
+            ])
+
+    def test_requires_non_empty_host(self):
+        with pytest.raises(ValueError, match="host must be a non-empty string"):
+            build_camera_configs([{"id": "cam1", "host": ""}])
+
+    def test_requires_zone_points(self):
+        with pytest.raises(ValueError, match="must define points"):
+            build_camera_configs([
+                {"id": "cam1", "host": "192.0.2.10", "zones": [{}]}
+            ])
+
     def test_converts_raw_config_to_camera_owned_zones(self):
         cameras = build_camera_configs([
             {

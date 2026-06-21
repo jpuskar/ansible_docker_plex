@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, NamedTuple, TypeAlias
+from typing import NamedTuple, TypeAlias
 
 import cv2
 import numpy as np
@@ -21,8 +21,6 @@ class FrameSnapshot(NamedTuple):
 
 RawZonePoint: TypeAlias = Sequence[float]
 RawZonePoints: TypeAlias = Sequence[RawZonePoint]
-RawZoneConfig: TypeAlias = Mapping[str, RawZonePoints]
-RawCameraConfig: TypeAlias = Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -60,14 +58,6 @@ class ZonePolygon:
 
         return cls(points=np.array(validated_points, dtype=np.float32))
 
-    @classmethod
-    def from_config(cls, raw_zone: RawZoneConfig) -> ZonePolygon:
-        try:
-            raw_points = raw_zone["points"]
-        except KeyError as exc:
-            raise ValueError("zone must define points") from exc
-        return cls.from_points(raw_points)
-
     def contains(self, x: float, y: float) -> bool:
         return cv2.pointPolygonTest(self.points, (x, y), False) >= 0
 
@@ -90,41 +80,61 @@ class CameraConfig:
 CameraConfigs: TypeAlias = list[CameraConfig]
 
 
-def build_camera_configs(raw_cameras: Sequence[RawCameraConfig] | None) -> CameraConfigs:
-    """Validate app config and return camera configs with owned zone objects."""
-    if not raw_cameras:
-        return []
+class CameraConfigParser:
+    """Parses unvalidated YAML values into camera domain objects."""
 
-    camera_configs: CameraConfigs = []
-    seen_ids: set[CameraId] = set()
-    for camera_index, raw_camera in enumerate(raw_cameras):
-        camera_path = f"cameras[{camera_index}]"
-        camera_id = _required_str(raw_camera, "id", camera_path)
-        if camera_id in seen_ids:
-            raise ValueError(f"{camera_path}.id duplicates {camera_id!r}")
-        seen_ids.add(camera_id)
+    def parse_all(self, raw_cameras: object) -> CameraConfigs:
+        if raw_cameras is None:
+            return []
+        if not isinstance(raw_cameras, Sequence) or isinstance(raw_cameras, (str, bytes)):
+            raise ValueError("cameras must be a list")
 
-        host = _required_str(raw_camera, "host", camera_path)
-        raw_zones = raw_camera.get("zones", [])
-        if not isinstance(raw_zones, Sequence):
-            raise ValueError(f"{camera_path}.zones must be a list")
+        camera_configs: CameraConfigs = []
+        seen_ids: set[CameraId] = set()
+        for camera_index, raw_camera in enumerate(raw_cameras):
+            camera = self.parse_camera(raw_camera, path=f"cameras[{camera_index}]")
+            if camera.id in seen_ids:
+                raise ValueError(f"cameras[{camera_index}].id duplicates {camera.id!r}")
+            seen_ids.add(camera.id)
+            camera_configs.append(camera)
+        return camera_configs
+
+    def parse_camera(self, raw_camera: object, path: str) -> CameraConfig:
+        if not isinstance(raw_camera, Mapping):
+            raise ValueError(f"{path} must be a mapping")
+
+        camera_id = self.required_str(raw_camera, "id", path)
+        host = self.required_str(raw_camera, "host", path)
+        zones = self.parse_zones(raw_camera.get("zones", []), path=f"{path}.zones")
+        return CameraConfig(id=camera_id, host=host, zones=zones)
+
+    def parse_zones(self, raw_zones: object, path: str) -> CameraZones:
+        if not isinstance(raw_zones, Sequence) or isinstance(raw_zones, (str, bytes)):
+            raise ValueError(f"{path} must be a list")
 
         zones: CameraZones = []
         for zone_index, raw_zone in enumerate(raw_zones):
-            zone_path = f"{camera_path}.zones[{zone_index}]"
-            if not isinstance(raw_zone, Mapping):
-                raise ValueError(f"{zone_path} must be a mapping")
-            try:
-                zones.append(ZonePolygon.from_config(raw_zone))
-            except ValueError as exc:
-                raise ValueError(f"{zone_path}: {exc}") from exc
+            zones.append(self.parse_zone(raw_zone, path=f"{path}[{zone_index}]"))
+        return zones
 
-        camera_configs.append(CameraConfig(id=camera_id, host=host, zones=zones))
-    return camera_configs
+    def parse_zone(self, raw_zone: object, path: str) -> ZonePolygon:
+        if not isinstance(raw_zone, Mapping):
+            raise ValueError(f"{path} must be a mapping")
+        raw_points = raw_zone.get("points")
+        if raw_points is None:
+            raise ValueError(f"{path} must define points")
+        try:
+            return ZonePolygon.from_points(raw_points)
+        except ValueError as exc:
+            raise ValueError(f"{path}: {exc}") from exc
+
+    def required_str(self, raw: Mapping[object, object], key: str, path: str) -> str:
+        value = raw.get(key)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"{path}.{key} must be a non-empty string")
+        return value
 
 
-def _required_str(raw: RawCameraConfig, key: str, path: str) -> str:
-    value = raw.get(key)
-    if not isinstance(value, str) or not value:
-        raise ValueError(f"{path}.{key} must be a non-empty string")
-    return value
+def build_camera_configs(raw_cameras: object) -> CameraConfigs:
+    """Validate app config and return camera configs with owned zone objects."""
+    return CameraConfigParser().parse_all(raw_cameras)

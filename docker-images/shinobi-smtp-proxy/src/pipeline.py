@@ -7,12 +7,12 @@ one, or unit-test a single stage.
 
 This module breaks the chain into small, independently testable ``Filter``
 stages assembled into a ``DetectionPipeline``. Each loop builds its own
-ordered list of stages (see ``BaselineManager.__init__``), so adjusting which
-filters run on which path is a one-line edit.
+ordered list of stages in ``BaselineManager`` wiring, so adjusting which
+filters run on which path stays localized.
 
 Stages here are *stateless* noise/confirmation filters. The baseline diff is
 deliberately NOT a stage: it mutates the per-camera tracker and has warmup
-semantics, so it lives as a method on ``BaselineManager``.
+semantics, so it lives in ``BaselineService``.
 """
 
 from __future__ import annotations
