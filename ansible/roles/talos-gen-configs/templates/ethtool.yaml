@@ -1,0 +1,8 @@
+---
+apiVersion: v1alpha1
+kind: EthernetConfig
+name: {{ hostvars[node_name].talos_ethtool.interface }}
+features:
+{% for feature, enabled in hostvars[node_name].talos_ethtool.features.items() %}
+  {{ feature }}: {{ enabled | lower }}
+{% endfor %}

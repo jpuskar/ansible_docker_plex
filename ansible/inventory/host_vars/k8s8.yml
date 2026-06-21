@@ -9,3 +9,11 @@ talos_image_requirements:
   extensions: ["bnx2-bnx2x", "intel-ucode"]
 
 talos_install_disk: sda
+
+# bnx2x VXLAN tunnel segmentation offload is broken — causes ~235KB/s cross-node
+# throughput instead of line rate. Disable tunnel TSO on the primary NIC.
+talos_ethtool:
+  interface: eno1
+  features:
+    tx-udp_tnl-segmentation: false
+    tx-udp_tnl-csum-segmentation: false

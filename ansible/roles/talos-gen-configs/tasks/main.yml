@@ -130,6 +130,16 @@
     loop_var: node_name
   when: hostvars[node_name].talos_enable_nvidia | default(false)
 
+- name: template out per-node ethtool config patches
+  template:
+    src: ethtool.yaml
+    dest: "{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-ethtool.yaml"
+    backup: true
+  loop: "{{ cluster_hosts }}"
+  loop_control:
+    loop_var: node_name
+  when: hostvars[node_name].talos_ethtool is defined
+
 # NOTE: Install image is listed here: https://docs.siderolabs.com/talos/v1.11/platform-specific-installations/bare-metal-platforms/secureboot#secureboot-with-sidero-labs-images
 # Images are selected based on requirements defined in host_vars or defaults
 - name: run talosctl gen config for each node
@@ -149,6 +159,7 @@
         --config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-kubelet-serving-cert-approver.yaml \
         {% if hostvars[node_name].talos_enable_luks %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-luks-config.yaml \
         {% endif %}{% if hostvars[node_name].talos_enable_nvidia | default(false) %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-nvidia.yaml \
+        {% endif %}{% if hostvars[node_name].talos_ethtool is defined %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-{{ node_name }}-ethtool.yaml \
         {% endif %}{% if talos_harbor_registry_enabled %}--config-patch @{{ talos_working_dir }}/{{ talos_cluster_name }}-harbor-registry.yaml \
         {% endif %} --output-types controlplane \
         --output controlplane-{{ node_name }}.yaml \
