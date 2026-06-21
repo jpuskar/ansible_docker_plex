@@ -1,0 +1,17 @@
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: win2016-osdisk
+  namespace: {{ win2016_vm_namespace }}
+spec:
+  source:
+    blank: {}
+  pvc:
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: {{ win2016_vm_osdisk_size }}
+    storageClassName: {{ win2016_vm_storage_class }}
+    volumeMode: Filesystem

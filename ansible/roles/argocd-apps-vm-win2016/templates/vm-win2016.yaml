@@ -1,0 +1,110 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: win2016
+  namespace: {{ win2016_vm_namespace }}
+spec:
+  runStrategy: {{ win2016_vm_run_strategy }}
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: win2016
+    spec:
+      domain:
+        machine:
+          type: q35
+        firmware:
+          bootloader:
+            efi:
+              secureBoot: false
+        cpu:
+          cores: {{ win2016_vm_cpu_cores }}
+          model: host-passthrough
+        features:
+          acpi:
+            enabled: true
+          apic:
+            enabled: true
+          hyperv:
+            relaxed:
+              enabled: true
+            vapic:
+              enabled: true
+            spinlocks:
+              enabled: true
+              spinlocks: 8191
+            vpindex:
+              enabled: true
+            runtime:
+              enabled: true
+            synic:
+              enabled: true
+            synictimer:
+              enabled: true
+            reset:
+              enabled: true
+            frequencies:
+              enabled: true
+            reenlightenment:
+              enabled: true
+            tlbflush:
+              enabled: true
+            ipi:
+              enabled: true
+        clock:
+          timezone: "{{ win2016_vm_timezone }}"
+          timer:
+            hpet:
+              present: false
+            pit:
+              tickPolicy: delay
+            rtc:
+              tickPolicy: catchup
+            hyperv: {}
+        resources:
+          requests:
+            memory: {{ win2016_vm_memory }}
+        devices:
+          disks:
+            - name: osdisk
+              bootOrder: 1
+              disk:
+                bus: virtio
+            - name: windows-iso
+              bootOrder: 2
+              cdrom:
+                bus: sata
+            - name: virtio-iso
+              cdrom:
+                bus: sata
+          interfaces:
+            - name: default
+              model: virtio
+              masquerade: {}
+          inputs:
+            - name: tablet
+              type: tablet
+              bus: usb
+{% if win2016_vm_host_devices %}
+          hostDevices:
+{% for dev in win2016_vm_host_devices %}
+            - name: {{ dev.name }}
+              deviceName: {{ dev.device_name }}
+{% endfor %}
+{% endif %}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: osdisk
+          dataVolume:
+            name: win2016-osdisk
+        - name: windows-iso
+          dataVolume:
+            name: win2016-iso
+        - name: virtio-iso
+          dataVolume:
+            name: virtio-win-iso
+      nodeSelector:
+        node-role.kubernetes.io/vm-host: "true"

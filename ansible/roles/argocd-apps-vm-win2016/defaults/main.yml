@@ -1,0 +1,42 @@
+---
+# vm-win2016 ArgoCD Application Role Defaults
+
+# Namespace
+win2016_vm_namespace: "vms-windows"
+
+# Windows ISO source (Microsoft Eval Center)
+win2016_vm_iso_url: "https://software-static.download.prss.microsoft.com/pr/download/Windows_Server_2016_Datacenter_EVAL_en-us_14393_refresh.ISO"
+win2016_vm_iso_size: "8Gi"
+
+# virtio-win driver ISO (fedorapeople stable)
+win2016_vm_virtio_url: "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso"
+win2016_vm_virtio_size: "1Gi"
+
+# OS disk
+win2016_vm_osdisk_size: "100Gi"
+
+# Storage class for all PVCs
+win2016_vm_storage_class: "nfs-csi"
+
+# VM resources
+win2016_vm_cpu_cores: 4
+win2016_vm_memory: "8Gi"
+
+# VM run strategy: Manual (don't auto-start until Windows is installed)
+win2016_vm_run_strategy: "Manual"
+
+# Timezone (for RTC clock)
+win2016_vm_timezone: "America/New_York"
+
+# RDP LoadBalancer IP
+win2016_vm_rdp_loadbalancer_ip: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  37633861366232363863633966366239646265633139633034326638393837383230366538333531
+  6137363231656231663661316236393837356431353632340a653738396135393062323938616265
+  37303935636463613836326333363862306434353538313937623735313235343262643566613734
+  3363303231333961350a616637653762626561653038306539633462373361663331363834633038
+  3137
+
+# Host devices to pass through to the VM. Each entry references a resourceName
+# declared in the cluster-wide KubeVirt CR (kubevirt_permitted_usb_devices).
+win2016_vm_host_devices: []

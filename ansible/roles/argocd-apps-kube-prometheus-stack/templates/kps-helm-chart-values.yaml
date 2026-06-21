@@ -45,7 +45,45 @@ prometheus:
 
 # --- Alertmanager ---
 alertmanager:
-  enabled: false
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: openebs-rawfile
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: robusta
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - match:
+            alertname: Watchdog
+          receiver: "null"
+        - match:
+            alertname: InfoInhibitor
+          receiver: "null"
+    receivers:
+      - name: "null"
+      - name: robusta
+        webhook_configs:
+          - url: "http://robusta-runner.robusta.svc.cluster.local/api/alerts"
+            send_resolved: true
 
 # --- Grafana ---
 grafana:

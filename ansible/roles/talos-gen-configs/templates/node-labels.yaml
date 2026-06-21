@@ -16,6 +16,13 @@ machine:
     encryption.talos.dev/tpm: "false"
     encryption.talos.dev/type: "none"
 {% endif %}
+{% if hostvars[node_name].talos_enable_kubevirt | default(false) %}
+    # NOTE: do NOT set kubevirt.io/schedulable here — that label is MANAGED by
+    # virt-handler itself (set to true/false based on KVM capability detection).
+    # We use node-role.kubernetes.io/vm-host as our own selector for where
+    # virt-handler is allowed to run; virt-handler then manages schedulable.
+    node-role.kubernetes.io/vm-host: "true"
+{% endif %}
     # Node identifier
     node.kubernetes.io/instance-name: {{ node_name }}
 {% if hostvars[node_name].talos_image_requirements.arch is defined and hostvars[node_name].talos_image_requirements.arch == 'arm64' %}

@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: win2016-rdp
+  namespace: {{ win2016_vm_namespace }}
+  annotations:
+    io.cilium/lb-ipam-ips: "{{ win2016_vm_rdp_loadbalancer_ip }}"
+spec:
+  selector:
+    kubevirt.io/vm: win2016
+  ports:
+    - name: rdp-tcp
+      port: 3389
+      targetPort: 3389
+      protocol: TCP
+    - name: rdp-udp
+      port: 3389
+      targetPort: 3389
+      protocol: UDP
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster

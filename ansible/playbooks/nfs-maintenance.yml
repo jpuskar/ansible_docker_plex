@@ -1,0 +1,204 @@
+---
+# NFS Server Maintenance Playbook
+#
+# Dynamically discovers all NFS-dependent workloads, captures their current
+# state (replica counts / VM running status), scales them down for NFS server
+# maintenance, then restores original state when maintenance is complete.
+#
+# Discovery detects NFS dependencies via:
+#   - PVs with spec.nfs (kernel NFS mounts)
+#   - PVs with NFS CSI driver (nfs.csi.k8s.io)
+#   - Pods with inline spec.volumes[].nfs mounts (not backed by a PVC)
+#
+# Usage:
+#   Scale down:  ansible-playbook playbooks/nfs-maintenance.yml -t down -e kubeconfig=~/.kube/k8s2-config
+#   Scale up:    ansible-playbook playbooks/nfs-maintenance.yml -t up -e kubeconfig=~/.kube/k8s2-config
+#   Dry-run:     ansible-playbook playbooks/nfs-maintenance.yml -t down --check
+
+- name: NFS Server Maintenance — Scale Down / Restore
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    state_file: "{{ playbook_dir }}/../tmp/nfs-maintenance-state.json"
+    discovery_script: "{{ playbook_dir }}/../tools/discover-nfs-workloads.py"
+
+  tasks:
+    - name: "Validate kubeconfig"
+      tags: [down, up, never]
+      block:
+        - name: "Fail if kubeconfig not provided"
+          fail:
+            msg: "kubeconfig is required. Pass it with: -e kubeconfig=~/.kube/k8s2-config"
+          when: kubeconfig is not defined or kubeconfig == ''
+
+        - name: "Fail if kubeconfig file does not exist"
+          stat:
+            path: "{{ kubeconfig }}"
+          register: kc_stat
+
+        - name: "Check kubeconfig path"
+          fail:
+            msg: "kubeconfig file not found: {{ kubeconfig }}"
+          when: not kc_stat.stat.exists
+
+    # ── SCALE DOWN ──────────────────────────────────────────────
+    - name: "Discover NFS-dependent workloads"
+      tags: [down, never]
+      check_mode: false
+      block:
+        - name: "Run NFS workload discovery"
+          command: "python3 {{ discovery_script }} --kubeconfig {{ kubeconfig }}"
+          register: discovery
+          changed_when: false
+
+        - name: "Parse discovered workloads"
+          set_fact:
+            nfs_workloads: "{{ discovery.stdout | from_json }}"
+
+        - name: "Show discovered workloads"
+          debug:
+            msg: "{{ nfs_workloads | to_nice_yaml }}"
+
+        - name: "Warn about non-scalable workloads"
+          debug:
+            msg: "SKIPPING {{ item.kind }} {{ item.namespace }}/{{ item.name }}: {{ item.reason }}"
+          when: item.skip | default(false)
+          loop: "{{ nfs_workloads }}"
+          loop_control:
+            label: "{{ item.namespace }}/{{ item.name }}"
+
+        - name: "Fail if no NFS workloads found"
+          fail:
+            msg: "No NFS-dependent workloads discovered."
+          when: nfs_workloads | length == 0
+
+    - name: "Save pre-maintenance state"
+      tags: [down, never]
+      block:
+        - name: "Ensure state directory exists"
+          file:
+            path: "{{ state_file | dirname }}"
+            state: directory
+            mode: "0755"
+
+        - name: "Write state file"
+          copy:
+            content: "{{ nfs_workloads | to_nice_json }}"
+            dest: "{{ state_file }}"
+            mode: "0644"
+
+    - name: "Scale down Deployments and StatefulSets"
+      tags: [down, never]
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: apps/v1
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        definition:
+          spec:
+            replicas: 0
+      when: item.replicas | int > 0
+      loop: "{{ nfs_workloads | selectattr('type', 'in', ['deploy', 'sts']) | list }}"
+      loop_control:
+        label: "{{ item.kind }} {{ item.namespace }}/{{ item.name }} ({{ item.replicas }} → 0)"
+
+    - name: "Stop VirtualMachines"
+      tags: [down, never]
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        definition:
+          spec: "{{ item.vm_stop_spec }}"
+      when: item.running | bool
+      loop: "{{ nfs_workloads | selectattr('type', 'eq', 'vm') | list }}"
+      loop_control:
+        label: "{{ item.namespace }}/{{ item.name }} → stopped"
+
+    - name: "Wait for pods to terminate"
+      tags: [down, never]
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: v1
+        kind: Pod
+        namespace: "{{ item.namespace }}"
+      register: ns_pods
+      until: >-
+        ns_pods.resources
+        | selectattr('metadata.name', 'search', item.name)
+        | list | length == 0
+      retries: 30
+      delay: 10
+      when:
+        - not (item.skip | default(false))
+        - >-
+          (item.type in ['deploy', 'sts'] and item.replicas | int > 0) or
+          (item.type == 'vm' and item.running | bool)
+      loop: "{{ nfs_workloads }}"
+      loop_control:
+        label: "{{ item.namespace }}/{{ item.name }}"
+
+    - name: "NFS maintenance ready"
+      tags: [down, never]
+      debug:
+        msg: >-
+          All NFS-dependent workloads scaled to zero.
+          State saved to {{ state_file }}.
+          Run with -t up to restore when maintenance is complete.
+
+    # ── SCALE UP ────────────────────────────────────────────────
+    - name: "Load saved state"
+      tags: [up, never]
+      block:
+        - name: "Read state file"
+          slurp:
+            src: "{{ state_file }}"
+          register: state_raw
+
+        - name: "Parse saved state"
+          set_fact:
+            nfs_workloads: "{{ state_raw.content | b64decode | from_json }}"
+
+        - name: "Show state to restore"
+          debug:
+            msg: "{{ nfs_workloads | to_nice_yaml }}"
+
+    - name: "Restore Deployments and StatefulSets"
+      tags: [up, never]
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: apps/v1
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        definition:
+          spec:
+            replicas: "{{ item.replicas | int }}"
+      when: item.replicas | int > 0
+      loop: "{{ nfs_workloads | selectattr('type', 'in', ['deploy', 'sts']) | list }}"
+      loop_control:
+        label: "{{ item.kind }} {{ item.namespace }}/{{ item.name }} → {{ item.replicas }}"
+
+    - name: "Start VirtualMachines"
+      tags: [up, never]
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        api_version: kubevirt.io/v1
+        kind: VirtualMachine
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        definition:
+          spec: "{{ item.vm_restore_spec }}"
+      when: item.running | bool
+      loop: "{{ nfs_workloads | selectattr('type', 'eq', 'vm') | list }}"
+      loop_control:
+        label: "{{ item.namespace }}/{{ item.name }} → restored"
+
+    - name: "All NFS workloads restored"
+      tags: [up, never]
+      debug:
+        msg: "All NFS-dependent workloads restored to pre-maintenance state."

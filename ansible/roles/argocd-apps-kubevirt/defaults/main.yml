@@ -1,0 +1,36 @@
+---
+# KubeVirt ArgoCD Application Role Defaults
+
+# KubeVirt release version
+kubevirt_version: "v1.8.2"
+kubevirt_namespace: "kubevirt"
+
+# Image pull policy for KubeVirt components
+kubevirt_image_pull_policy: "IfNotPresent"
+
+# Labels to merge onto the Namespace resource in the operator manifest
+kubevirt_namespace_extra_labels:
+  pod-security.kubernetes.io/enforce: privileged
+  pod-security.kubernetes.io/audit: privileged
+  pod-security.kubernetes.io/warn: privileged
+
+# Feature gates to enable
+kubevirt_feature_gates:
+  - HostDevices
+
+# USB host devices allowed for VM passthrough.
+# Each entry advertises a k8s extended resource on nodes where the device is
+# present; VMs claim it via spec.domain.devices.hostDevices.
+kubevirt_permitted_usb_devices: []
+
+# Node selector for virt-handler (the per-node KubeVirt agent).
+# IMPORTANT: Do NOT use kubevirt.io/schedulable here — that label is MANAGED by
+# virt-handler itself (it sets true/false based on KVM capability detection).
+# Using it here creates a chicken-and-egg deadlock.
+#
+# Use a custom label you manage manually. Only nodes with this label will run
+# virt-handler, which means only those nodes can host VMs.
+# Label your VM host(s) with:
+#   kubectl label node <node> node-role.kubernetes.io/vm-host=true
+kubevirt_workload_node_selector:
+  node-role.kubernetes.io/vm-host: "true"

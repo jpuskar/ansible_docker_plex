@@ -16,6 +16,7 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - robusta-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml
@@ -30,6 +31,10 @@
     - zomboid1-application.yaml
     - valheim1-application.yaml
     - terraria1-application.yaml
+    - kubevirt-application.yaml
+    - cdi-application.yaml
+    - csi-driver-nfs-application.yaml
+    - vm-win2016-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml
@@ -53,6 +58,7 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - robusta-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml
@@ -67,6 +73,10 @@
     - zomboid1-application.yaml
     - valheim1-application.yaml
     - terraria1-application.yaml
+    - kubevirt-application.yaml
+    - cdi-application.yaml
+    - csi-driver-nfs-application.yaml
+    - vm-win2016-application.yaml
 #    - nvidia-device-plugin-application.yaml
 #    - nvidia-gpu-operator-application.yaml
 #    - vscode-remote-standard-application.yaml

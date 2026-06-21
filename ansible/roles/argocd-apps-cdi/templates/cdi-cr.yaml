@@ -1,0 +1,15 @@
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: CDI
+metadata:
+  name: cdi
+spec:
+  config:
+    featureGates: {{ cdi_feature_gates | to_json }}
+  imagePullPolicy: {{ cdi_image_pull_policy }}
+  infra:
+    nodeSelector:
+      kubernetes.io/os: linux
+  workload:
+    nodeSelector:
+      kubernetes.io/os: linux

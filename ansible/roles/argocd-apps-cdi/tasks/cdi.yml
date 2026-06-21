@@ -1,0 +1,10 @@
+---
+- name: Copy CDI operator manifest (with namespace labels)
+  copy:
+    content: "{{ lookup('file', role_path + '/files/cdi-operator.' + cdi_version + '.yaml') | ensure_yaml_doc_start | patch_namespace_labels(cdi_namespace_extra_labels) | strip_crd_versions({'cdis.cdi.kubevirt.io': ['v1alpha1']}) }}"
+    dest: "{{ output_dir_path }}/cdi-operator.yaml"
+
+- name: Template out CDI CR
+  template:
+    src: cdi-cr.yaml
+    dest: "{{ output_dir_path }}/cdi-cr.yaml"

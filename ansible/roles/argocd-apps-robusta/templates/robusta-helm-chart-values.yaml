@@ -1,0 +1,44 @@
+#jinja2: variable_start_string: '[[', variable_end_string: ']]'
+# Robusta Helm values — existing Prometheus stack integration
+# Receives alerts from Alertmanager webhook, enriches, sends to Discord
+
+clusterName: "[[ robusta_cluster_name ]]"
+
+# We already have kube-prometheus-stack — don't install another
+enablePrometheusStack: false
+enableServiceMonitors: true
+
+# Point Robusta at our existing Prometheus for metric queries
+globalConfig:
+  prometheus_url: "[[ robusta_prometheus_url ]]"
+  check_prometheus_flags: true
+
+# --- Sinks ---
+sinksConfig:
+  - discord_sink:
+      name: k8s2_discord_alerts
+      url: "[[ robusta_discord_webhook_url ]]"
+
+# --- Runner (alert processor) ---
+runner:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
+
+# --- Kubewatch (K8s event forwarder) ---
+kubewatch:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# Disable optional components we don't need
+enableHolmesGPT: false
+grafanaRenderer:
+  enableContainer: false
+enablePlatformPlaybooks: false

@@ -1,0 +1,8 @@
+---
+- name: Include csi-driver-nfs helm tasks
+  include_tasks: csi-driver-nfs.yml
+
+- name: Template out storageclass manifest
+  template:
+    src: storageclass.yaml
+    dest: "{{ output_dir_path }}/storageclass.yaml"

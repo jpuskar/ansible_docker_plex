@@ -164,3 +164,11 @@ kernel_modules_blacklist:
 
 # Start tty1 login prompt early so root can log in before network is up.
 early_getty: true
+
+kernel_modules_disabled:
+  - name: esp4
+    comment: "Dirty Frag CVE-2026-43284 — IPsec ESP IPv4"
+  - name: esp6
+    comment: "Dirty Frag CVE-2026-43284 — IPsec ESP IPv6"
+  - name: rxrpc
+    comment: "Dirty Frag CVE-2026-43500 — RxRPC/AFS"

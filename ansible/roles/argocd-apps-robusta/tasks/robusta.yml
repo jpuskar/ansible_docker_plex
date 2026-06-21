@@ -1,0 +1,33 @@
+---
+- name: Template out robusta Helm values to temp dir
+  template:
+    src: robusta-helm-chart-values.yaml
+    dest: "{{ temp_dir_path }}/robusta-values.yaml"
+
+- name: Add robusta Helm repository
+  shell:
+    cmd: |-
+      helm repo add robusta {{ robusta_chart_repo }}
+  changed_when: false
+  failed_when: false
+
+- name: Update Helm robusta repositories
+  shell:
+    cmd: |-
+      helm repo update robusta
+  changed_when: false
+
+- name: Generate robusta manifests using helm template
+  shell:
+    cmd: |-
+      helm template robusta robusta/{{ robusta_chart_name }} \
+        --version {{ robusta_chart_version }} \
+        --namespace {{ robusta_namespace }} \
+        --values {{ temp_dir_path }}/robusta-values.yaml \
+        --include-crds
+  register: helm_template_command
+
+- name: Write output manifests for robusta helm template
+  copy:
+    content: "{{ helm_template_command.stdout | harbor_rewrite_images(harbor_registry_map, harbor_proxy_images_enabled | default(false)) }}"
+    dest: "{{ output_dir_path }}/robusta-helm-manifests.yaml"
