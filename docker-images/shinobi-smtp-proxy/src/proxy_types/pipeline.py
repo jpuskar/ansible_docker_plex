@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NamedTuple
 
 from proxy_types.alerts import RecentAlerts
-from proxy_types.camera import ReferenceFrames
+from proxy_types.camera import CameraZones, GrayFrame
 from proxy_types.motion import MotionRects
 
 if TYPE_CHECKING:
@@ -32,7 +32,8 @@ class FilterContext:
 
     camera_id: str
     label: str = "Motion"
+    zones: CameraZones = field(default_factory=list)
     motion_rects: MotionRects = field(default_factory=list)
     jpeg_bytes: bytes = b""
-    reference_frames: ReferenceFrames = field(default_factory=dict)
+    reference_frame: GrayFrame | None = None
     recent_alerts: RecentAlerts = field(default_factory=list)

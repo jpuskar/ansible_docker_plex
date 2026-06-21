@@ -23,8 +23,16 @@ class Detection:
 
     __slots__ = ("cls_id", "name", "cx", "cy", "w", "h", "conf")
 
-    def __init__(self, cls_id: int, name: str, cx: float, cy: float,
-                 w: float, h: float, conf: float) -> None:
+    def __init__(
+        self,
+        cls_id: int,
+        name: str,
+        cx: float,
+        cy: float,
+        w: float,
+        h: float,
+        conf: float,
+    ) -> None:
         self.cls_id = cls_id
         self.name = name
         self.cx = cx  # center x (0-1, fraction of image width)
@@ -38,9 +46,10 @@ class Detection:
 
     def is_near(self, other: Detection, tolerance: float = 0.15) -> bool:
         """Check if another detection of the same class group is nearby."""
-        same_class = (self.cls_id == other.cls_id
-                      or (self.cls_id in self._VEHICLE_CLASSES
-                          and other.cls_id in self._VEHICLE_CLASSES))
+        same_class = self.cls_id == other.cls_id or (
+            self.cls_id in self._VEHICLE_CLASSES
+            and other.cls_id in self._VEHICLE_CLASSES
+        )
         if not same_class:
             return False
         return (
@@ -97,6 +106,7 @@ class ObjectDetector:
 
         # Try OpenVINO model first (exported during Docker build), fall back to PyTorch
         import pathlib
+
         ov_path = pathlib.Path(self._OPENVINO_MODEL)
         if model_path:
             resolved = model_path
@@ -107,13 +117,16 @@ class ObjectDetector:
 
         log.info("Loading YOLO model %s...", resolved)
         self.model = YOLO(resolved, task="detect")
-        self._using_openvino = resolved.endswith("_openvino_model") or resolved.endswith(".xml")
+        self._using_openvino = resolved.endswith(
+            "_openvino_model"
+        ) or resolved.endswith(".xml")
 
         # Select OpenVINO device: prefer GPU, fall back to CPU
         # Ultralytics uses "intel:gpu" / "intel:cpu" prefix for OpenVINO devices
         if self._using_openvino:
             try:
                 import openvino as ov
+
                 devices = ov.Core().available_devices
                 log.info("OpenVINO available devices: %s", devices)
                 if "GPU" in devices:
@@ -123,15 +136,28 @@ class ObjectDetector:
                     # ov.Core.compile_model to inject the fix automatically.
                     _orig_compile = ov.Core.compile_model
 
-                    def _patched_compile(self_core, model, device_name="", config=None, **kw):
+                    def _patched_compile(
+                        self_core, model, device_name="", config=None, **kw
+                    ):
                         if config is None:
                             config = {}
-                        if isinstance(device_name, str) and "GPU" in device_name.upper():
+                        if (
+                            isinstance(device_name, str)
+                            and "GPU" in device_name.upper()
+                        ):
                             config.setdefault("GPU_DISABLE_WINOGRAD_CONVOLUTION", "YES")
-                        return _orig_compile(self_core, model, device_name=device_name, config=config, **kw)
+                        return _orig_compile(
+                            self_core,
+                            model,
+                            device_name=device_name,
+                            config=config,
+                            **kw,
+                        )
 
                     ov.Core.compile_model = _patched_compile
-                    log.info("Patched ov.Core.compile_model with GPU_DISABLE_WINOGRAD_CONVOLUTION=YES")
+                    log.info(
+                        "Patched ov.Core.compile_model with GPU_DISABLE_WINOGRAD_CONVOLUTION=YES"
+                    )
                 else:
                     self._ov_device = "intel:cpu"
             except Exception:
@@ -139,12 +165,18 @@ class ObjectDetector:
         else:
             self._ov_device = None
 
-        log.info("YOLO model loaded (OpenVINO=%s, device=%s)", self._using_openvino, self._ov_device)
-        m.model_info.info({
-            "model": resolved,
-            "openvino": str(self._using_openvino),
-            "device": str(self._ov_device or "pytorch"),
-        })
+        log.info(
+            "YOLO model loaded (OpenVINO=%s, device=%s)",
+            self._using_openvino,
+            self._ov_device,
+        )
+        m.model_info.info(
+            {
+                "model": resolved,
+                "openvino": str(self._using_openvino),
+                "device": str(self._ov_device or "pytorch"),
+            }
+        )
 
     async def detect(self, image_data: bytes) -> bool:
         """Returns True if any target object is found in the image bytes."""
@@ -189,9 +221,12 @@ class ObjectDetector:
         enhanced = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
         return Image.fromarray(enhanced)
 
-    async def get_detections(self, image_data: bytes,
-                             confidence_override: float | None = None,
-                             camera_id: str | None = None) -> list[Detection]:
+    async def get_detections(
+        self,
+        image_data: bytes,
+        confidence_override: float | None = None,
+        camera_id: str | None = None,
+    ) -> list[Detection]:
         """Returns list of Detection objects for target classes found in image.
         If confidence_override is set, it is used instead of the dynamic IR/day threshold.
         """
@@ -214,6 +249,7 @@ class ObjectDetector:
                 img = self._apply_clahe(img)
 
             import time
+
             t0 = time.monotonic()
             loop = asyncio.get_running_loop()
             predict_kwargs: dict = dict(conf=conf_thresh, imgsz=640, verbose=False)
@@ -224,7 +260,13 @@ class ObjectDetector:
                 lambda: self.model.predict(img, **predict_kwargs),
             )
             elapsed_ms = (time.monotonic() - t0) * 1000
-            log.log(5, "YOLO inference: %.0fms (OpenVINO=%s, device=%s)", elapsed_ms, self._using_openvino, self._ov_device)  # TRACE
+            log.log(
+                5,
+                "YOLO inference: %.0fms (OpenVINO=%s, device=%s)",
+                elapsed_ms,
+                self._using_openvino,
+                self._ov_device,
+            )  # TRACE
 
             detections = []
             for result in results:

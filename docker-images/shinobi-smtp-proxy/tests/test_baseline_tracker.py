@@ -1,4 +1,5 @@
 """Tests for BaselineTracker and related functions in baseline_tracker.py."""
+
 from object_detector import Detection
 from baseline_tracker import _same_class_group, BaselineCandidate, BaselineTracker
 
@@ -8,6 +9,7 @@ def _det(cls_id=0, name="person", cx=0.5, cy=0.5, w=0.1, h=0.2, conf=0.9):
 
 
 # --- _same_class_group ---
+
 
 class TestSameClassGroup:
     def test_identical(self):
@@ -30,6 +32,7 @@ class TestSameClassGroup:
 
 
 # --- BaselineCandidate ---
+
 
 class TestBaselineCandidate:
     def test_initial_state(self):
@@ -66,6 +69,7 @@ class TestBaselineCandidate:
 
 
 # --- BaselineTracker ---
+
 
 class TestBaselineTrackerPromotion:
     def test_promote_after_threshold(self):
@@ -106,9 +110,9 @@ class TestBaselineTrackerMisses:
         tracker = BaselineTracker(add_threshold=5)
         d = _det(cx=0.5, cy=0.5)
         tracker.update([d])  # hit
-        tracker.update([])   # miss 1
-        tracker.update([])   # miss 2
-        tracker.update([])   # miss 3 → removed
+        tracker.update([])  # miss 1
+        tracker.update([])  # miss 2
+        tracker.update([])  # miss 3 → removed
         assert len(tracker.candidates) == 0
 
     def test_promoted_not_removed_on_miss(self):
@@ -119,7 +123,7 @@ class TestBaselineTrackerMisses:
         tracker.update([d])  # promoted
         assert len(tracker.get_baseline()) == 1
 
-        tracker.update([])   # miss — but promoted, not removed
+        tracker.update([])  # miss — but promoted, not removed
         assert len(tracker.candidates) == 1
         assert tracker.has_missed_promoted
 
@@ -130,7 +134,7 @@ class TestBaselineTrackerVerify:
         d = _det(cx=0.5, cy=0.5)
         tracker.update([d])
         tracker.update([d])  # promoted
-        tracker.update([])   # miss
+        tracker.update([])  # miss
 
         assert tracker.has_missed_promoted
         # Low-confidence pass finds it

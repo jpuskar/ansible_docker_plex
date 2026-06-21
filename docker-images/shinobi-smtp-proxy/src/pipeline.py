@@ -7,12 +7,12 @@ one, or unit-test a single stage.
 
 This module breaks the chain into small, independently testable ``Filter``
 stages assembled into a ``DetectionPipeline``. Each loop builds its own
-ordered list of stages (see ``BaselineManager.__init__``), so adjusting which
-filters run on which path is a one-line edit.
+ordered list of stages in ``BaselineManager`` wiring, so adjusting which
+filters run on which path stays localized.
 
 Stages here are *stateless* noise/confirmation filters. The baseline diff is
 deliberately NOT a stage: it mutates the per-camera tracker and has warmup
-semantics, so it lives as a method on ``BaselineManager``.
+semantics, so it lives in ``BaselineService``.
 """
 
 from __future__ import annotations
@@ -20,15 +20,16 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import ClassVar
 
 import metrics as m
 from object_detector import Detection
-from proxy_types.camera import ZonesByCamera
 from proxy_types.pipeline import FilterContext
 from scene_compare import filter_by_zone, patch_edge_change
 
 log = logging.getLogger("smtp-proxy")
+
 
 class Filter(ABC):
     """One stage in the pipeline.
@@ -49,11 +50,8 @@ class ZoneFilter(Filter):
 
     reason: ClassVar[str] = "outside_zone"
 
-    def __init__(self, zones: ZonesByCamera) -> None:
-        self.zones = zones
-
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
-        return filter_by_zone(camera_id=ctx.camera_id, detections=dets, zones=self.zones)
+        return filter_by_zone(detections=dets, zones=ctx.zones)
 
 
 class NoveltyFilter(Filter):
@@ -78,7 +76,13 @@ class NoveltyFilter(Filter):
             else:
                 log.debug(
                     "%s %s: %s@(%.2f,%.2f) novelty=%.3f < %.3f (filtered as environmental)",
-                    ctx.label, ctx.camera_id, d.name, d.cx, d.cy, novelty, self.min_novelty,
+                    ctx.label,
+                    ctx.camera_id,
+                    d.name,
+                    d.cx,
+                    d.cy,
+                    novelty,
+                    self.min_novelty,
                 )
         return kept
 
@@ -111,21 +115,33 @@ class EdgeChangeFilter(Filter):
         self.threshold = threshold
 
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
-        if ctx.reference_frames.get(ctx.camera_id) is None:
+        if ctx.reference_frame is None:
             return dets  # no calm reference yet — nothing to compare against
         kept: list[Detection] = []
         for d in dets:
-            frac = patch_edge_change(ctx.camera_id, ctx.jpeg_bytes, d, ctx.reference_frames)
+            frac = patch_edge_change(
+                ctx.camera_id, ctx.jpeg_bytes, d, ctx.reference_frame
+            )
             if frac is not None and frac < self.threshold:
                 log.info(
                     "%s %s: %s@(%.2f,%.2f) suppressed (edges unchanged, %.2f%% new edges)",
-                    ctx.label, ctx.camera_id, d.name, d.cx, d.cy, frac * 100,
+                    ctx.label,
+                    ctx.camera_id,
+                    d.name,
+                    d.cx,
+                    d.cy,
+                    frac * 100,
                 )
             else:
                 if frac is not None:
                     log.info(
                         "%s %s: %s@(%.2f,%.2f) scene changed (%.2f%% new edges)",
-                        ctx.label, ctx.camera_id, d.name, d.cx, d.cy, frac * 100,
+                        ctx.label,
+                        ctx.camera_id,
+                        d.name,
+                        d.cx,
+                        d.cy,
+                        frac * 100,
                     )
                 kept.append(d)
         return kept
@@ -134,14 +150,15 @@ class EdgeChangeFilter(Filter):
 class CooldownFilter(Filter):
     """Drop detections near a position already alerted within the cooldown window."""
 
-    reason: ClassVar[str] = "alert_cooldown"
+    reason: ClassVar[str] = "alert_cooldown_seconds"
 
     def __init__(self, tolerance: float) -> None:
         self.tolerance = tolerance
 
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         kept = [
-            d for d in dets
+            d
+            for d in dets
             if not any(
                 d.is_near(prev, tolerance=self.tolerance)
                 for _, prev in ctx.recent_alerts
@@ -151,7 +168,9 @@ class CooldownFilter(Filter):
         if dropped:
             log.info(
                 "%s %s: %d detections suppressed (alert cooldown)",
-                ctx.label, ctx.camera_id, dropped,
+                ctx.label,
+                ctx.camera_id,
+                dropped,
             )
         return kept
 
@@ -172,11 +191,28 @@ class DetectionPipeline:
             dets = f.apply(dets, ctx)
             dropped = before - len(dets)
             if dropped:
-                m.motion_filtered_total.labels(camera=ctx.camera_id, reason=f.reason).inc(dropped)
+                m.motion_filtered_total.labels(
+                    camera=ctx.camera_id, reason=f.reason
+                ).inc(dropped)
                 log.debug(
                     "%s %s: %s dropped %d (%d→%d)",
-                    ctx.label, ctx.camera_id, f.reason, dropped, before, len(dets),
+                    ctx.label,
+                    ctx.camera_id,
+                    f.reason,
+                    dropped,
+                    before,
+                    len(dets),
                 )
             if not dets:
                 break
         return dets
+
+
+@dataclass(frozen=True)
+class CameraPipelines:
+    """Configured detection pipelines for one camera."""
+
+    motion_pre: DetectionPipeline
+    motion_post: DetectionPipeline
+    followup_pre: DetectionPipeline
+    followup_post: DetectionPipeline

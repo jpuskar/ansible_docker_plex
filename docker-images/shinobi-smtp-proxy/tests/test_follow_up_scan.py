@@ -8,6 +8,7 @@ Since _follow_up_scan depends on the full BaselineManager (buffers, scheduler,
 trackers, etc.), we test the core decision logic extracted into small helpers,
 then do one integration-style test with mocks for the async infrastructure.
 """
+
 import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -35,8 +36,7 @@ class TestFollowUpCooldownLogic:
         # Kid at a different position
         kid = _det(cx=0.7, cy=0.7)
         suppressed = any(
-            kid.is_near(prev_d, tolerance=tolerance)
-            for _, prev_d in recent_alerts
+            kid.is_near(prev_d, tolerance=tolerance) for _, prev_d in recent_alerts
         )
         assert not suppressed
 
@@ -73,16 +73,14 @@ class TestFollowUpCooldownLogic:
         # Third person at yet another position
         third = _det(cx=0.5, cy=0.9)
         suppressed = any(
-            third.is_near(prev_d, tolerance=tolerance)
-            for _, prev_d in recent_alerts
+            third.is_near(prev_d, tolerance=tolerance) for _, prev_d in recent_alerts
         )
         assert not suppressed
 
         # Same position as kid
         near_kid = _det(cx=0.71, cy=0.71)
         suppressed = any(
-            near_kid.is_near(prev_d, tolerance=tolerance)
-            for _, prev_d in recent_alerts
+            near_kid.is_near(prev_d, tolerance=tolerance) for _, prev_d in recent_alerts
         )
         assert suppressed
 
@@ -96,9 +94,7 @@ class TestFollowUpBaselineLogic:
         kid = _det(cls_id=0, name="person", cx=0.3, cy=0.3)
         tolerance = 0.15
 
-        is_baseline = any(
-            kid.is_near(b, tolerance=tolerance) for b in baseline
-        )
+        is_baseline = any(kid.is_near(b, tolerance=tolerance) for b in baseline)
         assert not is_baseline
 
     def test_baseline_object_filtered(self):
@@ -107,9 +103,7 @@ class TestFollowUpBaselineLogic:
         same_car = _det(cls_id=7, name="truck", cx=0.52, cy=0.52)
         tolerance = 0.15
 
-        is_baseline = any(
-            same_car.is_near(b, tolerance=tolerance) for b in baseline
-        )
+        is_baseline = any(same_car.is_near(b, tolerance=tolerance) for b in baseline)
         assert is_baseline
 
 
@@ -118,13 +112,13 @@ class TestFollowUpDeadlineExtension:
 
     def test_deadline_extends_on_new_arrival(self):
         """Simulates the deadline extension logic."""
-        followup_duration = 15.0
+        followup_duration_seconds = 15.0
         now = time.monotonic()
-        original_deadline = now + followup_duration
+        original_deadline = now + followup_duration_seconds
 
         # Simulate finding a new arrival at scan 3 (~9s in)
         scan_time = now + 9.0
-        new_deadline = scan_time + followup_duration
+        new_deadline = scan_time + followup_duration_seconds
 
         # New deadline should be later than original
         assert new_deadline > original_deadline
@@ -193,17 +187,18 @@ class TestFollowUpIntegration:
 
         # Baseline filter
         new = [
-            d for d in followup_dets
+            d
+            for d in followup_dets
             if not any(d.is_near(b, tolerance=tolerance) for b in baseline)
         ]
         assert len(new) == 2  # both you and kid are not baseline
 
         # Cooldown filter
         truly_new = [
-            d for d in new
+            d
+            for d in new
             if not any(
-                d.is_near(prev_d, tolerance=tolerance)
-                for _, prev_d in recent_alerts
+                d.is_near(prev_d, tolerance=tolerance) for _, prev_d in recent_alerts
             )
         ]
         assert len(truly_new) == 1
@@ -222,14 +217,15 @@ class TestFollowUpIntegration:
         followup_dets = [you]
 
         new = [
-            d for d in followup_dets
+            d
+            for d in followup_dets
             if not any(d.is_near(b, tolerance=tolerance) for b in baseline)
         ]
         truly_new = [
-            d for d in new
+            d
+            for d in new
             if not any(
-                d.is_near(prev_d, tolerance=tolerance)
-                for _, prev_d in recent_alerts
+                d.is_near(prev_d, tolerance=tolerance) for _, prev_d in recent_alerts
             )
         ]
         assert len(truly_new) == 0

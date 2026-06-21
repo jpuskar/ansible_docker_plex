@@ -5,6 +5,7 @@ import queue
 import threading
 import time
 from collections import deque
+from typing import NamedTuple
 
 import cv2
 import numpy as np
@@ -21,7 +22,14 @@ RTSP_SUBSTREAM = "rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subt
 # Motion detection defaults
 MOTION_THRESHOLD = 25  # pixel difference threshold (0-255)
 MOTION_MIN_AREA = 500  # minimum contour area in pixels to count as motion
-MOTION_COOLDOWN = 2.0  # seconds between motion events per camera
+MOTION_COOLDOWN_SECONDS = 2.0
+
+
+class RTSPReaderMetrics(NamedTuple):
+    frames_ok: int
+    frames_fail: int
+    bytes_total: int
+    motion_events: int
 
 
 class CameraBuffer:
@@ -42,7 +50,9 @@ class CameraBuffer:
             if seconds is None or not self.frames:
                 return [frame.jpeg_bytes for frame in self.frames]
             cutoff = time.monotonic() - seconds
-            return [frame.jpeg_bytes for frame in self.frames if frame.timestamp >= cutoff]
+            return [
+                frame.jpeg_bytes for frame in self.frames if frame.timestamp >= cutoff
+            ]
 
     def evict_stale(self, max_age: float) -> None:
         with self._lock:
@@ -91,6 +101,7 @@ class RTSPReader(threading.Thread):
         self.target_fps = target_fps
         self._stop_event = threading.Event()
         # Counters for metrics (read from async side)
+        self._metrics_lock = threading.Lock()
         self.frames_ok = 0
         self.frames_fail = 0
         self.bytes_total = 0
@@ -113,13 +124,41 @@ class RTSPReader(threading.Thread):
     def stop(self) -> None:
         self._stop_event.set()
 
+    def snapshot_metrics(self) -> RTSPReaderMetrics:
+        """Return and reset counters updated by this reader thread."""
+        with self._metrics_lock:
+            metrics = RTSPReaderMetrics(
+                frames_ok=self.frames_ok,
+                frames_fail=self.frames_fail,
+                bytes_total=self.bytes_total,
+                motion_events=self.motion_events,
+            )
+            self.frames_ok = 0
+            self.frames_fail = 0
+            self.bytes_total = 0
+            self.motion_events = 0
+            return metrics
+
+    def _record_frame_ok(self, byte_count: int) -> None:
+        with self._metrics_lock:
+            self.frames_ok += 1
+            self.bytes_total += byte_count
+
+    def _record_frame_fail(self) -> None:
+        with self._metrics_lock:
+            self.frames_fail += 1
+
+    def _record_motion_event(self) -> None:
+        with self._metrics_lock:
+            self.motion_events += 1
+
     def _build_motion_mask(self, h: int, w: int) -> np.ndarray | None:
         """Build a binary mask from zone polygons scaled to pixel coords."""
         if not self._motion_zone_polygons:
             return None
         mask = np.zeros((h, w), dtype=np.uint8)
-        for poly in self._motion_zone_polygons:
-            pts = (poly * np.array([w, h])).astype(np.int32)
+        for zone in self._motion_zone_polygons:
+            pts = zone.to_pixel_points(width=w, height=h)
             cv2.fillPoly(mask, [pts], 255)
         return mask
 
@@ -147,9 +186,7 @@ class RTSPReader(threading.Thread):
         fh, fw = gray.shape
         cell_h = fh / self._GRID_ROWS
         cell_w = fw / self._GRID_COLS
-        current_grid = np.zeros(
-            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
-        )
+        current_grid = np.zeros((self._GRID_ROWS, self._GRID_COLS), dtype=np.float32)
         for r in range(self._GRID_ROWS):
             for c in range(self._GRID_COLS):
                 y1 = int(r * cell_h)
@@ -214,7 +251,7 @@ class RTSPReader(threading.Thread):
                 self._prev_gray = None  # reset motion baseline on reconnect
                 self._motion_heatmap[:] = 0  # reset heatmap on reconnect
                 self._warmup_frames = 10  # skip motion detection for first N frames
-                frame_interval = 1.0 / self.target_fps
+                frame_interval_seconds = 1.0 / self.target_fps
                 last_frame = 0.0
 
                 while not self._stop_event.is_set():
@@ -222,23 +259,26 @@ class RTSPReader(threading.Thread):
                     if not grabbed:
                         raise ConnectionError(f"RTSP stream lost for {self.camera_id}")
                     now = time.monotonic()
-                    if now - last_frame < frame_interval:
+                    if now - last_frame < frame_interval_seconds:
                         continue
                     last_frame = now
                     ret, frame = cap.retrieve()
                     if not ret:
-                        self.frames_fail += 1
+                        self._record_frame_fail()
                         continue
                     ok, jpeg = cv2.imencode(".jpg", frame)
                     if not ok:
-                        self.frames_fail += 1
+                        self._record_frame_fail()
                         continue
                     jpeg_bytes = jpeg.tobytes()
                     self.buf.add(jpeg_bytes)
-                    self.frames_ok += 1
-                    self.bytes_total += len(jpeg_bytes)
-                    m.camera_frames_total.labels(camera=self.camera_id, status="ok").inc()
-                    m.camera_bytes_total.labels(camera=self.camera_id).inc(len(jpeg_bytes))
+                    self._record_frame_ok(len(jpeg_bytes))
+                    m.camera_frames_total.labels(
+                        camera=self.camera_id, status="ok"
+                    ).inc()
+                    m.camera_bytes_total.labels(camera=self.camera_id).inc(
+                        len(jpeg_bytes)
+                    )
 
                     # Motion detection (if enabled)
                     if self._motion_queue is not None:
@@ -247,10 +287,12 @@ class RTSPReader(threading.Thread):
                         else:
                             motion_rects = self._detect_motion(frame)
                             if motion_rects:
-                                if now - self._last_motion >= MOTION_COOLDOWN:
+                                if now - self._last_motion >= MOTION_COOLDOWN_SECONDS:
                                     self._last_motion = now
-                                    self.motion_events += 1
-                                    m.motion_events_total.labels(camera=self.camera_id).inc()
+                                    self._record_motion_event()
+                                    m.motion_events_total.labels(
+                                        camera=self.camera_id
+                                    ).inc()
                                     try:
                                         self._motion_queue.put_nowait(
                                             MotionEvent(
@@ -264,7 +306,7 @@ class RTSPReader(threading.Thread):
 
             except Exception as exc:
                 self.connected = False
-                self.frames_fail += 1
+                self._record_frame_fail()
                 m.camera_frames_total.labels(camera=self.camera_id, status="fail").inc()
                 m.camera_connected.labels(camera=self.camera_id).set(0)
                 self._backoff = min(max(self._backoff * 2, 1), 30)

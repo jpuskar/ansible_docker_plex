@@ -10,6 +10,7 @@ from aiohttp import web
 from baseline_manager import BaselineManager
 from discord_notifier import DiscordNotifier
 from object_detector import ObjectDetector, TARGET_CLASSES
+from proxy_types.camera import CameraTuning, build_camera_configs
 from shinobi_notifier import ShinobiNotifier
 
 with open("/config/config.yaml") as f:
@@ -39,12 +40,12 @@ async def main() -> None:
         discord_notifier = DiscordNotifier(
             bot_token=discord_token,
             channel_id=discord_channel,
-            cooldown_seconds=config.get("discord_cooldown", 60),
+            cooldown_seconds=config.get("discord_cooldown_seconds", 60),
         )
         log.info(
             "Discord notifications enabled (channel %s, cooldown %ds)",
             discord_channel,
-            config.get("discord_cooldown", 60),
+            config.get("discord_cooldown_seconds", 60),
         )
 
     # Set up Shinobi notifier if configured
@@ -62,13 +63,17 @@ async def main() -> None:
 
     # Set up baseline manager if cameras are configured
     baseline_manager = None
-    cameras_cfg = config.get("cameras", {})
+    default_camera_tuning = CameraTuning.from_mapping(config, path="config")
+    camera_configs = build_camera_configs(
+        config.get("cameras", []),
+        default_tuning=default_camera_tuning,
+    )
 
     # Auto-discover Shinobi monitor IDs from camera IPs
-    if shinobi_notifier and cameras_cfg:
-        await shinobi_notifier.discover_monitors(cameras_cfg)
+    if shinobi_notifier and camera_configs:
+        await shinobi_notifier.discover_monitors(camera_configs)
 
-    if cameras_cfg:
+    if camera_configs:
         # Detector is shared between baseline polling and email filtering
         detector = ObjectDetector(
             confidence_threshold=config.get("confidence_threshold", 0.25),
@@ -76,7 +81,7 @@ async def main() -> None:
             ir_confidence_threshold=config.get("ir_confidence_threshold", 0.45),
         )
         baseline_manager = BaselineManager(
-            cameras=cameras_cfg,
+            camera_configs=camera_configs,
             username=os.environ.get(
                 "CAMERA_USERNAME", config.get("camera_username", "admin")
             ),
@@ -85,18 +90,10 @@ async def main() -> None:
             ),
             detector=detector,
             buffer_seconds=config.get("buffer_seconds", 10),
-            baseline_interval=config.get("baseline_interval", 60),
-            position_tolerance=config.get("position_tolerance", 0.15),
+            baseline_interval_seconds=config.get("baseline_interval_seconds", 60),
             discord_notifier=discord_notifier,
             motion_detection=config.get("motion_detection", True),
-            motion_threshold=config.get("motion_threshold", 25),
-            motion_min_area=config.get("motion_min_area", 500),
-            detection_zones=config.get("detection_zones", {}),
-            min_detection_area=config.get("min_detection_area", 0.003),
             shinobi_notifier=shinobi_notifier,
-            baseline_add_threshold=config.get("baseline_add_threshold", 3),
-            baseline_verify_confidence=config.get("baseline_verify_confidence", 0.15),
-            min_motion_novelty=config.get("min_motion_novelty", 0.05),
         )
         await baseline_manager.start()
 

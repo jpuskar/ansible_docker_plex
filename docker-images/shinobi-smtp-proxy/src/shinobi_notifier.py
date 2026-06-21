@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from proxy_types.camera import CameraHosts
+from proxy_types.camera import CameraConfig
 
 if TYPE_CHECKING:
     from object_detector import Detection
@@ -23,8 +23,13 @@ class ShinobiNotifier:
     Endpoint: GET /{api_key}/motion/{group_key}/{monitor_id}?data={...}
     """
 
-    def __init__(self, base_url: str, api_key: str, group_key: str,
-                 monitor_map: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        group_key: str,
+        monitor_map: dict[str, str] | None = None,
+    ) -> None:
         """
         Args:
             base_url: Shinobi base URL (e.g. http://shinobi:8080)
@@ -48,7 +53,7 @@ class ShinobiNotifier:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def discover_monitors(self, cameras: CameraHosts) -> None:
+    async def discover_monitors(self, cameras: list[CameraConfig]) -> None:
         """Auto-discover monitor_map by matching camera IPs to Shinobi monitors.
 
         Calls GET /{api_key}/monitor/{group_key} to list all monitors,
@@ -56,7 +61,7 @@ class ShinobiNotifier:
         and maps our camera_id -> monitor mid.
 
         Args:
-            cameras: dict of {camera_id: ip_address} from our config
+            cameras: configured cameras from app config
         """
         url = f"{self.base_url}/{self.api_key}/monitor/{self.group_key}"
         try:
@@ -111,29 +116,45 @@ class ShinobiNotifier:
 
             log.info(
                 "Shinobi monitor: mid=%s, name=%s, ip=%s",
-                mid, name, host_ip or "(stripped by API perms)",
+                mid,
+                name,
+                host_ip or "(stripped by API perms)",
             )
 
         # Match our camera IDs to Shinobi monitor IDs
         # Priority: explicit monitor_map > IP match > mid match > name match
         matched = 0
-        for camera_id, camera_ip in cameras.items():
+        for camera in cameras:
+            camera_id = camera.id
+            camera_ip = camera.host
             if camera_id in self.monitor_map:
                 continue  # explicit mapping takes precedence
             if camera_ip in ip_to_mid:
                 self.monitor_map[camera_id] = ip_to_mid[camera_ip]
                 matched += 1
-                log.info("Mapped %s -> monitor %s (by IP)", camera_id, ip_to_mid[camera_ip])
+                log.info(
+                    "Mapped %s -> monitor %s (by IP)", camera_id, ip_to_mid[camera_ip]
+                )
             elif camera_id in mid_set:
                 self.monitor_map[camera_id] = camera_id
                 matched += 1
-                log.info("Mapped %s -> monitor %s (mid matches camera_id)", camera_id, camera_id)
+                log.info(
+                    "Mapped %s -> monitor %s (mid matches camera_id)",
+                    camera_id,
+                    camera_id,
+                )
             elif camera_id in name_to_mid:
                 self.monitor_map[camera_id] = name_to_mid[camera_id]
                 matched += 1
-                log.info("Mapped %s -> monitor %s (by name)", camera_id, name_to_mid[camera_id])
+                log.info(
+                    "Mapped %s -> monitor %s (by name)",
+                    camera_id,
+                    name_to_mid[camera_id],
+                )
             else:
-                log.warning("No Shinobi monitor found for %s (%s)", camera_id, camera_ip)
+                log.warning(
+                    "No Shinobi monitor found for %s (%s)", camera_id, camera_ip
+                )
 
         log.info(
             "Shinobi monitor discovery: %d/%d cameras mapped (%d monitors total)",
@@ -142,8 +163,9 @@ class ShinobiNotifier:
             len(monitors),
         )
 
-    async def trigger_event(self, camera_id: str, detections: list[Detection],
-                            reason: str | None = None) -> bool:
+    async def trigger_event(
+        self, camera_id: str, detections: list[Detection], reason: str | None = None
+    ) -> bool:
         """Push a detection event to Shinobi's timeline.
 
         Args:

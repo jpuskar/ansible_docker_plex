@@ -8,30 +8,30 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from object_detector import Detection
-from proxy_types.camera import ReferenceFrames, ZonesByCamera
+from proxy_types.camera import CameraZones, GrayFrame
 
 log = logging.getLogger("smtp-proxy")
 
 
-def filter_by_zone(camera_id: str, detections: list[Detection],
-                   zones: ZonesByCamera) -> list[Detection]:
+def filter_by_zone(detections: list[Detection], zones: CameraZones) -> list[Detection]:
     """Return only detections whose center falls inside a configured zone.
     If no zones are configured for this camera, all detections pass through."""
-    cam_zones = zones.get(camera_id)
-    if not cam_zones:
+    if not zones:
         return detections
     result = []
     for d in detections:
-        pt = (d.cx, d.cy)
-        for poly in cam_zones:
-            if cv2.pointPolygonTest(poly, pt, False) >= 0:
+        for zone in zones:
+            if zone.contains(d.cx, d.cy):
                 result.append(d)
                 break
     return result
 
 
-def annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
-                   new_detections: list[Detection] | None = None) -> bytes:
+def annotate_frame(
+    jpeg_bytes: bytes,
+    detections: list[Detection],
+    new_detections: list[Detection] | None = None,
+) -> bytes:
     """Draw bounding boxes and labels on a JPEG frame. Returns annotated JPEG bytes.
     Green boxes for new/alerting detections, gray for baseline-matched ones."""
     try:
@@ -64,9 +64,13 @@ def annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
         return jpeg_bytes
 
 
-def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
-                      reference_frames: ReferenceFrames,
-                      margin: float = 0.03) -> float | None:
+def patch_edge_change(
+    camera_id: str,
+    jpeg_bytes: bytes,
+    det: Detection,
+    reference_frame: GrayFrame,
+    margin: float = 0.03,
+) -> float | None:
     """Compare edge maps (Canny) of a detection's patch between the
     baseline reference frame and the current frame.
 
@@ -76,17 +80,13 @@ def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
     but not object contours.  A static trashcan has the same edges in
     both frames (≈ 0%).  A person standing where there was none before
     introduces many new contour edges (40-80%)."""
-    ref = reference_frames.get(camera_id)
-    if ref is None:
-        return None
-
     arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
     cur = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
     if cur is None:
         return None
 
     h, w = cur.shape
-    rh, rw = ref.shape
+    rh, rw = reference_frame.shape
     if (h, w) != (rh, rw):
         return None
 
@@ -99,7 +99,7 @@ def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
     if x2 - x1 < 8 or y2 - y1 < 8:
         return None
 
-    ref_patch = ref[y1:y2, x1:x2]
+    ref_patch = reference_frame[y1:y2, x1:x2]
     cur_patch = cur[y1:y2, x1:x2]
 
     # Canny edge detection on both patches
@@ -130,10 +130,18 @@ def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
         "EdgeCmp %s %s@(%.2f,%.2f): patch=%dx%d total_px=%d "
         "ref_edges=%d ref_dilated=%d cur_edges=%d new_edges=%d "
         "frac=%.4f (new/cur_edges)",
-        camera_id, det.name, det.cx, det.cy,
-        patch_size[0], patch_size[1], total_pixels,
-        ref_edge_count, ref_dilated_count, cur_edge_count,
-        new_edge_count, frac,
+        camera_id,
+        det.name,
+        det.cx,
+        det.cy,
+        patch_size[0],
+        patch_size[1],
+        total_pixels,
+        ref_edge_count,
+        ref_dilated_count,
+        cur_edge_count,
+        new_edge_count,
+        frac,
     )
 
     return frac
