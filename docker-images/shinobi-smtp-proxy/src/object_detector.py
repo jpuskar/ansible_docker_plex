@@ -13,6 +13,9 @@ import metrics as m
 
 log = logging.getLogger("smtp-proxy")
 
+# COCO class IDs we care about: people, vehicles, animals
+TARGET_CLASSES = [0, 1, 2, 3, 5, 7, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+
 
 class Detection:
     """A single YOLO detection with class, position, and size."""

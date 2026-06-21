@@ -16,6 +16,7 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - robusta-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml
@@ -57,6 +58,7 @@
     - harbor-application.yaml
     - kubernetes-secret-generator-application.yaml
     - kube-prometheus-stack-application.yaml
+    - robusta-application.yaml
     - loki-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml

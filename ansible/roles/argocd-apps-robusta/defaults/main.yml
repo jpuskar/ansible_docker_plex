@@ -1,0 +1,24 @@
+---
+# Robusta ArgoCD Application Role Defaults
+
+# Helm chart configuration
+robusta_chart_repo: "https://robusta-charts.storage.googleapis.com"
+robusta_chart_name: "robusta"
+robusta_chart_version: "0.42.0"
+robusta_namespace: "robusta"
+
+# Cluster name reported by Robusta
+robusta_cluster_name: "k8s2"
+
+# Discord webhook URL for alerts — vault-encrypt this value
+# Create a Discord webhook in your alerts channel and encrypt:
+#   ansible-vault encrypt_string --stdin-name 'robusta_discord_webhook_url'
+robusta_discord_webhook_url: !vault |
+  $ANSIBLE_VAULT;1.1;AES256
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  00000000000000000000000000000000000000000000000000000000000000000000000000000000
+  0000000000000000000000000000000000000000
+
+# Robusta doesn't bundle its own Prometheus — we point it at the existing one
+robusta_prometheus_url: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
