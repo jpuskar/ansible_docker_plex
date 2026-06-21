@@ -150,7 +150,7 @@ class EdgeChangeFilter(Filter):
 class CooldownFilter(Filter):
     """Drop detections near a position already alerted within the cooldown window."""
 
-    reason: ClassVar[str] = "alert_cooldown"
+    reason: ClassVar[str] = "alert_cooldown_seconds"
 
     def __init__(self, tolerance: float) -> None:
         self.tolerance = tolerance

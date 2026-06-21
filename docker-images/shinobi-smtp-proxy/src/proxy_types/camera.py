@@ -80,9 +80,9 @@ class CameraTuning:
     baseline_verify_confidence: float = 0.15
     min_motion_novelty: float = 0.05
     scene_change_threshold: float = 0.15
-    alert_cooldown: float = 300.0
-    followup_interval: float = 3.0
-    followup_duration: float = 15.0
+    alert_cooldown_seconds: float = 300.0
+    followup_interval_seconds: float = 3.0
+    followup_duration_seconds: float = 15.0
 
     FLOAT_FIELDS: ClassVar[frozenset[str]] = frozenset(
         {
@@ -91,9 +91,9 @@ class CameraTuning:
             "baseline_verify_confidence",
             "min_motion_novelty",
             "scene_change_threshold",
-            "alert_cooldown",
-            "followup_interval",
-            "followup_duration",
+            "alert_cooldown_seconds",
+            "followup_interval_seconds",
+            "followup_duration_seconds",
         }
     )
     INT_FIELDS: ClassVar[frozenset[str]] = frozenset(

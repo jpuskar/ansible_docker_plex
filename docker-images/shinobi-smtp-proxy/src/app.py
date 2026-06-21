@@ -40,12 +40,12 @@ async def main() -> None:
         discord_notifier = DiscordNotifier(
             bot_token=discord_token,
             channel_id=discord_channel,
-            cooldown_seconds=config.get("discord_cooldown", 60),
+            cooldown_seconds=config.get("discord_cooldown_seconds", 60),
         )
         log.info(
             "Discord notifications enabled (channel %s, cooldown %ds)",
             discord_channel,
-            config.get("discord_cooldown", 60),
+            config.get("discord_cooldown_seconds", 60),
         )
 
     # Set up Shinobi notifier if configured
@@ -90,7 +90,7 @@ async def main() -> None:
             ),
             detector=detector,
             buffer_seconds=config.get("buffer_seconds", 10),
-            baseline_interval=config.get("baseline_interval", 60),
+            baseline_interval_seconds=config.get("baseline_interval_seconds", 60),
             discord_notifier=discord_notifier,
             motion_detection=config.get("motion_detection", True),
             shinobi_notifier=shinobi_notifier,

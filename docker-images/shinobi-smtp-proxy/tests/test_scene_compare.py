@@ -89,6 +89,7 @@ class TestBuildCameraConfigs:
             min_motion_novelty=0.08,
             min_detection_area=0.01,
             position_tolerance=0.2,
+            alert_cooldown_seconds=120.0,
         )
 
         cameras = build_camera_configs(
@@ -113,6 +114,7 @@ class TestBuildCameraConfigs:
                     "tuning": {
                         "min_detection_area": 0.002,
                         "motion_threshold": 20,
+                        "followup_interval_seconds": 2.0,
                     },
                 }
             ],
@@ -122,6 +124,7 @@ class TestBuildCameraConfigs:
         assert cameras[0].tuning.min_motion_novelty == 0.08
         assert cameras[0].tuning.min_detection_area == 0.002
         assert cameras[0].tuning.motion_threshold == 20
+        assert cameras[0].tuning.followup_interval_seconds == 2.0
 
     def test_requires_camera_tuning_mapping(self):
         with pytest.raises(ValueError, match=r"cameras\[0\]\.tuning must be a mapping"):

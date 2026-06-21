@@ -112,13 +112,13 @@ class TestFollowUpDeadlineExtension:
 
     def test_deadline_extends_on_new_arrival(self):
         """Simulates the deadline extension logic."""
-        followup_duration = 15.0
+        followup_duration_seconds = 15.0
         now = time.monotonic()
-        original_deadline = now + followup_duration
+        original_deadline = now + followup_duration_seconds
 
         # Simulate finding a new arrival at scan 3 (~9s in)
         scan_time = now + 9.0
-        new_deadline = scan_time + followup_duration
+        new_deadline = scan_time + followup_duration_seconds
 
         # New deadline should be later than original
         assert new_deadline > original_deadline

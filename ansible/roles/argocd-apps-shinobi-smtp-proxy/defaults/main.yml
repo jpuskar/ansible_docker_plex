@@ -34,11 +34,15 @@ shinobi_smtp_proxy_loadbalancer_ip: !vault |
   3663
 
 # Baseline detection
-shinobi_smtp_proxy_baseline_interval: 30
+shinobi_smtp_proxy_baseline_interval_seconds: 30
 shinobi_smtp_proxy_position_tolerance: 0.15
 
+# Motion detection frame differencing
+shinobi_smtp_proxy_motion_threshold: 25
+shinobi_smtp_proxy_motion_min_area: 500
+
 # Rolling snapshot buffer
-shinobi_smtp_proxy_snapshot_interval: 1
+shinobi_smtp_proxy_snapshot_interval_seconds: 1
 shinobi_smtp_proxy_buffer_seconds: 10
 
 # Camera credentials (vault encrypted)
@@ -75,7 +79,7 @@ shinobi_smtp_proxy_discord_channel_id: !vault |
   61323763323661306164353132333032396438323235363234313966313433393435623838666632
   3936363535653562300a333366353936366131363830626662383533373831346235373638356561
   61346666353739333566653161386662303733633136643963663632326562633137
-shinobi_smtp_proxy_discord_cooldown: 60
+shinobi_smtp_proxy_discord_cooldown_seconds: 60
 
 # Shinobi NVR integration — push events to Shinobi's timeline
 # API key should be vault-encrypted and passed via SHINOBI_API_KEY env var
@@ -203,3 +207,10 @@ shinobi_smtp_proxy_min_detection_area: 0.003
 # a low-confidence verification pass confirms whether it's truly gone.
 shinobi_smtp_proxy_baseline_add_threshold: 3
 shinobi_smtp_proxy_baseline_verify_confidence: 0.15
+
+# Motion/follow-up filtering and alert timing
+shinobi_smtp_proxy_min_motion_novelty: 0.05
+shinobi_smtp_proxy_scene_change_threshold: 0.15
+shinobi_smtp_proxy_alert_cooldown_seconds: 300.0
+shinobi_smtp_proxy_followup_interval_seconds: 3.0
+shinobi_smtp_proxy_followup_duration_seconds: 15.0

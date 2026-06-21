@@ -41,7 +41,7 @@ class BaselineService:
         return [
             alert
             for alert in camera.recent_alerts
-            if now - alert.timestamp < camera.config.tuning.alert_cooldown
+            if now - alert.timestamp < camera.config.tuning.alert_cooldown_seconds
         ]
 
     def record_alert(self, camera: CameraState, detections: list[Detection]) -> None:

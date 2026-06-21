@@ -22,7 +22,7 @@ RTSP_SUBSTREAM = "rtsp://{user}:{passwd}@{ip}:554/cam/realmonitor?channel=1&subt
 # Motion detection defaults
 MOTION_THRESHOLD = 25  # pixel difference threshold (0-255)
 MOTION_MIN_AREA = 500  # minimum contour area in pixels to count as motion
-MOTION_COOLDOWN = 2.0  # seconds between motion events per camera
+MOTION_COOLDOWN_SECONDS = 2.0
 
 
 class RTSPReaderMetrics(NamedTuple):
@@ -251,7 +251,7 @@ class RTSPReader(threading.Thread):
                 self._prev_gray = None  # reset motion baseline on reconnect
                 self._motion_heatmap[:] = 0  # reset heatmap on reconnect
                 self._warmup_frames = 10  # skip motion detection for first N frames
-                frame_interval = 1.0 / self.target_fps
+                frame_interval_seconds = 1.0 / self.target_fps
                 last_frame = 0.0
 
                 while not self._stop_event.is_set():
@@ -259,7 +259,7 @@ class RTSPReader(threading.Thread):
                     if not grabbed:
                         raise ConnectionError(f"RTSP stream lost for {self.camera_id}")
                     now = time.monotonic()
-                    if now - last_frame < frame_interval:
+                    if now - last_frame < frame_interval_seconds:
                         continue
                     last_frame = now
                     ret, frame = cap.retrieve()
@@ -287,7 +287,7 @@ class RTSPReader(threading.Thread):
                         else:
                             motion_rects = self._detect_motion(frame)
                             if motion_rects:
-                                if now - self._last_motion >= MOTION_COOLDOWN:
+                                if now - self._last_motion >= MOTION_COOLDOWN_SECONDS:
                                     self._last_motion = now
                                     self._record_motion_event()
                                     m.motion_events_total.labels(

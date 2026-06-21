@@ -86,11 +86,11 @@ class MotionEventProcessor:
             return
         camera.followup_active = True
         tuning = camera.config.tuning
-        deadline = time.monotonic() + tuning.followup_duration
+        deadline = time.monotonic() + tuning.followup_duration_seconds
         scan_num = 0
         try:
             while time.monotonic() < deadline:
-                await asyncio.sleep(tuning.followup_interval)
+                await asyncio.sleep(tuning.followup_interval_seconds)
                 if time.monotonic() >= deadline:
                     break
                 scan_num += 1
@@ -100,7 +100,7 @@ class MotionEventProcessor:
                     scan_num,
                 )
                 if extended:
-                    deadline = time.monotonic() + tuning.followup_duration
+                    deadline = time.monotonic() + tuning.followup_duration_seconds
         except Exception:
             log.warning("FollowUp scan error for %s", camera_id, exc_info=True)
         finally:

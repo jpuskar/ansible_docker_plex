@@ -55,7 +55,7 @@ class BaselineManager:
         password: str,
         detector: ObjectDetector,
         buffer_seconds: int = 10,
-        baseline_interval: int = 60,
+        baseline_interval_seconds: int = 60,
         discord_notifier: DiscordNotifier | None = None,
         motion_detection: bool = True,
         shinobi_notifier: ShinobiNotifier | None = None,
@@ -64,7 +64,7 @@ class BaselineManager:
         self.password = password
         self.detector = detector
         self.buffer_seconds = buffer_seconds
-        self.baseline_interval = baseline_interval
+        self.baseline_interval_seconds = baseline_interval_seconds
         self.discord_notifier = discord_notifier
         self.shinobi_notifier = shinobi_notifier
         self.motion_detection = motion_detection
@@ -75,7 +75,7 @@ class BaselineManager:
         self._baseline_task: asyncio.Task[None] | None = None
         self._metrics_task: asyncio.Task[None] | None = None
         self._motion_task: asyncio.Task[None] | None = None
-        self._metrics_interval = 10
+        self._metrics_interval_seconds = 10
         self._motion_grace_period = 10.0
 
         self._scheduler = InferenceScheduler(detector)
@@ -100,7 +100,7 @@ class BaselineManager:
             "Camera manager started: %d cameras, %ds buffer, %ds baseline, motion=%s",
             len(self.cameras),
             self.buffer_seconds,
-            self.baseline_interval,
+            self.baseline_interval_seconds,
             self.motion_detection,
         )
         await self._scheduler.start()
@@ -240,7 +240,7 @@ class BaselineManager:
 
     async def _metrics_loop(self) -> None:
         while True:
-            await asyncio.sleep(self._metrics_interval)
+            await asyncio.sleep(self._metrics_interval_seconds)
             self._collect_rtsp_metrics()
             self._log_camera_metrics()
             self._reset_camera_metrics()
@@ -279,7 +279,7 @@ class BaselineManager:
         if self.motion_detection:
             motion_total = sum(c.motion_events for c in self.cameras.values())
             parts.append(f"motion: {motion_total}")
-        log.info("Frames [%ds]: %s", self._metrics_interval, " | ".join(parts))
+        log.info("Frames [%ds]: %s", self._metrics_interval_seconds, " | ".join(parts))
 
     def _reset_camera_metrics(self) -> None:
         for camera in self.cameras.values():
@@ -322,7 +322,7 @@ class BaselineManager:
                         camera_id,
                         exc_info=True,
                     )
-            await asyncio.sleep(self.baseline_interval)
+            await asyncio.sleep(self.baseline_interval_seconds)
 
     def _recent_motion(self, last_motion: float) -> bool:
         return time.monotonic() - last_motion < self._motion_grace_period
