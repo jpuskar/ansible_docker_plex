@@ -10,6 +10,8 @@ import cv2
 import numpy as np
 
 import metrics as m
+from proxy_types.camera import CameraZones, FrameSnapshot
+from proxy_types.motion import MotionEvent, MotionRect, MotionRects
 
 log = logging.getLogger("smtp-proxy")
 
@@ -26,24 +28,26 @@ class CameraBuffer:
     """Thread-safe ring buffer of raw JPEG snapshots for one camera."""
 
     def __init__(self, maxlen: int) -> None:
-        self.frames: deque[tuple[float, bytes]] = deque(maxlen=maxlen)
+        self.frames: deque[FrameSnapshot] = deque(maxlen=maxlen)
         self._lock = threading.Lock()
 
     def add(self, jpeg_bytes: bytes) -> None:
         with self._lock:
-            self.frames.append((time.monotonic(), jpeg_bytes))
+            self.frames.append(
+                FrameSnapshot(timestamp=time.monotonic(), jpeg_bytes=jpeg_bytes)
+            )
 
     def get_recent(self, seconds: float | None = None) -> list[bytes]:
         with self._lock:
             if seconds is None or not self.frames:
-                return [f[1] for f in self.frames]
+                return [frame.jpeg_bytes for frame in self.frames]
             cutoff = time.monotonic() - seconds
-            return [data for ts, data in self.frames if ts >= cutoff]
+            return [frame.jpeg_bytes for frame in self.frames if frame.timestamp >= cutoff]
 
     def evict_stale(self, max_age: float) -> None:
         with self._lock:
             cutoff = time.monotonic() - max_age
-            while self.frames and self.frames[0][0] < cutoff:
+            while self.frames and self.frames[0].timestamp < cutoff:
                 self.frames.popleft()
 
     def total(self) -> int:
@@ -75,10 +79,10 @@ class RTSPReader(threading.Thread):
         rtsp_url: str,
         buf: CameraBuffer,
         target_fps: int = 2,
-        motion_queue: queue.Queue[tuple[str, bytes, list[tuple[float, float, float, float, float]]]] | None = None,
+        motion_queue: queue.Queue[MotionEvent] | None = None,
         motion_threshold: int = MOTION_THRESHOLD,
         motion_min_area: int = MOTION_MIN_AREA,
-        motion_zone_polygons: list[np.ndarray] | None = None,
+        motion_zone_polygons: CameraZones | None = None,
     ) -> None:
         super().__init__(daemon=True, name=f"rtsp-{camera_id}")
         self.camera_id = camera_id
@@ -119,7 +123,7 @@ class RTSPReader(threading.Thread):
             cv2.fillPoly(mask, [pts], 255)
         return mask
 
-    def _detect_motion(self, frame: np.ndarray) -> list[tuple[float, float, float, float, float]]:
+    def _detect_motion(self, frame: np.ndarray) -> MotionRects:
         """Returns list of motion region rects with novelty scores.
 
         Each tuple is (x, y, w, h, novelty) in normalized 0-1 coords.
@@ -168,7 +172,7 @@ class RTSPReader(threading.Thread):
         contours, _ = cv2.findContours(
             thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
-        motion_rects: list[tuple[float, float, float, float, float]] = []
+        motion_rects: MotionRects = []
         for cont in contours:
             if cv2.contourArea(cont) >= self._motion_min_area:
                 x, y, w, h = cv2.boundingRect(cont)
@@ -181,7 +185,9 @@ class RTSPReader(threading.Thread):
                 heatmap_mean = self._motion_heatmap[r1:r2, c1:c2].mean()
                 # Novelty: how much instantaneous exceeds the background
                 novelty = max(0.0, current_mean - heatmap_mean) / 255.0
-                motion_rects.append((x / fw, y / fh, w / fw, h / fh, novelty))
+                motion_rects.append(
+                    MotionRect(x=x / fw, y=y / fh, w=w / fw, h=h / fh, novelty=novelty)
+                )
         return motion_rects
 
     def run(self) -> None:
@@ -247,7 +253,11 @@ class RTSPReader(threading.Thread):
                                     m.motion_events_total.labels(camera=self.camera_id).inc()
                                     try:
                                         self._motion_queue.put_nowait(
-                                            (self.camera_id, jpeg_bytes, motion_rects)
+                                            MotionEvent(
+                                                camera_id=self.camera_id,
+                                                jpeg_bytes=jpeg_bytes,
+                                                motion_rects=motion_rects,
+                                            )
                                         )
                                     except queue.Full:
                                         pass  # drop if processing is backed up

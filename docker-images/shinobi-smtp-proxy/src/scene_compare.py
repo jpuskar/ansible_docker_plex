@@ -8,12 +8,13 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from object_detector import Detection
+from proxy_types.camera import ReferenceFrames, ZonesByCamera
 
 log = logging.getLogger("smtp-proxy")
 
 
 def filter_by_zone(camera_id: str, detections: list[Detection],
-                   zones: dict[str, list[np.ndarray]]) -> list[Detection]:
+                   zones: ZonesByCamera) -> list[Detection]:
     """Return only detections whose center falls inside a configured zone.
     If no zones are configured for this camera, all detections pass through."""
     cam_zones = zones.get(camera_id)
@@ -64,7 +65,7 @@ def annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
 
 
 def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
-                      reference_frames: dict[str, np.ndarray],
+                      reference_frames: ReferenceFrames,
                       margin: float = 0.03) -> float | None:
     """Compare edge maps (Canny) of a detection's patch between the
     baseline reference frame and the current frame.

@@ -3,9 +3,11 @@ import io
 
 import cv2
 import numpy as np
+import pytest
 from PIL import Image
 
 from object_detector import Detection
+from proxy_types.camera import build_zones_by_camera
 from scene_compare import filter_by_zone, annotate_frame, patch_edge_change
 
 
@@ -29,6 +31,32 @@ def _make_gray_jpeg(width=100, height=100, value=128):
 
 
 # --- filter_by_zone ---
+
+class TestBuildZonesByCamera:
+    def test_converts_raw_config_to_float32_polygons(self):
+        zones = build_zones_by_camera({
+            "cam1": [
+                [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]],
+            ],
+        })
+
+        assert set(zones) == {"cam1"}
+        assert len(zones["cam1"]) == 1
+        assert zones["cam1"][0].dtype == np.float32
+        assert zones["cam1"][0].shape == (3, 2)
+
+    def test_requires_at_least_three_points(self):
+        with pytest.raises(ValueError, match="at least 3 points"):
+            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.0, 0.0]]]})
+
+    def test_requires_xy_points(self):
+        with pytest.raises(ValueError, match="must be \\[x, y\\]"):
+            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.0], [1.0, 1.0]]]})
+
+    def test_requires_normalized_coordinates(self):
+        with pytest.raises(ValueError, match="normalized"):
+            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.2, 0.0], [1.0, 1.0]]]})
+
 
 class TestFilterByZone:
     def test_no_zones_passes_all(self):

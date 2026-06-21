@@ -34,7 +34,7 @@ class DiscordNotifier:
         self._headers = {
             "Authorization": f"Bot {bot_token}",
         }
-        self._last_sent = {}  # {camera_id: monotonic timestamp}
+        self._last_sent: dict[str, float] = {}
         self._session = None
 
     async def _get_session(self) -> aiohttp.ClientSession:

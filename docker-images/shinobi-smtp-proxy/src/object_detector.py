@@ -10,6 +10,7 @@ from PIL import Image
 from ultralytics import YOLO
 
 import metrics as m
+from proxy_types.motion import MotionRects
 
 log = logging.getLogger("smtp-proxy")
 
@@ -46,8 +47,7 @@ class Detection:
             abs(self.cx - other.cx) < tolerance and abs(self.cy - other.cy) < tolerance
         )
 
-    def max_novelty(self, rects: list[tuple[float, float, float, float, float]],
-                    min_overlap: float = 0.1) -> float:
+    def max_novelty(self, rects: MotionRects, min_overlap: float = 0.1) -> float:
         """Return the max novelty score from overlapping motion rects.
 
         Each rect is (x, y, w, h, novelty) in normalized 0-1 coords.

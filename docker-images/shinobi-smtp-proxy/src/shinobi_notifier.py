@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 import aiohttp
 
+from proxy_types.camera import CameraHosts
+
 if TYPE_CHECKING:
     from object_detector import Detection
 
@@ -46,7 +48,7 @@ class ShinobiNotifier:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def discover_monitors(self, cameras: dict[str, str]) -> None:
+    async def discover_monitors(self, cameras: CameraHosts) -> None:
         """Auto-discover monitor_map by matching camera IPs to Shinobi monitors.
 
         Calls GET /{api_key}/monitor/{group_key} to list all monitors,

@@ -2,6 +2,7 @@
 import time
 from unittest.mock import patch
 
+from proxy_types.camera import FrameSnapshot
 from rtsp_reader import CameraBuffer
 
 
@@ -37,9 +38,9 @@ class TestCameraBuffer:
         with buf._lock:
             buf.frames.clear()
             now = time.monotonic()
-            buf.frames.append((now - 10, b"old"))
-            buf.frames.append((now - 0.5, b"recent1"))
-            buf.frames.append((now, b"recent2"))
+            buf.frames.append(FrameSnapshot(timestamp=now - 10, jpeg_bytes=b"old"))
+            buf.frames.append(FrameSnapshot(timestamp=now - 0.5, jpeg_bytes=b"recent1"))
+            buf.frames.append(FrameSnapshot(timestamp=now, jpeg_bytes=b"recent2"))
         result = buf.get_recent(seconds=2.0)
         assert result == [b"recent1", b"recent2"]
 
@@ -52,9 +53,9 @@ class TestCameraBuffer:
         buf = CameraBuffer(maxlen=10)
         with buf._lock:
             now = time.monotonic()
-            buf.frames.append((now - 100, b"very_old"))
-            buf.frames.append((now - 50, b"old"))
-            buf.frames.append((now - 1, b"recent"))
+            buf.frames.append(FrameSnapshot(timestamp=now - 100, jpeg_bytes=b"very_old"))
+            buf.frames.append(FrameSnapshot(timestamp=now - 50, jpeg_bytes=b"old"))
+            buf.frames.append(FrameSnapshot(timestamp=now - 1, jpeg_bytes=b"recent"))
         buf.evict_stale(max_age=10)
         assert buf.total() == 1
         assert buf.get_recent() == [b"recent"]

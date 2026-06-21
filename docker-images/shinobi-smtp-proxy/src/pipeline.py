@@ -18,40 +18,28 @@ semantics, so it lives as a method on ``BaselineManager``.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
+from typing import ClassVar
 
 import metrics as m
 from object_detector import Detection
+from proxy_types.camera import ZonesByCamera
+from proxy_types.pipeline import FilterContext
 from scene_compare import filter_by_zone, patch_edge_change
 
 log = logging.getLogger("smtp-proxy")
 
-
-@dataclass
-class FilterContext:
-    """Per-event data any filter stage might need.
-
-    A fresh context is built for each motion event / follow-up scan. Fields a
-    given stage doesn't use are simply left at their defaults.
-    """
-
-    camera_id: str
-    label: str = "Motion"  # log prefix: "Motion" or "FollowUp"
-    motion_rects: list = field(default_factory=list)  # [(x, y, w, h, novelty)]
-    jpeg_bytes: bytes = b""
-    reference_frames: dict = field(default_factory=dict)  # camera -> grayscale frame
-    recent_alerts: list = field(default_factory=list)  # [(monotonic_time, Detection)]
-
-
-class Filter:
+class Filter(ABC):
     """One stage in the pipeline.
 
     ``reason`` doubles as the Prometheus ``motion_filtered_total`` drop label
     and the debug log tag. Subclasses implement ``apply``.
     """
 
-    reason = "filter"
+    reason: ClassVar[str] = "filter"
 
+    @abstractmethod
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         raise NotImplementedError
 
@@ -59,12 +47,12 @@ class Filter:
 class ZoneFilter(Filter):
     """Drop detections whose center falls outside the camera's configured zones."""
 
-    reason = "outside_zone"
+    reason: ClassVar[str] = "outside_zone"
 
-    def __init__(self, zones: dict) -> None:
+    def __init__(self, zones: ZonesByCamera) -> None:
         self.zones = zones
 
-    def apply(self, dets, ctx):
+    def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         return filter_by_zone(camera_id=ctx.camera_id, detections=dets, zones=self.zones)
 
 
@@ -76,13 +64,13 @@ class NoveltyFilter(Filter):
     car arriving = high novelty.
     """
 
-    reason = "low_novelty"
+    reason: ClassVar[str] = "low_novelty"
 
     def __init__(self, min_novelty: float) -> None:
         self.min_novelty = min_novelty
 
-    def apply(self, dets, ctx):
-        kept = []
+    def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
+        kept: list[Detection] = []
         for d in dets:
             novelty = d.max_novelty(rects=ctx.motion_rects)
             if novelty >= self.min_novelty:
@@ -98,12 +86,12 @@ class NoveltyFilter(Filter):
 class MinAreaFilter(Filter):
     """Drop tiny detections (light flashes, hallucinations) below a min area."""
 
-    reason = "below_min_area"
+    reason: ClassVar[str] = "below_min_area"
 
     def __init__(self, min_area: float) -> None:
         self.min_area = min_area
 
-    def apply(self, dets, ctx):
+    def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         if self.min_area <= 0:
             return dets
         return [d for d in dets if d.w * d.h >= self.min_area]
@@ -117,15 +105,15 @@ class EdgeChangeFilter(Filter):
     everything through until a reference frame exists for the camera.
     """
 
-    reason = "scene_unchanged"
+    reason: ClassVar[str] = "scene_unchanged"
 
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
 
-    def apply(self, dets, ctx):
+    def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         if ctx.reference_frames.get(ctx.camera_id) is None:
             return dets  # no calm reference yet — nothing to compare against
-        kept = []
+        kept: list[Detection] = []
         for d in dets:
             frac = patch_edge_change(ctx.camera_id, ctx.jpeg_bytes, d, ctx.reference_frames)
             if frac is not None and frac < self.threshold:
@@ -146,12 +134,12 @@ class EdgeChangeFilter(Filter):
 class CooldownFilter(Filter):
     """Drop detections near a position already alerted within the cooldown window."""
 
-    reason = "alert_cooldown"
+    reason: ClassVar[str] = "alert_cooldown"
 
     def __init__(self, tolerance: float) -> None:
         self.tolerance = tolerance
 
-    def apply(self, dets, ctx):
+    def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         kept = [
             d for d in dets
             if not any(
@@ -175,8 +163,8 @@ class DetectionPipeline:
     ``motion_filtered_total{reason=<stage.reason>}`` by the number dropped.
     """
 
-    def __init__(self, filters: list[Filter]) -> None:
-        self.filters = filters
+    def __init__(self, filters: Sequence[Filter]) -> None:
+        self.filters: tuple[Filter, ...] = tuple(filters)
 
     def run(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
         for f in self.filters:

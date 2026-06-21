@@ -17,11 +17,20 @@ from pipeline import (
     CooldownFilter,
     DetectionPipeline,
     EdgeChangeFilter,
-    FilterContext,
     MinAreaFilter,
     NoveltyFilter,
     ZoneFilter,
 )
+from proxy_types.alerts import RecentAlert, RecentAlerts
+from proxy_types.camera import (
+    CameraHosts,
+    RawZonesByCamera,
+    ReferenceFrames,
+    ZonesByCamera,
+    build_zones_by_camera,
+)
+from proxy_types.motion import MotionEvent
+from proxy_types.pipeline import BaselineComparison, BestFrameSelection, FilterContext
 from rtsp_reader import (
     MOTION_MIN_AREA,
     MOTION_THRESHOLD,
@@ -49,7 +58,7 @@ class BaselineManager:
 
     def __init__(
         self,
-        cameras: dict[str, str],
+        cameras: CameraHosts,
         username: str,
         password: str,
         detector: ObjectDetector,
@@ -60,14 +69,14 @@ class BaselineManager:
         motion_detection: bool = True,
         motion_threshold: int = MOTION_THRESHOLD,
         motion_min_area: int = MOTION_MIN_AREA,
-        detection_zones: dict[str, list[list[list[float]]]] | None = None,
+        detection_zones: RawZonesByCamera | None = None,
         min_detection_area: float = 0.003,
         shinobi_notifier: ShinobiNotifier | None = None,
         baseline_add_threshold: int = 3,
         baseline_verify_confidence: float = 0.15,
         min_motion_novelty: float = 0.05,
     ) -> None:
-        self.cameras = cameras  # {camera_id: ip}
+        self.cameras: CameraHosts = cameras
         self.username = username
         self.password = password
         self.detector = detector
@@ -78,14 +87,8 @@ class BaselineManager:
         self.shinobi_notifier = shinobi_notifier
         self.motion_detection = motion_detection
 
-        # Detection zones: {camera_id: [numpy_polygon, ...]}
-        # Each polygon is a numpy array of (x,y) pairs in normalized 0.0-1.0 coords
-        self._zones = {}
-        if detection_zones:
-            for cam_id, zones in detection_zones.items():
-                self._zones[cam_id] = [
-                    np.array(poly, dtype=np.float32) for poly in zones
-                ]
+        self._zones: ZonesByCamera = build_zones_by_camera(detection_zones)
+        if self._zones:
             log.info(
                 "Detection zones configured for: %s", ", ".join(self._zones.keys())
             )
@@ -112,20 +115,22 @@ class BaselineManager:
         }
         self.baselines: dict[str, list[Detection]] = {}
         self._baseline_initialized: set[str] = set()
-        self._baseline_task = None
-        self._metrics_task = None
-        self._motion_task = None
+        self._baseline_task: asyncio.Task[None] | None = None
+        self._metrics_task: asyncio.Task[None] | None = None
+        self._motion_task: asyncio.Task[None] | None = None
 
         # Reference frames for visual similarity comparison.
         # Stored during each baseline cycle — a calm frame with no motion.
-        self._reference_frames: dict[str, np.ndarray] = {}  # camera -> grayscale numpy
+        self._reference_frames: ReferenceFrames = {}
         self._scene_change_threshold = 0.15  # fraction of current edges that must be new
 
         # Priority inference scheduler — all GPU access goes through here
         self._scheduler = InferenceScheduler(detector)
 
         # Motion event queue: (camera_id, jpeg_bytes) from RTSP threads
-        self._motion_queue = queue.Queue(maxsize=50) if motion_detection else None
+        self._motion_queue: queue.Queue[MotionEvent] | None = (
+            queue.Queue(maxsize=50) if motion_detection else None
+        )
 
         # Track when each camera last had motion, so baseline skips active cameras
         self._last_motion_time: dict[str, float] = {}
@@ -143,7 +148,7 @@ class BaselineManager:
         # same position within this window. Gives observe() time to promote
         # persistent static objects into the baseline.
         self._alert_cooldown = 300.0  # seconds (5 minutes)
-        self._recent_alerts: dict[str, list[tuple[float, Detection]]] = {}  # camera -> [(time, det)]
+        self._recent_alerts: dict[str, RecentAlerts] = {}
 
         # Follow-up scan: after an alert, periodically re-check the camera
         # for additional arrivals (e.g. kid walking behind parent).
@@ -177,7 +182,7 @@ class BaselineManager:
         ])
 
         # RTSP readers — one persistent sub-stream thread per camera
-        self._readers = {}
+        self._readers: dict[str, RTSPReader] = {}
         for cam_id, ip in cameras.items():
             url = RTSP_SUBSTREAM.format(user=username, passwd=password, ip=ip)
             self._readers[cam_id] = RTSPReader(
@@ -304,30 +309,29 @@ class BaselineManager:
     # Shared pipeline helpers (used by both motion and follow-up loops)
     # ================================================================
 
-    def _active_alerts(self, camera_id: str) -> list[tuple[float, Detection]]:
+    def _active_alerts(self, camera_id: str) -> RecentAlerts:
         """Return this camera's recent alerts with expired entries purged."""
         now = time.monotonic()
         return [
-            (t, d) for t, d in self._recent_alerts.get(camera_id, [])
-            if now - t < self._alert_cooldown
+            alert for alert in self._recent_alerts.get(camera_id, [])
+            if now - alert.timestamp < self._alert_cooldown
         ]
 
     def _record_alert(self, camera_id: str, detections: list[Detection]) -> None:
         """Record alerted detections for cooldown, dropping expired entries."""
         recent = self._active_alerts(camera_id)
         now = time.monotonic()
-        recent.extend((now, d) for d in detections)
+        recent.extend(RecentAlert(timestamp=now, detection=d) for d in detections)
         self._recent_alerts[camera_id] = recent
 
     def _compare_baseline(
         self, detections: list[Detection], camera_id: str, observe: bool,
-    ) -> tuple[list[Detection] | None, list[Detection]]:
+    ) -> BaselineComparison:
         """Diff detections against the camera's baseline.
 
-        Returns ``(new, baseline)`` where ``new`` is detections not matching
-        any baseline object. ``new`` is ``None`` to signal "baseline not yet
-        initialized — suppress everything" (distinct from an empty list, which
-        means all detections matched the baseline).
+        ``new_detections`` is ``None`` to signal "baseline not yet initialized
+        — suppress everything" (distinct from an empty list, which means all
+        detections matched the baseline).
 
         When ``observe`` is True (motion path), detections are fed into the
         tracker first so persistent objects accumulate hits toward promotion.
@@ -345,7 +349,7 @@ class BaselineManager:
 
         if not baseline:
             if camera_id not in self._baseline_initialized:
-                return None, []
+                return BaselineComparison(new_detections=None, baseline=[])
             if not tracker.is_warm:
                 baseline = tracker.get_all_seen()
 
@@ -355,19 +359,21 @@ class BaselineManager:
                 d.is_near(other=b, tolerance=self.position_tolerance) for b in baseline
             )
         ] if baseline else detections
-        return new, baseline
+        return BaselineComparison(new_detections=new, baseline=baseline)
 
     async def _select_best_frame(
         self, camera_id: str, jpeg_bytes: bytes,
         all_detections: list[Detection], new: list[Detection],
-    ) -> tuple[bytes, list[Detection], list[Detection]]:
+    ) -> BestFrameSelection:
         """Wait briefly for a clearer frame and pick whichever has the
         highest-confidence view of the new objects.
-
-        Returns ``(best_jpeg, best_all_detections, best_new)``.
         """
-        best_jpeg, best_all, best_new = jpeg_bytes, all_detections, new
-        best_conf = max(d.conf for d in new)
+        best_frame = BestFrameSelection(
+            jpeg_bytes=jpeg_bytes,
+            all_detections=all_detections,
+            new_detections=new,
+        )
+        best_conf = max(d.conf for d in best_frame.new_detections)
 
         await asyncio.sleep(1.5)
 
@@ -389,8 +395,12 @@ class BaselineManager:
                         "BestFrame %s: using delayed frame (conf %.0f%% > %.0f%%)",
                         camera_id, delayed_conf * 100, best_conf * 100,
                     )
-                    best_jpeg, best_all, best_new = delayed_jpeg, delayed_dets, delayed_new
-        return best_jpeg, best_all, best_new
+                    best_frame = BestFrameSelection(
+                        jpeg_bytes=delayed_jpeg,
+                        all_detections=delayed_dets,
+                        new_detections=delayed_new,
+                    )
+        return best_frame
 
     # ================================================================
     # Motion detection loop (motion_detection=True)
@@ -404,32 +414,34 @@ class BaselineManager:
         diff, then edge-change → cooldown. Novelty rejects environmental motion
         (trees, shadows) whose intensity doesn't exceed the learned heatmap.
         """
+        if self._motion_queue is None:
+            return
         loop = asyncio.get_event_loop()
         while True:
             # Poll the thread-safe queue from async context
             try:
-                camera_id, jpeg_bytes, motion_rects = await loop.run_in_executor(
+                event = await loop.run_in_executor(
                     None, self._motion_queue.get, True, 1.0
                 )
             except Exception:
                 continue
 
             try:
-                self._last_motion_time[camera_id] = time.monotonic()
+                self._last_motion_time[event.camera_id] = time.monotonic()
                 detections = await self._scheduler.infer(
-                    jpeg_bytes, priority=PRIORITY_MOTION, camera_id=camera_id,
+                    event.jpeg_bytes, priority=PRIORITY_MOTION, camera_id=event.camera_id,
                 )
                 if not detections:
-                    log.info("Motion %s: YOLO returned 0 detections", camera_id)
-                    m.motion_filtered_total.labels(camera=camera_id, reason="no_detections").inc()
+                    log.info("Motion %s: YOLO returned 0 detections", event.camera_id)
+                    m.motion_filtered_total.labels(camera=event.camera_id, reason="no_detections").inc()
                     continue
 
                 for d in detections:
-                    m.detections_total.labels(camera=camera_id, class_name=d.name).inc()
+                    m.detections_total.labels(camera=event.camera_id, class_name=d.name).inc()
 
                 log.info(
                     "Motion %s: YOLO found %d detections: %s",
-                    camera_id,
+                    event.camera_id,
                     len(detections),
                     [(d.name, f"{d.conf:.2f}", f"{d.cx:.2f},{d.cy:.2f}", f"{d.w:.3f}x{d.h:.3f}") for d in detections],
                 )
@@ -438,12 +450,12 @@ class BaselineManager:
                 # baseline/filtered objects still render as gray boxes.
                 all_yolo_detections = list(detections)
                 ctx = FilterContext(
-                    camera_id=camera_id,
+                    camera_id=event.camera_id,
                     label="Motion",
-                    motion_rects=motion_rects,
-                    jpeg_bytes=jpeg_bytes,
+                    motion_rects=event.motion_rects,
+                    jpeg_bytes=event.jpeg_bytes,
                     reference_frames=self._reference_frames,
-                    recent_alerts=self._active_alerts(camera_id),
+                    recent_alerts=self._active_alerts(event.camera_id),
                 )
 
                 # Noise filters: zone → novelty → min-area
@@ -452,52 +464,56 @@ class BaselineManager:
                     continue
 
                 # Baseline diff (feeds the tracker via observe)
-                new, baseline = self._compare_baseline(detections, camera_id, observe=True)
+                comparison = self._compare_baseline(detections, event.camera_id, observe=True)
+                new = comparison.new_detections
+                baseline = comparison.baseline
                 if new is None:
                     log.debug(
                         "Motion %s: ignoring %d detections (baseline not yet initialized)",
-                        camera_id, len(detections),
+                        event.camera_id, len(detections),
                     )
                     continue
                 if not new:
                     log.debug(
                         "Motion %s: all %d detections matched baseline (base=%s)",
-                        camera_id, len(detections), [repr(b) for b in baseline],
+                        event.camera_id, len(detections), [repr(b) for b in baseline],
                     )
                     continue
 
                 # Confirmation filters: edge-change → cooldown
                 new = self._motion_post.run(new, ctx)
                 if not new:
-                    log.debug("Motion %s: no new objects after confirmation filters", camera_id)
+                    log.debug("Motion %s: no new objects after confirmation filters", event.camera_id)
                     continue
 
                 names = ", ".join(sorted(set(d.name for d in new)))
                 log.info(
                     "Motion %s: new objects: %s (det=%s, base=%s)",
-                    camera_id, names,
+                    event.camera_id, names,
                     [repr(d) for d in detections], [repr(b) for b in baseline],
                 )
 
-                best_jpeg, best_all, best_new = await self._select_best_frame(
-                    camera_id, jpeg_bytes, all_yolo_detections, new,
+                best_frame = await self._select_best_frame(
+                    event.camera_id, event.jpeg_bytes, all_yolo_detections, new,
                 )
                 annotated = annotate_frame(
-                    jpeg_bytes=best_jpeg, detections=best_all, new_detections=best_new,
+                    jpeg_bytes=best_frame.jpeg_bytes,
+                    detections=best_frame.all_detections,
+                    new_detections=best_frame.new_detections,
                 )
                 await self._send_alert(
-                    camera_id=camera_id, description=f"Motion: {names}",
-                    jpeg_bytes=annotated, detections=best_new,
+                    camera_id=event.camera_id, description=f"Motion: {names}",
+                    jpeg_bytes=annotated, detections=best_frame.new_detections,
                 )
-                self._record_alert(camera_id, new)
+                self._record_alert(event.camera_id, new)
 
                 # Kick off follow-up scans to catch additional arrivals
                 # (e.g. kid walking behind parent, second car pulling in).
-                if camera_id not in self._active_followups:
-                    asyncio.create_task(self._follow_up_scan(camera_id))
+                if event.camera_id not in self._active_followups:
+                    asyncio.create_task(self._follow_up_scan(event.camera_id))
 
             except Exception:
-                log.warning("Motion processing error for %s", camera_id, exc_info=True)
+                log.warning("Motion processing error for %s", event.camera_id, exc_info=True)
 
     # ================================================================
     # Follow-up scan — catch additional arrivals after an alert
@@ -549,7 +565,8 @@ class BaselineManager:
                     continue
 
                 # Baseline diff (no observe — don't promote transient arrivals)
-                new, baseline = self._compare_baseline(detections, camera_id, observe=False)
+                comparison = self._compare_baseline(detections, camera_id, observe=False)
+                new = comparison.new_detections
                 if not new:
                     log.debug(
                         "FollowUp %s scan %d: %d detections all matched baseline",
@@ -572,17 +589,19 @@ class BaselineManager:
                     camera_id, scan_num, names,
                 )
 
-                best_jpeg, best_all, best_new = await self._select_best_frame(
+                best_frame = await self._select_best_frame(
                     camera_id, jpeg_bytes, detections, new,
                 )
                 annotated = annotate_frame(
-                    jpeg_bytes=best_jpeg, detections=best_all, new_detections=best_new,
+                    jpeg_bytes=best_frame.jpeg_bytes,
+                    detections=best_frame.all_detections,
+                    new_detections=best_frame.new_detections,
                 )
                 await self._send_alert(
                     camera_id=camera_id,
                     description=f"FollowUp: {names}",
                     jpeg_bytes=annotated,
-                    detections=best_new,
+                    detections=best_frame.new_detections,
                 )
 
                 # Record for cooldown + extend deadline so further arrivals
