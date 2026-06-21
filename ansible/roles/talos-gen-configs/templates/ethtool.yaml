@@ -1,0 +1,10 @@
+---
+machine:
+  network:
+    interfaces:
+      - interface: {{ hostvars[node_name].talos_ethtool.interface }}
+        ethtool:
+          features:
+{% for feature, enabled in hostvars[node_name].talos_ethtool.features.items() %}
+            {{ feature }}: {{ enabled | lower }}
+{% endfor %}
