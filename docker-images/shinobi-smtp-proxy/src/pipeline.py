@@ -24,7 +24,6 @@ from typing import ClassVar
 
 import metrics as m
 from object_detector import Detection
-from proxy_types.camera import ZonesByCamera
 from proxy_types.pipeline import FilterContext
 from scene_compare import filter_by_zone, patch_edge_change
 
@@ -49,11 +48,8 @@ class ZoneFilter(Filter):
 
     reason: ClassVar[str] = "outside_zone"
 
-    def __init__(self, zones: ZonesByCamera) -> None:
-        self.zones = zones
-
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
-        return filter_by_zone(camera_id=ctx.camera_id, detections=dets, zones=self.zones)
+        return filter_by_zone(detections=dets, zones=ctx.zones)
 
 
 class NoveltyFilter(Filter):
@@ -111,11 +107,11 @@ class EdgeChangeFilter(Filter):
         self.threshold = threshold
 
     def apply(self, dets: list[Detection], ctx: FilterContext) -> list[Detection]:
-        if ctx.reference_frames.get(ctx.camera_id) is None:
+        if ctx.reference_frame is None:
             return dets  # no calm reference yet — nothing to compare against
         kept: list[Detection] = []
         for d in dets:
-            frac = patch_edge_change(ctx.camera_id, ctx.jpeg_bytes, d, ctx.reference_frames)
+            frac = patch_edge_change(ctx.camera_id, ctx.jpeg_bytes, d, ctx.reference_frame)
             if frac is not None and frac < self.threshold:
                 log.info(
                     "%s %s: %s@(%.2f,%.2f) suppressed (edges unchanged, %.2f%% new edges)",

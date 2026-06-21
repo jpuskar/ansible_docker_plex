@@ -1,5 +1,4 @@
 """Tests for the composable detection-filter pipeline (pipeline.py)."""
-import numpy as np
 
 from object_detector import Detection
 from pipeline import (
@@ -11,6 +10,7 @@ from pipeline import (
     NoveltyFilter,
     ZoneFilter,
 )
+from proxy_types.camera import ZonePolygon
 
 
 def _det(cls_id=0, name="person", cx=0.5, cy=0.5, w=0.1, h=0.2, conf=0.9):
@@ -21,16 +21,15 @@ class TestZoneFilter:
     def test_no_zones_passes_all(self):
         dets = [_det(cx=0.1, cy=0.1), _det(cx=0.9, cy=0.9)]
         ctx = FilterContext(camera_id="cam")
-        assert ZoneFilter({}).apply(dets, ctx) == dets
+        assert ZoneFilter().apply(dets, ctx) == dets
 
     def test_keeps_only_inside_zone(self):
         # Zone covering the left half of the frame
-        poly = np.array([[0.0, 0.0], [0.5, 0.0], [0.5, 1.0], [0.0, 1.0]], dtype=np.float32)
-        zones = {"cam": [poly]}
+        zone = ZonePolygon.from_points([[0.0, 0.0], [0.5, 0.0], [0.5, 1.0], [0.0, 1.0]])
         inside = _det(cx=0.25, cy=0.5)
         outside = _det(cx=0.75, cy=0.5)
-        ctx = FilterContext(camera_id="cam")
-        kept = ZoneFilter(zones).apply([inside, outside], ctx)
+        ctx = FilterContext(camera_id="cam", zones=[zone])
+        kept = ZoneFilter().apply([inside, outside], ctx)
         assert kept == [inside]
 
 
@@ -65,7 +64,7 @@ class TestMinAreaFilter:
 class TestEdgeChangeFilter:
     def test_passthrough_without_reference(self):
         dets = [_det()]
-        ctx = FilterContext(camera_id="cam", reference_frames={})
+        ctx = FilterContext(camera_id="cam", reference_frame=None)
         assert EdgeChangeFilter(0.15).apply(dets, ctx) == dets
 
 

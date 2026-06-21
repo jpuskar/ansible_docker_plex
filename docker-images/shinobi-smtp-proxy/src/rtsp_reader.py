@@ -118,8 +118,8 @@ class RTSPReader(threading.Thread):
         if not self._motion_zone_polygons:
             return None
         mask = np.zeros((h, w), dtype=np.uint8)
-        for poly in self._motion_zone_polygons:
-            pts = (poly * np.array([w, h])).astype(np.int32)
+        for zone in self._motion_zone_polygons:
+            pts = zone.to_pixel_points(width=w, height=h)
             cv2.fillPoly(mask, [pts], 255)
         return mask
 

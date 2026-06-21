@@ -7,7 +7,7 @@ import pytest
 from PIL import Image
 
 from object_detector import Detection
-from proxy_types.camera import build_zones_by_camera
+from proxy_types.camera import ZonePolygon, build_camera_configs
 from scene_compare import filter_by_zone, annotate_frame, patch_edge_change
 
 
@@ -32,53 +32,58 @@ def _make_gray_jpeg(width=100, height=100, value=128):
 
 # --- filter_by_zone ---
 
-class TestBuildZonesByCamera:
-    def test_converts_raw_config_to_float32_polygons(self):
-        zones = build_zones_by_camera({
-            "cam1": [
-                [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]],
-            ],
-        })
+class TestBuildCameraConfigs:
+    def test_converts_raw_config_to_camera_owned_zones(self):
+        cameras = build_camera_configs([
+            {
+                "id": "cam1",
+                "host": "192.0.2.10",
+                "zones": [
+                    {"points": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]},
+                ],
+            },
+        ])
 
-        assert set(zones) == {"cam1"}
-        assert len(zones["cam1"]) == 1
-        assert zones["cam1"][0].dtype == np.float32
-        assert zones["cam1"][0].shape == (3, 2)
+        assert len(cameras) == 1
+        assert cameras[0].id == "cam1"
+        assert cameras[0].host == "192.0.2.10"
+        assert len(cameras[0].zones) == 1
+        assert cameras[0].zones[0].points.dtype == np.float32
+        assert cameras[0].zones[0].points.shape == (3, 2)
 
     def test_requires_at_least_three_points(self):
         with pytest.raises(ValueError, match="at least 3 points"):
-            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.0, 0.0]]]})
+            build_camera_configs([
+                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.0, 0.0]]}]}
+            ])
 
     def test_requires_xy_points(self):
         with pytest.raises(ValueError, match="must be \\[x, y\\]"):
-            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.0], [1.0, 1.0]]]})
+            build_camera_configs([
+                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.0], [1.0, 1.0]]}]}
+            ])
 
     def test_requires_normalized_coordinates(self):
         with pytest.raises(ValueError, match="normalized"):
-            build_zones_by_camera({"cam1": [[[0.0, 0.0], [1.2, 0.0], [1.0, 1.0]]]})
+            build_camera_configs([
+                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.2, 0.0], [1.0, 1.0]]}]}
+            ])
 
 
 class TestFilterByZone:
     def test_no_zones_passes_all(self):
         dets = [_det(cx=0.1, cy=0.1), _det(cx=0.9, cy=0.9)]
-        result = filter_by_zone("cam1", dets, zones={})
+        result = filter_by_zone(dets, zones=[])
         assert len(result) == 2
 
     def test_inside_zone_passes(self):
         # Square zone covering center: (0.2,0.2) to (0.8,0.8)
-        poly = np.array([[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]], dtype=np.float32)
-        zones = {"cam1": [poly]}
+        zone = ZonePolygon.from_points([[0.2, 0.2], [0.8, 0.2], [0.8, 0.8], [0.2, 0.8]])
         d_inside = _det(cx=0.5, cy=0.5)
         d_outside = _det(cx=0.1, cy=0.1)
-        result = filter_by_zone("cam1", [d_inside, d_outside], zones)
+        result = filter_by_zone([d_inside, d_outside], zones=[zone])
         assert len(result) == 1
         assert result[0].cx == 0.5
-
-    def test_different_camera_no_zones(self):
-        poly = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], dtype=np.float32)
-        zones = {"cam1": [poly]}
-        result = filter_by_zone("cam2", [_det()], zones)
-        assert len(result) == 1  # no zones for cam2, passes through
 
 
 # --- annotate_frame ---
@@ -118,30 +123,23 @@ class TestPatchEdgeChange:
         """Create a numpy grayscale array (simulates a reference frame)."""
         return np.full((height, width), value, dtype=np.uint8)
 
-    def test_no_reference_returns_none(self):
-        jpeg = _make_gray_jpeg()
-        result = patch_edge_change("cam1", jpeg, _det(), reference_frames={})
-        assert result is None
-
     def test_identical_frames_low_change(self):
         """Same image for both reference and current → ~0 edge change."""
         gray = self._gray_np(200, 200, value=100)
         # Draw some edges so there's something to compare
         cv2.rectangle(gray, (50, 50), (150, 150), 200, 2)
 
-        ref_frames = {"cam1": gray.copy()}
         _, encoded = cv2.imencode(".jpg", gray)
         jpeg = encoded.tobytes()
 
         d = _det(cx=0.5, cy=0.5, w=0.6, h=0.6)
-        frac = patch_edge_change("cam1", jpeg, d, ref_frames)
+        frac = patch_edge_change("cam1", jpeg, d, gray.copy())
         assert frac is not None
         assert frac < 0.2  # should be very low for identical images
 
     def test_new_object_high_change(self):
         """Adding a strong shape to the current frame should produce high edge change."""
         ref = self._gray_np(200, 200, value=128)
-        ref_frames = {"cam1": ref.copy()}
 
         # Current frame: add a bright rectangle (simulates person-shaped object)
         cur = ref.copy()
@@ -152,21 +150,21 @@ class TestPatchEdgeChange:
         jpeg = encoded.tobytes()
 
         d = _det(cx=0.5, cy=0.5, w=0.5, h=0.8)
-        frac = patch_edge_change("cam1", jpeg, d, ref_frames)
+        frac = patch_edge_change("cam1", jpeg, d, ref.copy())
         assert frac is not None
         assert frac > 0.3  # significant new edges
 
     def test_mismatched_resolution_returns_none(self):
-        ref_frames = {"cam1": self._gray_np(200, 200)}
+        reference_frame = self._gray_np(200, 200)
         jpeg = _make_gray_jpeg(100, 100)  # different resolution
         d = _det()
-        result = patch_edge_change("cam1", jpeg, d, ref_frames)
+        result = patch_edge_change("cam1", jpeg, d, reference_frame)
         assert result is None
 
     def test_tiny_patch_returns_none(self):
         """Detection too small → patch < 8px → returns None."""
-        ref_frames = {"cam1": self._gray_np(100, 100)}
+        reference_frame = self._gray_np(100, 100)
         jpeg = _make_gray_jpeg(100, 100)
         d = _det(cx=0.5, cy=0.5, w=0.01, h=0.01)  # tiny
-        result = patch_edge_change("cam1", jpeg, d, ref_frames)
+        result = patch_edge_change("cam1", jpeg, d, reference_frame)
         assert result is None

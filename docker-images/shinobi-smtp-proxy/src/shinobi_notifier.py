@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from proxy_types.camera import CameraHosts
+from proxy_types.camera import CameraConfig
 
 if TYPE_CHECKING:
     from object_detector import Detection
@@ -48,7 +48,7 @@ class ShinobiNotifier:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def discover_monitors(self, cameras: CameraHosts) -> None:
+    async def discover_monitors(self, cameras: list[CameraConfig]) -> None:
         """Auto-discover monitor_map by matching camera IPs to Shinobi monitors.
 
         Calls GET /{api_key}/monitor/{group_key} to list all monitors,
@@ -56,7 +56,7 @@ class ShinobiNotifier:
         and maps our camera_id -> monitor mid.
 
         Args:
-            cameras: dict of {camera_id: ip_address} from our config
+            cameras: configured cameras from app config
         """
         url = f"{self.base_url}/{self.api_key}/monitor/{self.group_key}"
         try:
@@ -117,7 +117,9 @@ class ShinobiNotifier:
         # Match our camera IDs to Shinobi monitor IDs
         # Priority: explicit monitor_map > IP match > mid match > name match
         matched = 0
-        for camera_id, camera_ip in cameras.items():
+        for camera in cameras:
+            camera_id = camera.id
+            camera_ip = camera.host
             if camera_id in self.monitor_map:
                 continue  # explicit mapping takes precedence
             if camera_ip in ip_to_mid:
