@@ -31,22 +31,17 @@ class BaselineService:
         self,
         scheduler: InferenceScheduler,
         detector: ObjectDetector,
-        position_tolerance: float,
-        verify_confidence: float,
-        alert_cooldown: float,
     ) -> None:
         self.scheduler = scheduler
         self.detector = detector
-        self.position_tolerance = position_tolerance
-        self.verify_confidence = verify_confidence
-        self.alert_cooldown = alert_cooldown
 
     def active_alerts(self, camera: CameraState) -> RecentAlerts:
         """Return this camera's recent alerts with expired entries purged."""
         now = time.monotonic()
         return [
-            alert for alert in camera.recent_alerts
-            if now - alert.timestamp < self.alert_cooldown
+            alert
+            for alert in camera.recent_alerts
+            if now - alert.timestamp < camera.config.tuning.alert_cooldown
         ]
 
     def record_alert(self, camera: CameraState, detections: list[Detection]) -> None:
@@ -85,13 +80,21 @@ class BaselineService:
             if not tracker.is_warm:
                 baseline = tracker.get_all_seen()
 
-        new = [
-            d for d in detections
-            if not any(
-                d.is_near(other=b, tolerance=self.position_tolerance)
-                for b in baseline
-            )
-        ] if baseline else detections
+        new = (
+            [
+                d
+                for d in detections
+                if not any(
+                    d.is_near(
+                        other=b,
+                        tolerance=camera.config.tuning.position_tolerance,
+                    )
+                    for b in baseline
+                )
+            ]
+            if baseline
+            else detections
+        )
         return BaselineComparison(new_detections=new, baseline=baseline)
 
     async def update(self, camera_id: str, camera: CameraState) -> None:
@@ -120,7 +123,7 @@ class BaselineService:
             low_conf_dets = await self.scheduler.infer(
                 jpeg,
                 priority=PRIORITY_BASELINE,
-                confidence_override=self.verify_confidence,
+                confidence_override=camera.config.tuning.baseline_verify_confidence,
                 camera_id=camera_id,
             )
             messages += tracker.verify_missed(low_conf_dets)

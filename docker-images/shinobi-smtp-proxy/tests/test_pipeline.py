@@ -37,8 +37,12 @@ class TestNoveltyFilter:
     def test_high_novelty_kept_low_dropped(self):
         d = _det(cx=0.5, cy=0.5, w=0.2, h=0.2)
         # A motion rect fully overlapping d, with high novelty
-        ctx_high = FilterContext(camera_id="cam", motion_rects=[(0.4, 0.4, 0.2, 0.2, 0.5)])
-        ctx_low = FilterContext(camera_id="cam", motion_rects=[(0.4, 0.4, 0.2, 0.2, 0.01)])
+        ctx_high = FilterContext(
+            camera_id="cam", motion_rects=[(0.4, 0.4, 0.2, 0.2, 0.5)]
+        )
+        ctx_low = FilterContext(
+            camera_id="cam", motion_rects=[(0.4, 0.4, 0.2, 0.2, 0.01)]
+        )
         assert NoveltyFilter(0.05).apply([d], ctx_high) == [d]
         assert NoveltyFilter(0.05).apply([d], ctx_low) == []
 
@@ -50,7 +54,7 @@ class TestNoveltyFilter:
 
 class TestMinAreaFilter:
     def test_drops_below_area(self):
-        big = _det(w=0.2, h=0.2)      # area 0.04
+        big = _det(w=0.2, h=0.2)  # area 0.04
         small = _det(w=0.01, h=0.01)  # area 0.0001
         ctx = FilterContext(camera_id="cam")
         assert MinAreaFilter(0.003).apply([big, small], ctx) == [big]
@@ -97,7 +101,9 @@ class TestDetectionPipeline:
 
     def test_survivor_passes_all_stages(self):
         survivor = _det(cx=0.1, cy=0.1, w=0.2, h=0.2)
-        ctx = FilterContext(camera_id="cam", recent_alerts=[(0.0, _det(cx=0.9, cy=0.9))])
+        ctx = FilterContext(
+            camera_id="cam", recent_alerts=[(0.0, _det(cx=0.9, cy=0.9))]
+        )
         pipe = DetectionPipeline([MinAreaFilter(0.003), CooldownFilter(0.15)])
         assert pipe.run([survivor], ctx) == [survivor]
 

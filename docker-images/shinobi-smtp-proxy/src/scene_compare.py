@@ -27,8 +27,11 @@ def filter_by_zone(detections: list[Detection], zones: CameraZones) -> list[Dete
     return result
 
 
-def annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
-                   new_detections: list[Detection] | None = None) -> bytes:
+def annotate_frame(
+    jpeg_bytes: bytes,
+    detections: list[Detection],
+    new_detections: list[Detection] | None = None,
+) -> bytes:
     """Draw bounding boxes and labels on a JPEG frame. Returns annotated JPEG bytes.
     Green boxes for new/alerting detections, gray for baseline-matched ones."""
     try:
@@ -61,9 +64,13 @@ def annotate_frame(jpeg_bytes: bytes, detections: list[Detection],
         return jpeg_bytes
 
 
-def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
-                      reference_frame: GrayFrame,
-                      margin: float = 0.03) -> float | None:
+def patch_edge_change(
+    camera_id: str,
+    jpeg_bytes: bytes,
+    det: Detection,
+    reference_frame: GrayFrame,
+    margin: float = 0.03,
+) -> float | None:
     """Compare edge maps (Canny) of a detection's patch between the
     baseline reference frame and the current frame.
 
@@ -123,10 +130,18 @@ def patch_edge_change(camera_id: str, jpeg_bytes: bytes, det: Detection,
         "EdgeCmp %s %s@(%.2f,%.2f): patch=%dx%d total_px=%d "
         "ref_edges=%d ref_dilated=%d cur_edges=%d new_edges=%d "
         "frac=%.4f (new/cur_edges)",
-        camera_id, det.name, det.cx, det.cy,
-        patch_size[0], patch_size[1], total_pixels,
-        ref_edge_count, ref_dilated_count, cur_edge_count,
-        new_edge_count, frac,
+        camera_id,
+        det.name,
+        det.cx,
+        det.cy,
+        patch_size[0],
+        patch_size[1],
+        total_pixels,
+        ref_edge_count,
+        ref_dilated_count,
+        cur_edge_count,
+        new_edge_count,
+        frac,
     )
 
     return frac

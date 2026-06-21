@@ -24,7 +24,10 @@ class DiscordNotifier:
     """
 
     def __init__(
-        self, bot_token: str, channel_id: str, cooldown_seconds: int = 60,
+        self,
+        bot_token: str,
+        channel_id: str,
+        cooldown_seconds: int = 60,
         bot_name: str = "Shinobi SMTP Proxy",
     ) -> None:
         self.bot_token = bot_token
@@ -50,8 +53,9 @@ class DiscordNotifier:
         last = self._last_sent.get(camera_id, 0)
         return (time.monotonic() - last) < self.cooldown_seconds
 
-    async def send_alert(self, camera_id: str, description: str,
-                         jpeg_bytes: bytes | None = None) -> bool:
+    async def send_alert(
+        self, camera_id: str, description: str, jpeg_bytes: bytes | None = None
+    ) -> bool:
         """Send a detection alert to Discord for a camera.
 
         Args:

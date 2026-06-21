@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from baseline_service import BaselineService
     from camera_runtime import CameraState
     from frame_selector import BestFrameSelector
-    from pipeline import DetectionPipeline
 
 log = logging.getLogger("smtp-proxy")
 
@@ -35,23 +34,11 @@ class MotionEventProcessor:
         baseline_service: BaselineService,
         frame_selector: BestFrameSelector,
         alert_dispatcher: AlertDispatcher,
-        motion_pre: DetectionPipeline,
-        motion_post: DetectionPipeline,
-        followup_pre: DetectionPipeline,
-        followup_post: DetectionPipeline,
-        followup_interval: float,
-        followup_duration: float,
     ) -> None:
         self.scheduler = scheduler
         self.baseline_service = baseline_service
         self.frame_selector = frame_selector
         self.alert_dispatcher = alert_dispatcher
-        self.motion_pre = motion_pre
-        self.motion_post = motion_post
-        self.followup_pre = followup_pre
-        self.followup_post = followup_post
-        self.followup_interval = followup_interval
-        self.followup_duration = followup_duration
 
     async def process_motion_event(
         self,
@@ -80,6 +67,7 @@ class MotionEventProcessor:
             )
             await self._send_detected_alert(
                 event.camera_id,
+                camera,
                 f"Motion: {names}",
                 event.jpeg_bytes,
                 all_yolo_detections,
@@ -88,18 +76,21 @@ class MotionEventProcessor:
             self.baseline_service.record_alert(camera, new)
             return True
         except Exception:
-            log.warning("Motion processing error for %s", event.camera_id, exc_info=True)
+            log.warning(
+                "Motion processing error for %s", event.camera_id, exc_info=True
+            )
             return False
 
     async def follow_up_scan(self, camera_id: str, camera: CameraState) -> None:
         if camera.followup_active:
             return
         camera.followup_active = True
-        deadline = time.monotonic() + self.followup_duration
+        tuning = camera.config.tuning
+        deadline = time.monotonic() + tuning.followup_duration
         scan_num = 0
         try:
             while time.monotonic() < deadline:
-                await asyncio.sleep(self.followup_interval)
+                await asyncio.sleep(tuning.followup_interval)
                 if time.monotonic() >= deadline:
                     break
                 scan_num += 1
@@ -109,7 +100,7 @@ class MotionEventProcessor:
                     scan_num,
                 )
                 if extended:
-                    deadline = time.monotonic() + self.followup_duration
+                    deadline = time.monotonic() + tuning.followup_duration
         except Exception:
             log.warning("FollowUp scan error for %s", camera_id, exc_info=True)
         finally:
@@ -172,7 +163,7 @@ class MotionEventProcessor:
         ctx: FilterContext,
         camera: CameraState,
     ) -> tuple[list[Detection], list[Detection]]:
-        detections = self.motion_pre.run(detections, ctx)
+        detections = camera.pipelines.motion_pre.run(detections, ctx)
         if not detections:
             return [], []
 
@@ -200,7 +191,7 @@ class MotionEventProcessor:
             )
             return [], baseline
 
-        new = self.motion_post.run(new, ctx)
+        new = camera.pipelines.motion_post.run(new, ctx)
         if not new:
             log.debug(
                 "Motion %s: no new objects after confirmation filters",
@@ -242,6 +233,7 @@ class MotionEventProcessor:
         )
         await self._send_detected_alert(
             camera_id,
+            camera,
             f"FollowUp: {names}",
             jpeg_bytes,
             detections,
@@ -273,7 +265,7 @@ class MotionEventProcessor:
         camera: CameraState,
         scan_num: int,
     ) -> list[Detection]:
-        detections = self.followup_pre.run(detections, ctx)
+        detections = camera.pipelines.followup_pre.run(detections, ctx)
         if not detections:
             return []
 
@@ -293,7 +285,7 @@ class MotionEventProcessor:
             )
             return []
 
-        new = self.followup_post.run(new, ctx)
+        new = camera.pipelines.followup_post.run(new, ctx)
         if not new:
             log.debug(
                 "FollowUp %s scan %d: new detections suppressed by cooldown",
@@ -305,6 +297,7 @@ class MotionEventProcessor:
     async def _send_detected_alert(
         self,
         camera_id: str,
+        camera: CameraState,
         description: str,
         jpeg_bytes: bytes,
         all_detections: list[Detection],
@@ -315,6 +308,7 @@ class MotionEventProcessor:
             jpeg_bytes,
             all_detections,
             new_detections,
+            position_tolerance=camera.config.tuning.position_tolerance,
         )
         annotated = annotate_frame(
             jpeg_bytes=best_frame.jpeg_bytes,

@@ -50,7 +50,9 @@ class CameraBuffer:
             if seconds is None or not self.frames:
                 return [frame.jpeg_bytes for frame in self.frames]
             cutoff = time.monotonic() - seconds
-            return [frame.jpeg_bytes for frame in self.frames if frame.timestamp >= cutoff]
+            return [
+                frame.jpeg_bytes for frame in self.frames if frame.timestamp >= cutoff
+            ]
 
     def evict_stale(self, max_age: float) -> None:
         with self._lock:
@@ -184,9 +186,7 @@ class RTSPReader(threading.Thread):
         fh, fw = gray.shape
         cell_h = fh / self._GRID_ROWS
         cell_w = fw / self._GRID_COLS
-        current_grid = np.zeros(
-            (self._GRID_ROWS, self._GRID_COLS), dtype=np.float32
-        )
+        current_grid = np.zeros((self._GRID_ROWS, self._GRID_COLS), dtype=np.float32)
         for r in range(self._GRID_ROWS):
             for c in range(self._GRID_COLS):
                 y1 = int(r * cell_h)
@@ -273,8 +273,12 @@ class RTSPReader(threading.Thread):
                     jpeg_bytes = jpeg.tobytes()
                     self.buf.add(jpeg_bytes)
                     self._record_frame_ok(len(jpeg_bytes))
-                    m.camera_frames_total.labels(camera=self.camera_id, status="ok").inc()
-                    m.camera_bytes_total.labels(camera=self.camera_id).inc(len(jpeg_bytes))
+                    m.camera_frames_total.labels(
+                        camera=self.camera_id, status="ok"
+                    ).inc()
+                    m.camera_bytes_total.labels(camera=self.camera_id).inc(
+                        len(jpeg_bytes)
+                    )
 
                     # Motion detection (if enabled)
                     if self._motion_queue is not None:
@@ -286,7 +290,9 @@ class RTSPReader(threading.Thread):
                                 if now - self._last_motion >= MOTION_COOLDOWN:
                                     self._last_motion = now
                                     self._record_motion_event()
-                                    m.motion_events_total.labels(camera=self.camera_id).inc()
+                                    m.motion_events_total.labels(
+                                        camera=self.camera_id
+                                    ).inc()
                                     try:
                                         self._motion_queue.put_nowait(
                                             MotionEvent(

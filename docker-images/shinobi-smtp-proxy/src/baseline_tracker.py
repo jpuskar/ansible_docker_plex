@@ -44,8 +44,12 @@ class BaselineCandidate:
 
     def as_detection(self) -> Detection:
         return Detection(
-            cls_id=self.cls_id, name=self.name,
-            cx=self.cx, cy=self.cy, w=self.w, h=self.h,
+            cls_id=self.cls_id,
+            name=self.name,
+            cx=self.cx,
+            cy=self.cy,
+            w=self.w,
+            h=self.h,
             conf=1.0,
         )
 
@@ -58,8 +62,7 @@ class BaselineTracker:
     """Hysteresis-based baseline: objects must appear N cycles to enter.
     To leave, a low-confidence verification pass must also fail to find them."""
 
-    def __init__(self, add_threshold: int = 3,
-                 tolerance: float = 0.15) -> None:
+    def __init__(self, add_threshold: int = 3, tolerance: float = 0.15) -> None:
         self.add_threshold = add_threshold
         self.tolerance = tolerance
         self.candidates: list[BaselineCandidate] = []
@@ -72,9 +75,11 @@ class BaselineTracker:
         return self.cycles >= self.add_threshold
 
     def _match(self, det: Detection, cand: BaselineCandidate) -> bool:
-        return (_same_class_group(cand.cls_id, det.cls_id)
-                and abs(cand.cx - det.cx) < self.tolerance
-                and abs(cand.cy - det.cy) < self.tolerance)
+        return (
+            _same_class_group(cand.cls_id, det.cls_id)
+            and abs(cand.cx - det.cx) < self.tolerance
+            and abs(cand.cy - det.cy) < self.tolerance
+        )
 
     def update(self, detections: list[Detection]) -> list[str]:
         """Feed one cycle of normal-confidence detections.
@@ -106,7 +111,10 @@ class BaselineTracker:
             if best is not None:
                 matched_candidates.add(best)
                 self.candidates[best].update(det)
-                if not self.candidates[best].promoted and self.candidates[best].hits >= self.add_threshold:
+                if (
+                    not self.candidates[best].promoted
+                    and self.candidates[best].hits >= self.add_threshold
+                ):
                     self.candidates[best].promoted = True
                     messages.append(f"promoted {self.candidates[best]}")
             else:
@@ -128,9 +136,12 @@ class BaselineTracker:
             # Re-index _missed_promoted after removals
             if to_remove:
                 removed_set = set(to_remove)
-                shift = [sum(1 for r in to_remove if r < i) for i in self._missed_promoted]
+                shift = [
+                    sum(1 for r in to_remove if r < i) for i in self._missed_promoted
+                ]
                 self._missed_promoted = [
-                    i - s for i, s in zip(self._missed_promoted, shift)
+                    i - s
+                    for i, s in zip(self._missed_promoted, shift)
                     if i not in removed_set
                 ]
 

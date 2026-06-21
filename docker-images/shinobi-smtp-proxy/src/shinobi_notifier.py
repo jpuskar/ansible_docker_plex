@@ -23,8 +23,13 @@ class ShinobiNotifier:
     Endpoint: GET /{api_key}/motion/{group_key}/{monitor_id}?data={...}
     """
 
-    def __init__(self, base_url: str, api_key: str, group_key: str,
-                 monitor_map: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        group_key: str,
+        monitor_map: dict[str, str] | None = None,
+    ) -> None:
         """
         Args:
             base_url: Shinobi base URL (e.g. http://shinobi:8080)
@@ -111,7 +116,9 @@ class ShinobiNotifier:
 
             log.info(
                 "Shinobi monitor: mid=%s, name=%s, ip=%s",
-                mid, name, host_ip or "(stripped by API perms)",
+                mid,
+                name,
+                host_ip or "(stripped by API perms)",
             )
 
         # Match our camera IDs to Shinobi monitor IDs
@@ -125,17 +132,29 @@ class ShinobiNotifier:
             if camera_ip in ip_to_mid:
                 self.monitor_map[camera_id] = ip_to_mid[camera_ip]
                 matched += 1
-                log.info("Mapped %s -> monitor %s (by IP)", camera_id, ip_to_mid[camera_ip])
+                log.info(
+                    "Mapped %s -> monitor %s (by IP)", camera_id, ip_to_mid[camera_ip]
+                )
             elif camera_id in mid_set:
                 self.monitor_map[camera_id] = camera_id
                 matched += 1
-                log.info("Mapped %s -> monitor %s (mid matches camera_id)", camera_id, camera_id)
+                log.info(
+                    "Mapped %s -> monitor %s (mid matches camera_id)",
+                    camera_id,
+                    camera_id,
+                )
             elif camera_id in name_to_mid:
                 self.monitor_map[camera_id] = name_to_mid[camera_id]
                 matched += 1
-                log.info("Mapped %s -> monitor %s (by name)", camera_id, name_to_mid[camera_id])
+                log.info(
+                    "Mapped %s -> monitor %s (by name)",
+                    camera_id,
+                    name_to_mid[camera_id],
+                )
             else:
-                log.warning("No Shinobi monitor found for %s (%s)", camera_id, camera_ip)
+                log.warning(
+                    "No Shinobi monitor found for %s (%s)", camera_id, camera_ip
+                )
 
         log.info(
             "Shinobi monitor discovery: %d/%d cameras mapped (%d monitors total)",
@@ -144,8 +163,9 @@ class ShinobiNotifier:
             len(monitors),
         )
 
-    async def trigger_event(self, camera_id: str, detections: list[Detection],
-                            reason: str | None = None) -> bool:
+    async def trigger_event(
+        self, camera_id: str, detections: list[Detection], reason: str | None = None
+    ) -> bool:
         """Push a detection event to Shinobi's timeline.
 
         Args:

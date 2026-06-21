@@ -1,4 +1,5 @@
 """Tests for the Detection dataclass in object_detector.py."""
+
 from object_detector import Detection
 
 
@@ -7,6 +8,7 @@ def _det(cls_id=0, name="person", cx=0.5, cy=0.5, w=0.1, h=0.2, conf=0.9):
 
 
 # --- is_near ---
+
 
 class TestIsNear:
     def test_same_class_close(self):
@@ -66,6 +68,7 @@ class TestIsNear:
 
 # --- max_novelty ---
 
+
 class TestMaxNovelty:
     def test_no_rects(self):
         d = _det(cx=0.5, cy=0.5, w=0.2, h=0.2)
@@ -105,6 +108,7 @@ class TestMaxNovelty:
 
 
 # --- repr ---
+
 
 class TestRepr:
     def test_format(self):

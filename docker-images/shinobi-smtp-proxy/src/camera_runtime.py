@@ -5,6 +5,7 @@ from typing import TypeAlias
 
 from baseline_tracker import BaselineTracker
 from object_detector import Detection
+from pipeline import CameraPipelines
 from proxy_types.alerts import RecentAlerts
 from proxy_types.camera import CameraConfig, CameraId, GrayFrame
 from rtsp_reader import CameraBuffer, RTSPReader
@@ -22,6 +23,7 @@ class CameraState:
     buffer: CameraBuffer
     tracker: BaselineTracker
     reader: RTSPReader
+    pipelines: CameraPipelines
     baseline: list[Detection] = field(default_factory=list)
     baseline_initialized: bool = False
     reference_frame: GrayFrame | None = None

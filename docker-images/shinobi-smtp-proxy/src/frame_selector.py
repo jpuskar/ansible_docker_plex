@@ -18,11 +18,9 @@ class BestFrameSelector:
         self,
         get_recent_frames: Callable[[str, float], list[bytes]],
         scheduler: InferenceScheduler,
-        position_tolerance: float,
     ) -> None:
         self.get_recent_frames = get_recent_frames
         self.scheduler = scheduler
-        self.position_tolerance = position_tolerance
 
     async def select(
         self,
@@ -30,6 +28,7 @@ class BestFrameSelector:
         jpeg_bytes: bytes,
         all_detections: list[Detection],
         new_detections: list[Detection],
+        position_tolerance: float,
     ) -> BestFrameSelection:
         best_frame = BestFrameSelection(
             jpeg_bytes=jpeg_bytes,
@@ -51,11 +50,9 @@ class BestFrameSelector:
             camera_id=camera_id,
         )
         delayed_new = [
-            d for d in delayed_dets
-            if any(
-                d.is_near(n, tolerance=self.position_tolerance)
-                for n in new_detections
-            )
+            d
+            for d in delayed_dets
+            if any(d.is_near(n, tolerance=position_tolerance) for n in new_detections)
         ]
         if not delayed_new:
             return best_frame

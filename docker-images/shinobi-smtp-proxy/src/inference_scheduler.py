@@ -133,7 +133,9 @@ class InferenceScheduler:
                 self._pending_baseline.pop(req.camera_id, None)
 
             try:
-                priority_label = "motion" if req.priority == PRIORITY_MOTION else "baseline"
+                priority_label = (
+                    "motion" if req.priority == PRIORITY_MOTION else "baseline"
+                )
                 t0 = time.monotonic()
                 detections = await self.detector.get_detections(
                     req.image_data,
@@ -144,12 +146,17 @@ class InferenceScheduler:
                 if not req.future.done():
                     req.future.set_result(detections)
                 m.inference_duration.labels(priority=priority_label).observe(elapsed_s)
-                m.inference_total.labels(priority=priority_label, camera=req.camera_id).inc()
+                m.inference_total.labels(
+                    priority=priority_label, camera=req.camera_id
+                ).inc()
                 m.inference_queue_depth.set(self._queue.qsize())
                 log.log(
                     5,  # TRACE
                     "Inference done: priority=%d camera=%s %.0fms %d dets",
-                    req.priority, req.camera_id, elapsed_s * 1000, len(detections),
+                    req.priority,
+                    req.camera_id,
+                    elapsed_s * 1000,
+                    len(detections),
                 )
             except Exception as exc:
                 if not req.future.done():

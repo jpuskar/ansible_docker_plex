@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from typing import NamedTuple, TypeAlias
+from dataclasses import dataclass, field, replace
+from typing import ClassVar, NamedTuple, TypeAlias
 
 import cv2
 import numpy as np
@@ -69,12 +69,89 @@ CameraZones: TypeAlias = list[ZonePolygon]
 
 
 @dataclass(frozen=True)
+class CameraTuning:
+    """Resolved detection and alert tuning for one camera."""
+
+    position_tolerance: float = 0.15
+    motion_threshold: int = 25
+    motion_min_area: int = 500
+    min_detection_area: float = 0.003
+    baseline_add_threshold: int = 3
+    baseline_verify_confidence: float = 0.15
+    min_motion_novelty: float = 0.05
+    scene_change_threshold: float = 0.15
+    alert_cooldown: float = 300.0
+    followup_interval: float = 3.0
+    followup_duration: float = 15.0
+
+    FLOAT_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "position_tolerance",
+            "min_detection_area",
+            "baseline_verify_confidence",
+            "min_motion_novelty",
+            "scene_change_threshold",
+            "alert_cooldown",
+            "followup_interval",
+            "followup_duration",
+        }
+    )
+    INT_FIELDS: ClassVar[frozenset[str]] = frozenset(
+        {
+            "motion_threshold",
+            "motion_min_area",
+            "baseline_add_threshold",
+        }
+    )
+
+    @classmethod
+    def from_mapping(
+        cls,
+        raw_tuning: object,
+        base: CameraTuning | None = None,
+        path: str = "tuning",
+    ) -> CameraTuning:
+        tuning = base or cls()
+        if raw_tuning is None:
+            return tuning
+        if not isinstance(raw_tuning, Mapping):
+            raise ValueError(f"{path} must be a mapping")
+
+        values: dict[str, float | int] = {}
+        for key in cls.FLOAT_FIELDS:
+            if key in raw_tuning:
+                values[key] = cls._required_float(raw_tuning[key], f"{path}.{key}")
+        for key in cls.INT_FIELDS:
+            if key in raw_tuning:
+                values[key] = cls._required_int(raw_tuning[key], f"{path}.{key}")
+        return replace(tuning, **values)
+
+    @staticmethod
+    def _required_float(value: object, path: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{path} must be numeric")
+        parsed = float(value)
+        if parsed < 0:
+            raise ValueError(f"{path} must be non-negative")
+        return parsed
+
+    @staticmethod
+    def _required_int(value: object, path: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{path} must be an integer")
+        if value < 0:
+            raise ValueError(f"{path} must be non-negative")
+        return value
+
+
+@dataclass(frozen=True)
 class CameraConfig:
     """Static configuration for one camera."""
 
     id: CameraId
     host: str
     zones: CameraZones
+    tuning: CameraTuning = field(default_factory=CameraTuning)
 
 
 CameraConfigs: TypeAlias = list[CameraConfig]
@@ -83,10 +160,15 @@ CameraConfigs: TypeAlias = list[CameraConfig]
 class CameraConfigParser:
     """Parses unvalidated YAML values into camera domain objects."""
 
+    def __init__(self, default_tuning: CameraTuning | None = None) -> None:
+        self.default_tuning = default_tuning or CameraTuning()
+
     def parse_all(self, raw_cameras: object) -> CameraConfigs:
         if raw_cameras is None:
             return []
-        if not isinstance(raw_cameras, Sequence) or isinstance(raw_cameras, (str, bytes)):
+        if not isinstance(raw_cameras, Sequence) or isinstance(
+            raw_cameras, (str, bytes)
+        ):
             raise ValueError("cameras must be a list")
 
         camera_configs: CameraConfigs = []
@@ -106,7 +188,12 @@ class CameraConfigParser:
         camera_id = self.required_str(raw_camera, "id", path)
         host = self.required_str(raw_camera, "host", path)
         zones = self.parse_zones(raw_camera.get("zones", []), path=f"{path}.zones")
-        return CameraConfig(id=camera_id, host=host, zones=zones)
+        tuning = CameraTuning.from_mapping(
+            raw_camera.get("tuning"),
+            base=self.default_tuning,
+            path=f"{path}.tuning",
+        )
+        return CameraConfig(id=camera_id, host=host, zones=zones, tuning=tuning)
 
     def parse_zones(self, raw_zones: object, path: str) -> CameraZones:
         if not isinstance(raw_zones, Sequence) or isinstance(raw_zones, (str, bytes)):
@@ -135,6 +222,9 @@ class CameraConfigParser:
         return value
 
 
-def build_camera_configs(raw_cameras: object) -> CameraConfigs:
+def build_camera_configs(
+    raw_cameras: object,
+    default_tuning: CameraTuning | None = None,
+) -> CameraConfigs:
     """Validate app config and return camera configs with owned zone objects."""
-    return CameraConfigParser().parse_all(raw_cameras)
+    return CameraConfigParser(default_tuning=default_tuning).parse_all(raw_cameras)

@@ -10,7 +10,7 @@ from aiohttp import web
 from baseline_manager import BaselineManager
 from discord_notifier import DiscordNotifier
 from object_detector import ObjectDetector, TARGET_CLASSES
-from proxy_types.camera import build_camera_configs
+from proxy_types.camera import CameraTuning, build_camera_configs
 from shinobi_notifier import ShinobiNotifier
 
 with open("/config/config.yaml") as f:
@@ -63,7 +63,11 @@ async def main() -> None:
 
     # Set up baseline manager if cameras are configured
     baseline_manager = None
-    camera_configs = build_camera_configs(config.get("cameras", []))
+    default_camera_tuning = CameraTuning.from_mapping(config, path="config")
+    camera_configs = build_camera_configs(
+        config.get("cameras", []),
+        default_tuning=default_camera_tuning,
+    )
 
     # Auto-discover Shinobi monitor IDs from camera IPs
     if shinobi_notifier and camera_configs:
@@ -87,16 +91,9 @@ async def main() -> None:
             detector=detector,
             buffer_seconds=config.get("buffer_seconds", 10),
             baseline_interval=config.get("baseline_interval", 60),
-            position_tolerance=config.get("position_tolerance", 0.15),
             discord_notifier=discord_notifier,
             motion_detection=config.get("motion_detection", True),
-            motion_threshold=config.get("motion_threshold", 25),
-            motion_min_area=config.get("motion_min_area", 500),
-            min_detection_area=config.get("min_detection_area", 0.003),
             shinobi_notifier=shinobi_notifier,
-            baseline_add_threshold=config.get("baseline_add_threshold", 3),
-            baseline_verify_confidence=config.get("baseline_verify_confidence", 0.15),
-            min_motion_novelty=config.get("min_motion_novelty", 0.05),
         )
         await baseline_manager.start()
 

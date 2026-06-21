@@ -1,4 +1,5 @@
 """Tests for CameraBuffer in rtsp_reader.py."""
+
 import time
 from unittest.mock import patch
 
@@ -53,7 +54,9 @@ class TestCameraBuffer:
         buf = CameraBuffer(maxlen=10)
         with buf._lock:
             now = time.monotonic()
-            buf.frames.append(FrameSnapshot(timestamp=now - 100, jpeg_bytes=b"very_old"))
+            buf.frames.append(
+                FrameSnapshot(timestamp=now - 100, jpeg_bytes=b"very_old")
+            )
             buf.frames.append(FrameSnapshot(timestamp=now - 50, jpeg_bytes=b"old"))
             buf.frames.append(FrameSnapshot(timestamp=now - 1, jpeg_bytes=b"recent"))
         buf.evict_stale(max_age=10)

@@ -16,6 +16,7 @@ from inference_scheduler import InferenceScheduler
 import metrics as m
 from motion_processor import MotionEventProcessor
 from pipeline import (
+    CameraPipelines,
     CooldownFilter,
     DetectionPipeline,
     EdgeChangeFilter,
@@ -23,11 +24,9 @@ from pipeline import (
     NoveltyFilter,
     ZoneFilter,
 )
-from proxy_types.camera import CameraConfig
+from proxy_types.camera import CameraConfig, CameraTuning
 from proxy_types.motion import MotionEvent
 from rtsp_reader import (
-    MOTION_MIN_AREA,
-    MOTION_THRESHOLD,
     RTSP_SUBSTREAM,
     CameraBuffer,
     RTSPReader,
@@ -57,34 +56,21 @@ class BaselineManager:
         detector: ObjectDetector,
         buffer_seconds: int = 10,
         baseline_interval: int = 60,
-        position_tolerance: float = 0.15,
         discord_notifier: DiscordNotifier | None = None,
         motion_detection: bool = True,
-        motion_threshold: int = MOTION_THRESHOLD,
-        motion_min_area: int = MOTION_MIN_AREA,
-        min_detection_area: float = 0.003,
         shinobi_notifier: ShinobiNotifier | None = None,
-        baseline_add_threshold: int = 3,
-        baseline_verify_confidence: float = 0.15,
-        min_motion_novelty: float = 0.05,
     ) -> None:
         self.username = username
         self.password = password
         self.detector = detector
         self.buffer_seconds = buffer_seconds
         self.baseline_interval = baseline_interval
-        self.position_tolerance = position_tolerance
         self.discord_notifier = discord_notifier
         self.shinobi_notifier = shinobi_notifier
         self.motion_detection = motion_detection
 
         self._log_detection_zones(camera_configs)
-        log.info(
-            "Baseline hysteresis: promote after %d cycles (%ds), verify at %.0f%% confidence",
-            baseline_add_threshold,
-            baseline_add_threshold * baseline_interval,
-            baseline_verify_confidence * 100,
-        )
+        self._log_baseline_tuning(camera_configs)
 
         self._baseline_task: asyncio.Task[None] | None = None
         self._metrics_task: asyncio.Task[None] | None = None
@@ -104,16 +90,8 @@ class BaselineManager:
             password=password,
             maxlen=maxlen,
             motion_detection=motion_detection,
-            motion_threshold=motion_threshold,
-            motion_min_area=motion_min_area,
-            baseline_add_threshold=baseline_add_threshold,
-            position_tolerance=position_tolerance,
         )
-        self._wire_services(
-            min_detection_area=min_detection_area,
-            min_motion_novelty=min_motion_novelty,
-            baseline_verify_confidence=baseline_verify_confidence,
-        )
+        self._wire_services()
 
     async def start(self) -> None:
         for camera in self.cameras.values():
@@ -162,6 +140,19 @@ class BaselineManager:
                 ", ".join(zone_camera_ids),
             )
 
+    def _log_baseline_tuning(
+        self,
+        camera_configs: Sequence[CameraConfig],
+    ) -> None:
+        for config in camera_configs:
+            tuning = config.tuning
+            log.info(
+                "Baseline hysteresis %s: promote after %d cycles, verify at %.0f%% confidence",
+                config.id,
+                tuning.baseline_add_threshold,
+                tuning.baseline_verify_confidence * 100,
+            )
+
     def _build_camera_states(
         self,
         camera_configs: Sequence[CameraConfig],
@@ -169,17 +160,14 @@ class BaselineManager:
         password: str,
         maxlen: int,
         motion_detection: bool,
-        motion_threshold: int,
-        motion_min_area: int,
-        baseline_add_threshold: int,
-        position_tolerance: float,
     ) -> CameraStates:
         cameras: CameraStates = {}
         for config in camera_configs:
+            tuning = config.tuning
             buffer = CameraBuffer(maxlen=maxlen)
             tracker = BaselineTracker(
-                add_threshold=baseline_add_threshold,
-                tolerance=position_tolerance,
+                add_threshold=tuning.baseline_add_threshold,
+                tolerance=tuning.position_tolerance,
             )
             url = RTSP_SUBSTREAM.format(user=username, passwd=password, ip=config.host)
             reader = RTSPReader(
@@ -187,8 +175,8 @@ class BaselineManager:
                 rtsp_url=url,
                 buf=buffer,
                 motion_queue=self._motion_queue if motion_detection else None,
-                motion_threshold=motion_threshold,
-                motion_min_area=motion_min_area,
+                motion_threshold=tuning.motion_threshold,
+                motion_min_area=tuning.motion_min_area,
                 motion_zone_polygons=config.zones,
             )
             cameras[config.id] = CameraState(
@@ -196,49 +184,51 @@ class BaselineManager:
                 buffer=buffer,
                 tracker=tracker,
                 reader=reader,
+                pipelines=self._build_camera_pipelines(tuning),
             )
         return cameras
 
-    def _wire_services(
-        self,
-        min_detection_area: float,
-        min_motion_novelty: float,
-        baseline_verify_confidence: float,
-    ) -> None:
-        scene_change_threshold = 0.15
-        alert_cooldown = 300.0
-        followup_interval = 3.0
-        followup_duration = 15.0
+    def _build_camera_pipelines(self, tuning: CameraTuning) -> CameraPipelines:
+        motion_pre = DetectionPipeline(
+            [
+                ZoneFilter(),
+                NoveltyFilter(tuning.min_motion_novelty),
+                MinAreaFilter(tuning.min_detection_area),
+            ]
+        )
+        motion_post = DetectionPipeline(
+            [
+                EdgeChangeFilter(tuning.scene_change_threshold),
+                CooldownFilter(tuning.position_tolerance),
+            ]
+        )
+        followup_pre = DetectionPipeline(
+            [
+                ZoneFilter(),
+                MinAreaFilter(tuning.min_detection_area),
+            ]
+        )
+        followup_post = DetectionPipeline(
+            [
+                CooldownFilter(tuning.position_tolerance),
+            ]
+        )
+        return CameraPipelines(
+            motion_pre=motion_pre,
+            motion_post=motion_post,
+            followup_pre=followup_pre,
+            followup_post=followup_post,
+        )
 
-        motion_pre = DetectionPipeline([
-            ZoneFilter(),
-            NoveltyFilter(min_motion_novelty),
-            MinAreaFilter(min_detection_area),
-        ])
-        motion_post = DetectionPipeline([
-            EdgeChangeFilter(scene_change_threshold),
-            CooldownFilter(self.position_tolerance),
-        ])
-        followup_pre = DetectionPipeline([
-            ZoneFilter(),
-            MinAreaFilter(min_detection_area),
-        ])
-        followup_post = DetectionPipeline([
-            CooldownFilter(self.position_tolerance),
-        ])
-
+    def _wire_services(self) -> None:
         alert_dispatcher = AlertDispatcher(self.discord_notifier, self.shinobi_notifier)
         baseline_service = BaselineService(
             scheduler=self._scheduler,
             detector=self.detector,
-            position_tolerance=self.position_tolerance,
-            verify_confidence=baseline_verify_confidence,
-            alert_cooldown=alert_cooldown,
         )
         frame_selector = BestFrameSelector(
             get_recent_frames=self._get_recent_frames,
             scheduler=self._scheduler,
-            position_tolerance=self.position_tolerance,
         )
         self._baseline_service = baseline_service
         self._motion_processor = MotionEventProcessor(
@@ -246,12 +236,6 @@ class BaselineManager:
             baseline_service=baseline_service,
             frame_selector=frame_selector,
             alert_dispatcher=alert_dispatcher,
-            motion_pre=motion_pre,
-            motion_post=motion_post,
-            followup_pre=followup_pre,
-            followup_post=followup_post,
-            followup_interval=followup_interval,
-            followup_duration=followup_duration,
         )
 
     async def _metrics_loop(self) -> None:
@@ -272,11 +256,13 @@ class BaselineManager:
     def _log_camera_metrics(self) -> None:
         ok_cams = [c.config.id for c in self.cameras.values() if c.snap_ok > 0]
         fail_cams = [
-            c.config.id for c in self.cameras.values()
+            c.config.id
+            for c in self.cameras.values()
             if c.snap_fail > 0 and c.snap_ok == 0
         ]
         partial = [
-            c.config.id for c in self.cameras.values()
+            c.config.id
+            for c in self.cameras.values()
             if c.snap_fail > 0 and c.snap_ok > 0
         ]
 

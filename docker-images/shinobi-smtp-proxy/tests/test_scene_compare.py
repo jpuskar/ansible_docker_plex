@@ -1,4 +1,5 @@
 """Tests for scene_compare.py — zone filtering, annotation, edge comparison."""
+
 import io
 
 import cv2
@@ -7,7 +8,7 @@ import pytest
 from PIL import Image
 
 from object_detector import Detection
-from proxy_types.camera import ZonePolygon, build_camera_configs
+from proxy_types.camera import CameraTuning, ZonePolygon, build_camera_configs
 from scene_compare import filter_by_zone, annotate_frame, patch_edge_change
 
 
@@ -32,6 +33,7 @@ def _make_gray_jpeg(width=100, height=100, value=128):
 
 # --- filter_by_zone ---
 
+
 class TestBuildCameraConfigs:
     def test_none_returns_empty_configs(self):
         assert build_camera_configs(None) == []
@@ -46,10 +48,12 @@ class TestBuildCameraConfigs:
 
     def test_rejects_duplicate_camera_ids(self):
         with pytest.raises(ValueError, match="duplicates 'cam1'"):
-            build_camera_configs([
-                {"id": "cam1", "host": "192.0.2.10"},
-                {"id": "cam1", "host": "192.0.2.11"},
-            ])
+            build_camera_configs(
+                [
+                    {"id": "cam1", "host": "192.0.2.10"},
+                    {"id": "cam1", "host": "192.0.2.11"},
+                ]
+            )
 
     def test_requires_non_empty_host(self):
         with pytest.raises(ValueError, match="host must be a non-empty string"):
@@ -57,20 +61,20 @@ class TestBuildCameraConfigs:
 
     def test_requires_zone_points(self):
         with pytest.raises(ValueError, match="must define points"):
-            build_camera_configs([
-                {"id": "cam1", "host": "192.0.2.10", "zones": [{}]}
-            ])
+            build_camera_configs([{"id": "cam1", "host": "192.0.2.10", "zones": [{}]}])
 
     def test_converts_raw_config_to_camera_owned_zones(self):
-        cameras = build_camera_configs([
-            {
-                "id": "cam1",
-                "host": "192.0.2.10",
-                "zones": [
-                    {"points": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]},
-                ],
-            },
-        ])
+        cameras = build_camera_configs(
+            [
+                {
+                    "id": "cam1",
+                    "host": "192.0.2.10",
+                    "zones": [
+                        {"points": [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0]]},
+                    ],
+                },
+            ]
+        )
 
         assert len(cameras) == 1
         assert cameras[0].id == "cam1"
@@ -78,24 +82,103 @@ class TestBuildCameraConfigs:
         assert len(cameras[0].zones) == 1
         assert cameras[0].zones[0].points.dtype == np.float32
         assert cameras[0].zones[0].points.shape == (3, 2)
+        assert cameras[0].tuning == CameraTuning()
+
+    def test_applies_default_camera_tuning(self):
+        default_tuning = CameraTuning(
+            min_motion_novelty=0.08,
+            min_detection_area=0.01,
+            position_tolerance=0.2,
+        )
+
+        cameras = build_camera_configs(
+            [{"id": "cam1", "host": "192.0.2.10"}],
+            default_tuning=default_tuning,
+        )
+
+        assert cameras[0].tuning == default_tuning
+
+    def test_camera_tuning_overrides_defaults(self):
+        default_tuning = CameraTuning(
+            min_motion_novelty=0.08,
+            min_detection_area=0.01,
+            motion_threshold=30,
+        )
+
+        cameras = build_camera_configs(
+            [
+                {
+                    "id": "cam1",
+                    "host": "192.0.2.10",
+                    "tuning": {
+                        "min_detection_area": 0.002,
+                        "motion_threshold": 20,
+                    },
+                }
+            ],
+            default_tuning=default_tuning,
+        )
+
+        assert cameras[0].tuning.min_motion_novelty == 0.08
+        assert cameras[0].tuning.min_detection_area == 0.002
+        assert cameras[0].tuning.motion_threshold == 20
+
+    def test_requires_camera_tuning_mapping(self):
+        with pytest.raises(ValueError, match=r"cameras\[0\]\.tuning must be a mapping"):
+            build_camera_configs(
+                [{"id": "cam1", "host": "192.0.2.10", "tuning": "fast"}]
+            )
+
+    def test_requires_numeric_camera_tuning_value(self):
+        with pytest.raises(
+            ValueError,
+            match=r"cameras\[0\]\.tuning\.min_motion_novelty must be numeric",
+        ):
+            build_camera_configs(
+                [
+                    {
+                        "id": "cam1",
+                        "host": "192.0.2.10",
+                        "tuning": {"min_motion_novelty": "high"},
+                    }
+                ]
+            )
 
     def test_requires_at_least_three_points(self):
         with pytest.raises(ValueError, match="at least 3 points"):
-            build_camera_configs([
-                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.0, 0.0]]}]}
-            ])
+            build_camera_configs(
+                [
+                    {
+                        "id": "cam1",
+                        "host": "192.0.2.10",
+                        "zones": [{"points": [[0.0, 0.0], [1.0, 0.0]]}],
+                    }
+                ]
+            )
 
     def test_requires_xy_points(self):
         with pytest.raises(ValueError, match="must be \\[x, y\\]"):
-            build_camera_configs([
-                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.0], [1.0, 1.0]]}]}
-            ])
+            build_camera_configs(
+                [
+                    {
+                        "id": "cam1",
+                        "host": "192.0.2.10",
+                        "zones": [{"points": [[0.0, 0.0], [1.0], [1.0, 1.0]]}],
+                    }
+                ]
+            )
 
     def test_requires_normalized_coordinates(self):
         with pytest.raises(ValueError, match="normalized"):
-            build_camera_configs([
-                {"id": "cam1", "host": "192.0.2.10", "zones": [{"points": [[0.0, 0.0], [1.2, 0.0], [1.0, 1.0]]}]}
-            ])
+            build_camera_configs(
+                [
+                    {
+                        "id": "cam1",
+                        "host": "192.0.2.10",
+                        "zones": [{"points": [[0.0, 0.0], [1.2, 0.0], [1.0, 1.0]]}],
+                    }
+                ]
+            )
 
 
 class TestFilterByZone:
@@ -115,6 +198,7 @@ class TestFilterByZone:
 
 
 # --- annotate_frame ---
+
 
 class TestAnnotateFrame:
     def test_returns_valid_jpeg(self):
@@ -146,6 +230,7 @@ class TestAnnotateFrame:
 
 # --- patch_edge_change ---
 
+
 class TestPatchEdgeChange:
     def _gray_np(self, width=100, height=100, value=128):
         """Create a numpy grayscale array (simulates a reference frame)."""
@@ -172,7 +257,7 @@ class TestPatchEdgeChange:
         # Current frame: add a bright rectangle (simulates person-shaped object)
         cur = ref.copy()
         cv2.rectangle(cur, (70, 30), (130, 170), 255, -1)  # filled rect
-        cv2.rectangle(cur, (70, 30), (130, 170), 0, 3)      # strong border
+        cv2.rectangle(cur, (70, 30), (130, 170), 0, 3)  # strong border
 
         _, encoded = cv2.imencode(".jpg", cur)
         jpeg = encoded.tobytes()

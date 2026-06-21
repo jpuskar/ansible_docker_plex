@@ -3,6 +3,7 @@
 Stubs out heavy dependencies (ultralytics/torch) that aren't needed for
 unit-testing the pure-Python logic.
 """
+
 import sys
 import types
 from pathlib import Path
