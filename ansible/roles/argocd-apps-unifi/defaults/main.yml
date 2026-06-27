@@ -17,11 +17,12 @@ unifi_psmdb_replset_size: 3
 unifi_psmdb_storage_class: "openebs-rawfile"
 unifi_psmdb_storage_size: "8Gi"
 
-# Percona MongoDB resource limits — sized small for Unifi workload
+# Percona MongoDB resource limits — mongod 7.0 needs headroom above the
+# WiredTiger cache floor; 512Mi caused the TLS healthcheck to time out (2s).
 unifi_psmdb_resources_requests_cpu: "100m"
-unifi_psmdb_resources_requests_memory: "256Mi"
+unifi_psmdb_resources_requests_memory: "512Mi"
 unifi_psmdb_resources_limits_cpu: "1000m"
-unifi_psmdb_resources_limits_memory: "512Mi"
+unifi_psmdb_resources_limits_memory: "1Gi"
 
 # Unifi application data persistence
 unifi_data_storage_class: "openebs-rawfile"
