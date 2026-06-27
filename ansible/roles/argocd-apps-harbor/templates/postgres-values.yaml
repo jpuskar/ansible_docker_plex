@@ -63,11 +63,38 @@ proxy:
                 postgres-operator.crunchydata.com/cluster: {{ harbor_postgres_cluster_name }}-pg-db
                 postgres-operator.crunchydata.com/role: pgbouncer
 
-# Disable backups (but pgbackrest image must still be specified — operator 3.0.0 validates it)
+# Backups MUST be enabled on operator 3.0.0:
+# - The 3.0.0 operator requires the pgbackrest image even when backups are off
+#   (K8SPG-710 / VerifyImageValues runs before any other reconcile step), and a
+#   missing image hard-blocks the API-group ownerRef migration.
+# - The pg-db chart only renders backups.pgbackrest.image when backups.enabled is
+#   true (the whole pgbackrest block is gated behind `if .Values.backups.enabled`).
+# So we enable backups with a single local (PVC-backed) repo, pinned to the
+# TPM-encrypted nodes so DB backups stay on encrypted storage.
 backups:
-  enabled: false
+  enabled: true
   pgbackrest:
     image: docker.io/percona/percona-pgbackrest:2.58.0-2
+    repoHost:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: encryption.talos.dev/tpm
+                    operator: In
+                    values:
+                      - "{{ harbor_node_selector_tpm }}"
+    repos:
+      - name: repo1
+        volume:
+          volumeClaimSpec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: {{ harbor_postgres_backup_size }}
+            storageClassName: {{ harbor_postgres_storage_class }}
 
 # TLS: Do NOT set customRootCATLSSecret / customTLSSecret / customReplicationTLSSecret.
 # With 3.0.0 the operator natively integrates with cert-manager when those are absent:
@@ -76,8 +103,6 @@ backups:
 
 # PostgreSQL configuration
 postgresVersion: {{ harbor_postgres_version }}
-# Pin image to PG 17 — chart defaults to PG 18 which would trigger a major upgrade
-image: docker.io/percona/percona-distribution-postgresql:17.10-1
 
 # Create Harbor user and database
 users:
