@@ -4,6 +4,10 @@
 # Cluster name
 crName: {{ harbor_postgres_cluster_name }}
 
+# Pin image to PG 17 — chart 3.0.0 defaults to PG 18 which we don't want.
+# See certified images: https://docs.percona.com/percona-operator-for-postgresql/latest/images.html
+image: docker.io/percona/percona-distribution-postgresql:17.10-1
+
 # PostgreSQL instances configuration
 instances:
   - name: instance1
@@ -59,9 +63,11 @@ proxy:
                 postgres-operator.crunchydata.com/cluster: {{ harbor_postgres_cluster_name }}-pg-db
                 postgres-operator.crunchydata.com/role: pgbouncer
 
-# Disable backups
+# Disable backups (but pgbackrest image must still be specified — operator 3.0.0 validates it)
 backups:
   enabled: false
+  pgbackrest:
+    image: docker.io/percona/percona-pgbackrest:2.58.0-2
 
 # TLS: Do NOT set customRootCATLSSecret / customTLSSecret / customReplicationTLSSecret.
 # With 3.0.0 the operator natively integrates with cert-manager when those are absent:
@@ -70,6 +76,8 @@ backups:
 
 # PostgreSQL configuration
 postgresVersion: {{ harbor_postgres_version }}
+# Pin image to PG 17 — chart defaults to PG 18 which would trigger a major upgrade
+image: docker.io/percona/percona-distribution-postgresql:17.10-1
 
 # Create Harbor user and database
 users:
