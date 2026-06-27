@@ -63,9 +63,10 @@ proxy:
 backups:
   enabled: false
 
-# TLS configuration using cert-manager certificate
-customRootCATLSSecret:
-  name: harbor-postgres-tls
+# TLS: Do NOT set customRootCATLSSecret / customTLSSecret / customReplicationTLSSecret.
+# With 3.0.0 the operator natively integrates with cert-manager when those are absent:
+# it creates a self-signed Issuer and requests Certificates automatically.
+# See: https://docs.percona.com/percona-operator-for-postgresql/latest/tls-cert-manager.html
 
 # PostgreSQL configuration
 postgresVersion: {{ harbor_postgres_version }}
