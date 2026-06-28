@@ -13,10 +13,11 @@ harbor_namespace: "harbor"
 # PostgreSQL configuration
 harbor_postgres_chart_repo: "https://percona.github.io/percona-helm-charts/"
 harbor_postgres_chart_name: "pg-db"
-harbor_postgres_chart_version: "2.8.2"
+harbor_postgres_chart_version: "3.0.0"
 harbor_postgres_cluster_name: "harbor-postgres"
 harbor_postgres_storage_class: "openebs-rawfile"
 harbor_postgres_storage_size: "20Gi"
+harbor_postgres_backup_size: "10Gi"
 harbor_postgres_replicas: 2
 harbor_postgres_version: 17
 harbor_postgres_user: "harbor"

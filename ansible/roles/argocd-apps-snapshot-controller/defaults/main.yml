@@ -1,0 +1,13 @@
+---
+# snapshot-controller ArgoCD Application Role Defaults
+#
+# Deploys the generic Kubernetes CSI snapshot-controller as a cluster-wide
+# Deployment with leader-election. This serves all CSI drivers that support
+# VolumeSnapshots (rawfile-localpv, etc.)
+#
+# Reference: https://github.com/kubernetes-csi/external-snapshotter
+
+snapshot_controller_namespace: "kube-system"
+snapshot_controller_image: "registry.k8s.io/sig-storage/snapshot-controller"
+snapshot_controller_version: "v8.2.1"
+snapshot_controller_replicas: 2

@@ -1,0 +1,5 @@
+---
+- name: Template out snapshot-controller manifests
+  template:
+    src: snapshot-controller.yaml
+    dest: "{{ output_dir_path }}/snapshot-controller.yaml"

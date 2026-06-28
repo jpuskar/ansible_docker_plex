@@ -40,6 +40,15 @@ replsets:
       antiAffinityTopologyKey: "kubernetes.io/hostname"
     podDisruptionBudget:
       maxUnavailable: 1
+    # Readiness probe: the operator default 2s timeout is too aggressive — the
+    # TLS mongodb-healthcheck intermittently exceeds 2s during WiredTiger
+    # checkpoints and the nightly backup, flapping the pod NotReady.
+    readinessProbe:
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 5
+      successThreshold: 1
+      failureThreshold: 8
     resources:
       requests:
         cpu: "{{ unifi_psmdb_resources_requests_cpu }}"

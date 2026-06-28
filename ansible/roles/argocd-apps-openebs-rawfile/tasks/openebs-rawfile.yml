@@ -27,7 +27,11 @@
         --include-crds
   register: helm_template_command
 
+- name: Strip bundled snapshot-controller from DaemonSet (deployed cluster-wide separately)
+  set_fact:
+    rawfile_manifests: "{{ helm_template_command.stdout | strip_snapshot_controller }}"
+
 - name: write output manifests for helm template
   copy:
-    content: "{{ helm_template_command.stdout }}"
+    content: "{{ rawfile_manifests }}"
     dest: "{{ output_dir_path }}/openebs-rawfile-helm-manifests.yaml"

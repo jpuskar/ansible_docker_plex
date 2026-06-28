@@ -1,4 +1,8 @@
 ---
+# Optional leaf certificate for external postgres client connections (pgBouncer TLS)
+# signed by the cluster-wide CA. The operator's internal TLS is managed automatically
+# via its native cert-manager integration (self-signed Issuer) in 3.0.0.
+# See: https://docs.percona.com/percona-operator-for-postgresql/latest/tls-cert-manager.html
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
