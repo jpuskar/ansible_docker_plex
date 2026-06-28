@@ -1,3 +1,4 @@
+---
 # Grafana Mimir Helm values — distributed (microservices) mode
 # Chart: mimir-distributed v6.0.6
 # Each component runs as its own deployment/statefulset (1 replica each for homelab).
@@ -8,6 +9,14 @@ mimir:
   structuredConfig:
     # Single-tenant mode (no X-Scope-OrgID header required)
     multitenancy_enabled: false
+
+    # Disable Kafka ingest-storage (chart v6 enables it by default).
+    # Classic write path: Alloy → distributor → ingester (direct gRPC).
+    # Can add Kafka later for durability/replay if needed.
+    ingest_storage:
+      enabled: false
+    ingester:
+      push_grpc_method_enabled: true
 
     # Limits / retention
     limits:
