@@ -12,6 +12,15 @@
 alloy:
   clustering:
     enabled: true
+  mounts:
+    varlog: true
+    dockercontainers: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
   # Alloy configuration — River syntax
   configMap:
     content: |
@@ -173,31 +182,12 @@ alloy:
 # --- DaemonSet controller settings ---
 controller:
   type: daemonset
+  # Tolerations so Alloy runs on all nodes including control plane
+  tolerations:
+    - operator: Exists
 
 # --- Volume mounts — Talos-specific ---
 # Only mount /var/log/pods. Do NOT mount:
 #   /var/lib/docker/containers (no Docker on Talos)
 #   /run/log/journal (no systemd journal exposed on Talos)
-mounts:
-  varlog: true     # mounts /var/log (includes /var/log/pods)
-  dockercontainers: false  # no Docker on Talos
-
-# ServiceAccount for k8s discovery
-serviceAccount:
-  create: true
-
-# ClusterRole needs access to ServiceMonitors, PodMonitors, PrometheusRules
-rbac:
-  create: true
-
-# Tolerations so Alloy runs on all nodes including control plane
-tolerations:
-  - operator: Exists
-
-# Resource requests/limits — increased for metrics scraping
-resources:
-  requests:
-    cpu: 50m
-    memory: 128Mi
-  limits:
-    memory: 512Mi
+# NOTE: mounts and resources are under the top-level 'alloy' key in chart v1.10.0+

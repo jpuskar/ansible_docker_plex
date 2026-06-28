@@ -4,7 +4,7 @@
 # Helm chart configuration
 alloy_chart_repo: "https://grafana.github.io/helm-charts"
 alloy_chart_name: "alloy"
-alloy_chart_version: "1.7.0"
+alloy_chart_version: "1.10.0"
 alloy_namespace: "alloy"
 
 # Loki push endpoint
