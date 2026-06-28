@@ -1,11 +1,10 @@
-# Grafana Mimir Helm values — monolithic mode for homelab
-# Single-binary deployment with built-in MinIO for object storage.
-# Includes ruler (alerting rule evaluation) and alertmanager.
+# Grafana Mimir Helm values — distributed (microservices) mode
+# Each component runs as its own deployment/statefulset (1 replica each for homelab).
+# Built-in MinIO for object storage. Includes ruler + alertmanager.
 
-# --- Deployment mode: monolithic (all components in one process) ---
-deploymentMode: monolithic
+# --- Deployment mode: microservices (see all the pieces) ---
+deploymentMode: microservices
 
-# Single replica for homelab
 mimir:
   structuredConfig:
     common:
@@ -30,7 +29,7 @@ mimir:
 
     # Ruler (evaluates alerting/recording rules)
     ruler:
-      alertmanager_url: http://localhost:8080/alertmanager
+      alertmanager_url: http://mimir-alertmanager.{{ mimir_namespace }}.svc:8080/alertmanager
       rule_path: /data/rules
 
     ruler_storage:
@@ -56,19 +55,98 @@ mimir:
     server:
       log_level: warn
 
-# --- Monolithic deployment settings ---
-monolithic:
+# --- Distributed component settings (1 replica each) ---
+distributor:
   replicas: 1
   resources:
     requests:
-      cpu: 100m
-      memory: 512Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      memory: 1536Mi
+      memory: 256Mi
+
+ingester:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
   persistentVolume:
     enabled: true
     storageClass: openebs-rawfile
     size: {{ mimir_storage_size }}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+querier:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+query_frontend:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+store_gateway:
+  replicas: 1
+  zoneAwareReplication:
+    enabled: false
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+compactor:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+ruler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+alertmanager:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
   extraVolumes:
     - name: alertmanager-fallback
       configMap:
@@ -79,22 +157,8 @@ monolithic:
       subPath: alertmanager.yaml
       readOnly: true
 
-# --- Disable all distributed-mode microservices ---
-ingester:
-  replicas: 0
-distributor:
-  replicas: 0
-querier:
-  replicas: 0
-query_frontend:
-  replicas: 0
-store_gateway:
-  replicas: 0
-compactor:
-  replicas: 0
-ruler:
-  replicas: 0
-alertmanager:
+# --- Disable monolithic mode ---
+monolithic:
   replicas: 0
 
 # --- MinIO (built-in object storage for homelab) ---
@@ -111,7 +175,7 @@ minio:
     limits:
       memory: 256Mi
 
-# --- Nginx gateway ---
+# --- Nginx gateway (entry point for all reads/writes) ---
 gateway:
   enabledNonEnterprise: true
   replicas: 1
@@ -122,11 +186,17 @@ gateway:
     limits:
       memory: 64Mi
 
-# --- Disable components not needed ---
+# --- Disable components not needed at homelab scale ---
 rollout_operator:
   enabled: false
 
-# Results cache — use embedded memcached-like cache in monolithic
+query_scheduler:
+  enabled: false
+
+overrides_exporter:
+  enabled: false
+
+# Caches — skip external memcached, use in-process caches
 chunks-cache:
   enabled: false
 index-cache:
