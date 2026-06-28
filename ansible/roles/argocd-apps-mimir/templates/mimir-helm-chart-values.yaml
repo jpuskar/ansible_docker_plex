@@ -17,6 +17,8 @@ mimir:
       enabled: false
     ingester:
       push_grpc_method_enabled: true
+      ring:
+        replication_factor: 1
 
     # Limits / retention
     limits:
