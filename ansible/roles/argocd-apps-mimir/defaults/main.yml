@@ -4,7 +4,7 @@
 # Helm chart configuration
 mimir_chart_repo: "https://grafana.github.io/helm-charts"
 mimir_chart_name: "mimir-distributed"
-mimir_chart_version: "5.7.0"
+mimir_chart_version: "6.0.6"
 mimir_namespace: "mimir"
 
 # Storage

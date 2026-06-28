@@ -1,47 +1,13 @@
 # Grafana Mimir Helm values — distributed (microservices) mode
+# Chart: mimir-distributed v6.0.6
 # Each component runs as its own deployment/statefulset (1 replica each for homelab).
 # Built-in MinIO for object storage. Includes ruler + alertmanager.
 
-# --- Deployment mode: microservices (see all the pieces) ---
-deploymentMode: microservices
-
+# --- Mimir config overrides (merged on top of chart's built-in config template) ---
 mimir:
   structuredConfig:
-    common:
-      storage:
-        backend: s3
-        s3:
-          endpoint: mimir-minio.{{ mimir_namespace }}.svc:9000
-          access_key_id: "${MINIO_ROOT_USER}"
-          secret_access_key: "${MINIO_ROOT_PASSWORD}"
-          insecure: true
-          bucket_name: mimir
-
-    # Blocks storage (metrics TSDB blocks)
-    blocks_storage:
-      storage_prefix: blocks
-      tsdb:
-        dir: /data/tsdb
-
-    # Compactor
-    compactor:
-      data_dir: /data/compactor
-
-    # Ruler (evaluates alerting/recording rules)
-    ruler:
-      alertmanager_url: http://mimir-alertmanager.{{ mimir_namespace }}.svc:8080/alertmanager
-      rule_path: /data/rules
-
-    ruler_storage:
-      storage_prefix: rules
-
-    # Alertmanager
-    alertmanager:
-      data_dir: /data/alertmanager
-      fallback_config_file: /etc/mimir/alertmanager-fallback.yaml
-
-    alertmanager_storage:
-      storage_prefix: alertmanager
+    # Single-tenant mode (no X-Scope-OrgID header required)
+    multitenancy_enabled: false
 
     # Limits / retention
     limits:
@@ -49,13 +15,47 @@ mimir:
       # Accept out-of-order samples (useful for scrapers with clock skew)
       out_of_order_time_window: 5m
 
-    # Single-tenant mode (no X-Scope-OrgID header required)
-    multitenancy_enabled: false
-
     server:
       log_level: warn
 
 # --- Distributed component settings (1 replica each) ---
+alertmanager:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: 1Gi
+  fallbackConfig: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: robusta
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - match:
+            alertname: Watchdog
+          receiver: "null"
+        - match:
+            alertname: InfoInhibitor
+          receiver: "null"
+    receivers:
+      - name: "null"
+      - name: robusta
+        webhook_configs:
+          - url: "http://robusta-runner.robusta.svc.cluster.local/api/alerts"
+            send_resolved: true
+  zoneAwareReplication:
+    enabled: false
+
 distributor:
   replicas: 1
   resources:
@@ -67,18 +67,18 @@ distributor:
 
 ingester:
   replicas: 1
-  zoneAwareReplication:
-    enabled: false
-  persistentVolume:
-    enabled: true
-    storageClass: openebs-rawfile
-    size: {{ mimir_storage_size }}
   resources:
     requests:
       cpu: 100m
       memory: 256Mi
     limits:
       memory: 512Mi
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: {{ mimir_storage_size }}
+  zoneAwareReplication:
+    enabled: false
 
 querier:
   replicas: 1
@@ -98,33 +98,42 @@ query_frontend:
     limits:
       memory: 256Mi
 
+query_scheduler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
 store_gateway:
   replicas: 1
-  zoneAwareReplication:
-    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
   persistentVolume:
     enabled: true
     storageClass: openebs-rawfile
     size: 5Gi
+  zoneAwareReplication:
+    enabled: false
+
+compactor:
+  replicas: 1
   resources:
     requests:
       cpu: 50m
       memory: 128Mi
     limits:
       memory: 256Mi
-
-compactor:
-  replicas: 1
   persistentVolume:
     enabled: true
     storageClass: openebs-rawfile
     size: 10Gi
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
 
 ruler:
   replicas: 1
@@ -135,49 +144,7 @@ ruler:
     limits:
       memory: 256Mi
 
-alertmanager:
-  replicas: 1
-  persistentVolume:
-    enabled: true
-    storageClass: openebs-rawfile
-    size: 1Gi
-  resources:
-    requests:
-      cpu: 10m
-      memory: 64Mi
-    limits:
-      memory: 128Mi
-  extraVolumes:
-    - name: alertmanager-fallback
-      configMap:
-        name: mimir-alertmanager-fallback
-  extraVolumeMounts:
-    - name: alertmanager-fallback
-      mountPath: /etc/mimir/alertmanager-fallback.yaml
-      subPath: alertmanager.yaml
-      readOnly: true
-
-# --- Disable monolithic mode ---
-monolithic:
-  replicas: 0
-
-# --- MinIO (built-in object storage for homelab) ---
-minio:
-  enabled: true
-  replicas: 1
-  persistence:
-    size: {{ mimir_storage_size }}
-    storageClass: openebs-rawfile
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
-
-# --- Nginx gateway (entry point for all reads/writes) ---
-gateway:
-  enabledNonEnterprise: true
+overrides_exporter:
   replicas: 1
   resources:
     requests:
@@ -186,17 +153,47 @@ gateway:
     limits:
       memory: 64Mi
 
-# --- Disable components not needed at homelab scale ---
+# --- MinIO (built-in object storage for homelab) ---
+minio:
+  enabled: true
+  mode: standalone
+  persistence:
+    size: {{ mimir_storage_size }}
+    storageClass: openebs-rawfile
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+
+# --- Kafka (ingest-storage) — not needed for homelab scale ---
+kafka:
+  enabled: false
+
+# --- Nginx gateway (entry point for all reads/writes) ---
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# --- Rollout operator (manages statefulset rollouts) ---
 rollout_operator:
-  enabled: false
+  enabled: true
 
-query_scheduler:
-  enabled: false
+# --- Ruler querier/frontend/scheduler (dedicated ruler query path) ---
+# Disable for homelab — ruler shares the main query path
+ruler_querier:
+  replicas: 0
+ruler_query_frontend:
+  replicas: 0
+ruler_query_scheduler:
+  replicas: 0
 
-overrides_exporter:
-  enabled: false
-
-# Caches — skip external memcached, use in-process caches
+# --- Caches — skip external memcached, use in-process caches ---
 chunks-cache:
   enabled: false
 index-cache:
