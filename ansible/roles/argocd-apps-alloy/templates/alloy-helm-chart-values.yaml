@@ -1,6 +1,7 @@
 ---
 # Grafana Alloy Helm values — Talos Linux optimized
 # DaemonSet mode for pod log collection, pushing to Loki.
+# Also handles metrics scraping (ServiceMonitors/PodMonitors) → Mimir.
 #
 # Talos-specific notes:
 #   - No Docker runtime → /var/lib/docker/containers does NOT exist
@@ -9,9 +10,73 @@
 #   - Filesystem is immutable; only /var is writable
 
 alloy:
+  clustering:
+    enabled: true
   # Alloy configuration — River syntax
   configMap:
     content: |
+      // ============================================================
+      // Metrics: auto-discover ServiceMonitors and PodMonitors
+      // ============================================================
+      prometheus.operator.servicemonitors "default" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.operator.podmonitors "default" {
+        forward_to = [prometheus.remote_write.mimir.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      // ============================================================
+      // Metrics: static scrape targets (outside the cluster)
+      // ============================================================
+      prometheus.scrape "backups2_node" {
+        targets = [{
+          __address__ = "backups2.{{ domain_fqdn }}:9100",
+          instance    = "backups2",
+          job         = "node-exporter",
+        }]
+        scrape_interval = "60s"
+        forward_to      = [prometheus.remote_write.mimir.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      prometheus.scrape "backups2_smartctl" {
+        targets = [{
+          __address__ = "backups2.{{ domain_fqdn }}:9633",
+          instance    = "backups2",
+          job         = "smartctl-exporter",
+        }]
+        scrape_interval = "15m"
+        forward_to      = [prometheus.remote_write.mimir.receiver]
+        clustering {
+          enabled = true
+        }
+      }
+
+      // ============================================================
+      // Metrics: remote write to Mimir
+      // ============================================================
+      prometheus.remote_write "mimir" {
+        endpoint {
+          url = "{{ alloy_mimir_endpoint }}"
+        }
+      }
+
+      // ============================================================
+      // Rules: sync PrometheusRule CRDs to Mimir ruler
+      // ============================================================
+      mimir.rules.kubernetes "default" {
+        address = "http://mimir-gateway.mimir.svc:80"
+      }
+
       // ============================================================
       // Pod log discovery — Talos-friendly
       // ============================================================
@@ -121,14 +186,18 @@ mounts:
 serviceAccount:
   create: true
 
+# ClusterRole needs access to ServiceMonitors, PodMonitors, PrometheusRules
+rbac:
+  create: true
+
 # Tolerations so Alloy runs on all nodes including control plane
 tolerations:
   - operator: Exists
 
-# Resource requests/limits for a homelab DaemonSet
+# Resource requests/limits — increased for metrics scraping
 resources:
   requests:
-    cpu: 25m
-    memory: 64Mi
+    cpu: 50m
+    memory: 128Mi
   limits:
-    memory: 256Mi
+    memory: 512Mi

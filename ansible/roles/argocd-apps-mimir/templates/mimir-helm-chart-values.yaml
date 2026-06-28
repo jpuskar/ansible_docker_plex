@@ -1,0 +1,137 @@
+# Grafana Mimir Helm values — monolithic mode for homelab
+# Single-binary deployment with built-in MinIO for object storage.
+# Includes ruler (alerting rule evaluation) and alertmanager.
+
+# --- Deployment mode: monolithic (all components in one process) ---
+deploymentMode: monolithic
+
+# Single replica for homelab
+mimir:
+  structuredConfig:
+    common:
+      storage:
+        backend: s3
+        s3:
+          endpoint: mimir-minio.{{ mimir_namespace }}.svc:9000
+          access_key_id: "${MINIO_ROOT_USER}"
+          secret_access_key: "${MINIO_ROOT_PASSWORD}"
+          insecure: true
+          bucket_name: mimir
+
+    # Blocks storage (metrics TSDB blocks)
+    blocks_storage:
+      storage_prefix: blocks
+      tsdb:
+        dir: /data/tsdb
+
+    # Compactor
+    compactor:
+      data_dir: /data/compactor
+
+    # Ruler (evaluates alerting/recording rules)
+    ruler:
+      alertmanager_url: http://localhost:8080/alertmanager
+      rule_path: /data/rules
+
+    ruler_storage:
+      storage_prefix: rules
+
+    # Alertmanager
+    alertmanager:
+      data_dir: /data/alertmanager
+      fallback_config_file: /etc/mimir/alertmanager-fallback.yaml
+
+    alertmanager_storage:
+      storage_prefix: alertmanager
+
+    # Limits / retention
+    limits:
+      compactor_blocks_retention_period: {{ mimir_retention_period }}
+      # Accept out-of-order samples (useful for scrapers with clock skew)
+      out_of_order_time_window: 5m
+
+    # Single-tenant mode (no X-Scope-OrgID header required)
+    multitenancy_enabled: false
+
+    server:
+      log_level: warn
+
+# --- Monolithic deployment settings ---
+monolithic:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1536Mi
+  persistentVolume:
+    enabled: true
+    storageClass: openebs-rawfile
+    size: {{ mimir_storage_size }}
+  extraVolumes:
+    - name: alertmanager-fallback
+      configMap:
+        name: mimir-alertmanager-fallback
+  extraVolumeMounts:
+    - name: alertmanager-fallback
+      mountPath: /etc/mimir/alertmanager-fallback.yaml
+      subPath: alertmanager.yaml
+      readOnly: true
+
+# --- Disable all distributed-mode microservices ---
+ingester:
+  replicas: 0
+distributor:
+  replicas: 0
+querier:
+  replicas: 0
+query_frontend:
+  replicas: 0
+store_gateway:
+  replicas: 0
+compactor:
+  replicas: 0
+ruler:
+  replicas: 0
+alertmanager:
+  replicas: 0
+
+# --- MinIO (built-in object storage for homelab) ---
+minio:
+  enabled: true
+  replicas: 1
+  persistence:
+    size: {{ mimir_storage_size }}
+    storageClass: openebs-rawfile
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+# --- Nginx gateway ---
+gateway:
+  enabledNonEnterprise: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# --- Disable components not needed ---
+rollout_operator:
+  enabled: false
+
+# Results cache — use embedded memcached-like cache in monolithic
+chunks-cache:
+  enabled: false
+index-cache:
+  enabled: false
+metadata-cache:
+  enabled: false
+results-cache:
+  enabled: false

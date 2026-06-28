@@ -1,89 +1,17 @@
 # kube-prometheus-stack Helm values — minimal homelab
-# Keeps Prometheus, Grafana, node-exporter, kube-state-metrics.
-# Disables heavy/unnecessary components.
+# Prometheus and Alertmanager DISABLED — replaced by Mimir + Alloy.
+# Keeps Grafana, node-exporter, kube-state-metrics, Prometheus Operator (CRDs).
 
 # --- Prometheus ---
+# Disabled: Alloy handles scraping, Mimir handles storage.
+# Prometheus Operator still deploys to manage CRDs (ServiceMonitor, PodMonitor, PrometheusRule).
 prometheus:
-  prometheusSpec:
-    replicas: 1
-    retention: 7d
-    resources:
-      requests:
-        cpu: 100m
-        memory: 512Mi
-      limits:
-        memory: 1Gi
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: openebs-rawfile
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 20Gi
-    # Scrape all ServiceMonitors/PodMonitors regardless of labels
-    serviceMonitorSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-    ruleSelectorNilUsesHelmValues: false
-    # Static scrape targets outside the k8s cluster
-    additionalScrapeConfigs:
-      - job_name: backups2-node
-        static_configs:
-          - targets: ["backups2.{{ domain_fqdn }}:9100"]
-            labels:
-              instance: backups2
-        scrape_interval: 60s
-        relabel_configs:
-          - target_label: job
-            replacement: node-exporter
-      - job_name: backups2-smartctl
-        static_configs:
-          - targets: ["backups2.{{ domain_fqdn }}:9633"]
-            labels:
-              instance: backups2
-        scrape_interval: 15m
+  enabled: false
 
 # --- Alertmanager ---
+# Disabled: Mimir's built-in ruler + alertmanager handles alerting.
 alertmanager:
-  enabled: true
-  alertmanagerSpec:
-    replicas: 1
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-      limits:
-        memory: 128Mi
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: openebs-rawfile
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 1Gi
-  config:
-    global:
-      resolve_timeout: 5m
-    route:
-      receiver: robusta
-      group_by: ["alertname", "namespace"]
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 4h
-      routes:
-        - match:
-            alertname: Watchdog
-          receiver: "null"
-        - match:
-            alertname: InfoInhibitor
-          receiver: "null"
-    receivers:
-      - name: "null"
-      - name: robusta
-        webhook_configs:
-          - url: "http://robusta-runner.robusta.svc.cluster.local/api/alerts"
-            send_resolved: true
+  enabled: false
 
 # --- Grafana ---
 grafana:
@@ -104,8 +32,21 @@ grafana:
     existingSecret: grafana-admin-credentials
     userKey: admin-user
     passwordKey: admin-password
-  # Loki datasource for log queries
+  # Disable default Prometheus datasource (kube-prometheus-stack auto-creates one
+  # pointing at the now-disabled in-cluster Prometheus)
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
+  # Datasources: Mimir (metrics) + Loki (logs)
   additionalDataSources:
+    - name: Mimir
+      type: prometheus
+      access: proxy
+      url: http://mimir-gateway.mimir.svc:80/prometheus
+      isDefault: true
+      jsonData:
+        timeInterval: 15s
+        prometheusType: Mimir
     - name: Loki
       type: loki
       access: proxy

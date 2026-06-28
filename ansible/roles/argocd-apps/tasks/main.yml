@@ -19,6 +19,7 @@
     - kube-prometheus-stack-application.yaml
     - robusta-application.yaml
     - loki-application.yaml
+    - mimir-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml
@@ -62,6 +63,7 @@
     - kube-prometheus-stack-application.yaml
     - robusta-application.yaml
     - loki-application.yaml
+    - mimir-application.yaml
     - alloy-application.yaml
     - kyverno-application.yaml
     - shinobi-smtp-proxy-application.yaml

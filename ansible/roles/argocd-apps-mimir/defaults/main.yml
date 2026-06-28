@@ -1,0 +1,12 @@
+---
+# Mimir ArgoCD Application Role Defaults
+
+# Helm chart configuration
+mimir_chart_repo: "https://grafana.github.io/helm-charts"
+mimir_chart_name: "mimir-distributed"
+mimir_chart_version: "5.7.0"
+mimir_namespace: "mimir"
+
+# Storage
+mimir_storage_size: "20Gi"
+mimir_retention_period: "30d"

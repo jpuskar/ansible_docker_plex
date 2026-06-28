@@ -9,3 +9,6 @@ alloy_namespace: "alloy"
 
 # Loki push endpoint
 alloy_loki_endpoint: "http://loki-gateway.loki.svc:80/loki/api/v1/push"
+
+# Mimir remote write endpoint
+alloy_mimir_endpoint: "http://mimir-gateway.mimir.svc:80/api/v1/push"

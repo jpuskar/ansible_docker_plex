@@ -1,0 +1,32 @@
+---
+# Mimir alertmanager fallback configuration
+# Used when no tenant-specific config exists.
+# Routes alerts to Robusta webhook (same as previous Alertmanager setup).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mimir-alertmanager-fallback
+  namespace: {{ mimir_namespace }}
+data:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: robusta
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes:
+        - match:
+            alertname: Watchdog
+          receiver: "null"
+        - match:
+            alertname: InfoInhibitor
+          receiver: "null"
+    receivers:
+      - name: "null"
+      - name: robusta
+        webhook_configs:
+          - url: "http://robusta-runner.robusta.svc.cluster.local/api/alerts"
+            send_resolved: true
