@@ -9,6 +9,7 @@
     - cert-manager-application.yaml
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
+    - snapshot-controller-application.yaml
     - percona-postgres-operator-application.yaml
     - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
@@ -51,6 +52,7 @@
     - cert-manager-application.yaml
     - trust-manager-application.yaml
     - openebs-rawfile-application.yaml
+    - snapshot-controller-application.yaml
     - percona-postgres-operator-application.yaml
     - percona-mongodb-operator-application.yaml
     - redis-operator-application.yaml
