@@ -8,5 +8,5 @@ mimir_chart_version: "6.0.6"
 mimir_namespace: "mimir"
 
 # Storage
-mimir_storage_size: "20Gi"
+mimir_storage_size: "50Gi"
 mimir_retention_period: "30d"
