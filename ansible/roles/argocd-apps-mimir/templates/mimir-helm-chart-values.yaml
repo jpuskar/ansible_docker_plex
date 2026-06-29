@@ -25,6 +25,10 @@ mimir:
       compactor_blocks_retention_period: {{ mimir_retention_period }}
       # Accept out-of-order samples (useful for scrapers with clock skew)
       out_of_order_time_window: 5m
+      # Series and ingestion limits (defaults are too low for a full k8s cluster)
+      max_global_series_per_user: 500000
+      ingestion_rate: 50000
+      ingestion_burst_size: 500000
 
     server:
       log_level: warn
